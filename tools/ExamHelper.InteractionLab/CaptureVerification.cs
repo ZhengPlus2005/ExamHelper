@@ -14,6 +14,8 @@ internal static class CaptureVerification
     public static async Task RunAsync(string directory)
     {
         Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "capture-result.json"), "{\"Passed\":false,\"Status\":\"Running\"}");
+        if (File.Exists(Path.Combine(directory, "error.txt"))) File.Delete(Path.Combine(directory, "error.txt"));
         var reference = new Window { Title = "ExamHelper Capture Reference", Left = 80, Top = 80, Width = 900, Height = 760,
             WindowStyle = WindowStyle.None, Background = new SolidColorBrush(Color.FromRgb(34, 102, 68)), ShowInTaskbar = false };
         reference.Show();
@@ -22,7 +24,7 @@ internal static class CaptureVerification
         var scale = VisualTreeHelper.GetDpi(reference);
         var before = Capture((int)origin.X, (int)origin.Y, (int)(900 * scale.DpiScaleX), (int)(760 * scale.DpiScaleY));
         Save(before, Path.Combine(directory, "reference.png"));
-        var overlay = new MainWindow { Left = 120, Top = 100, Width = 640, Height = 600 };
+        var overlay = new MainWindow(registerHotkeys: false) { Left = 120, Top = 100, Width = 640, Height = 600 };
         if (!overlay.Protection.Success) throw new InvalidOperationException($"Protection failed: {overlay.Protection}");
         overlay.Show();
         await Task.Delay(500);
@@ -32,13 +34,15 @@ internal static class CaptureVerification
         var b = new byte[a.Length];
         before.CopyPixels(a, before.PixelWidth * 4, 0); after.CopyPixels(b, after.PixelWidth * 4, 0);
         int differences = 0; for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) differences++;
+        var nativeChecks = NativeVerification.Run(reference, overlay);
         File.WriteAllText(Path.Combine(directory, "capture-result.json"), JsonSerializer.Serialize(new {
             OS = Environment.OSVersion.VersionString, Protection = overlay.Protection,
             CaptureBackend = "GDI BitBlt SRCCOPY; own reference surface only", before.PixelWidth, before.PixelHeight,
-            Differences = differences, Passed = differences == 0, Dpi = scale.PixelsPerInchX
+            Differences = differences, Passed = differences == 0 && nativeChecks.All(c => c.Value), NativeChecks = nativeChecks, Dpi = scale.PixelsPerInchX
         }, new JsonSerializerOptions { WriteIndented = true }));
         overlay.Close(); reference.Close();
         if (differences != 0) throw new InvalidOperationException($"Capture contains {differences} changed bytes; inspect artifacts.");
+        if (nativeChecks.Any(c => !c.Value)) throw new InvalidOperationException("Native integration check failed; inspect capture-result.json.");
     }
     private static BitmapSource Capture(int x, int y, int width, int height)
     {

@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Data;
 using ExamHelper.Core.Interaction;
 namespace ExamHelper.App.Controls;
 public sealed class HoverScrollBehavior
@@ -22,6 +23,11 @@ public sealed class HoverScrollBehavior
             bar.Width = 24; bar.ApplyTemplate();
             var track = bar.Template.FindName("PART_Track", bar) as Track;
             if (track?.Thumb is not Thumb thumb) return;
+            // Aero2 binds Track.IsEnabled to ScrollBar.IsMouseOver. That would
+            // disable the thumb while the pointer is horizontally outside it.
+            track.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(UIElement.IsEnabled)) { Source = bar, Mode = BindingMode.OneWay });
+            thumb.MinHeight = 24;
+            session.ActiveChanged += active => thumb.Opacity = active && session.Mode == InteractionMode.Scrolling ? 1 : 0.65;
             DwellBehavior.SetCommand(thumb, new DelegateCommand(() =>
             {
                 var travel = track.ActualHeight - thumb.ActualHeight;

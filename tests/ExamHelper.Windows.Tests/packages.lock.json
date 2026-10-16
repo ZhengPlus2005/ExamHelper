@@ -93,8 +93,20 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "examhelper.app": {
+        "type": "Project",
+        "dependencies": {
+          "ExamHelper.Windows": "[1.0.0, )"
+        }
+      },
       "examhelper.core": {
         "type": "Project"
+      },
+      "examhelper.interactionlab": {
+        "type": "Project",
+        "dependencies": {
+          "ExamHelper.App": "[1.0.0, )"
+        }
       },
       "examhelper.testsupport": {
         "type": "Project"

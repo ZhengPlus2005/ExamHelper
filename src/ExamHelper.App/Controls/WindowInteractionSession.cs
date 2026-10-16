@@ -28,7 +28,7 @@ public sealed class WindowInteractionSession : IDisposable
     {
         if (IsActive || !_window.IsVisible) return;
         _controller.Begin(mode, Read()); _apply = apply;
-        DwellBehavior.SetSuspended(_window, true); ActiveChanged?.Invoke(true); _timer.Start();
+        DwellBehavior.SetSuspended(_window, true); _timer.Start(); ActiveChanged?.Invoke(true);
     }
     public void End()
     {

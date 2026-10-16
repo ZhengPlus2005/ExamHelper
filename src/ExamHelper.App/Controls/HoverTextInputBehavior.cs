@@ -33,6 +33,7 @@ public sealed class HoverTextInputBehavior : IDisposable
     }
     public void CancelInput()
     {
+        if (!_lease.IsActive) return;
         Keyboard.ClearFocus(); FocusManager.SetFocusedElement(_window, null);
         var result = _lease.End(); if (!result.Success) StatusChanged?.Invoke(result.Error!);
     }
@@ -40,7 +41,7 @@ public sealed class HoverTextInputBehavior : IDisposable
     private void Closed(object? sender, EventArgs e) => Dispose();
     public void Dispose()
     {
-        CancelInput(); _source.RemoveHook(_hook);
+        CancelInput(); if (!_source.IsDisposed) _source.RemoveHook(_hook);
         _window.IsVisibleChanged -= VisibilityChanged; _window.Closed -= Closed;
     }
 }
