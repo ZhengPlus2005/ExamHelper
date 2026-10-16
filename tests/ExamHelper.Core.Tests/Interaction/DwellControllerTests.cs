@@ -42,4 +42,12 @@ public class DwellControllerTests
         clock.Advance(TimeSpan.FromSeconds(2)); Assert.Null(dwell.Tick());
         dwell.Enter("x", TimeSpan.FromSeconds(1)); Assert.Null(dwell.Tick());
     }
+    [Fact]
+    public void InvalidatingUnhoveredTargetDoesNotRequireExtraVisit()
+    {
+        var clock = new ManualTimeProvider(); var dwell = new DwellController(clock);
+        dwell.InvalidateLayout(pointerOver: false);
+        dwell.Enter("next", TimeSpan.FromSeconds(1)); clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal("next", dwell.Tick());
+    }
 }

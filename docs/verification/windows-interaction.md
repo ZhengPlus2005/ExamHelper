@@ -23,11 +23,21 @@ GDI BitBlt SRCCOPY 前后截图为 1125×950 像素，逐字节差异 0。通过
 
 ## 最新自动化与原生集成结果
 
-全部测试共 24 项通过（Core 12、Windows 12），包括实际 WPF 窗口模板加载与滑块命令挂载。源码编译为零警告、零错误。真实原生集成有 11 项通过，结果位于 `artifacts/capture/capture-result.json`：默认快捷键注册、重复注册失败、隐藏后仍占用、释放后重注册、Esc 注册与释放、焦点进入、英文布局、输入框禁用组合输入、焦点恢复、原布局恢复。
+全部测试共 30 项通过（Core 13、Windows 17），包括实际 WPF 窗口模板加载与滑块命令挂载。源码编译为零警告、零错误。真实原生集成有 11 项通过，结果位于 `artifacts/capture/capture-result.json`：默认快捷键注册、重复注册失败、隐藏后仍占用、释放后重注册、Esc 注册与释放、焦点进入、英文布局、输入框禁用组合输入、焦点恢复、原布局恢复。
 
 修复了实际启动才出现的只读进度绑定异常，以及 Aero2 默认 Track.IsEnabled 跟随鼠标悬停导致滑块离开即禁用的问题。两项均以先失败后通过的 WPF 回归测试验证。
 
 Computer Use 的 WGC 窗口状态截图返回了受保护窗口后方的内容，未得到辅助小窗画面；此现象仅作为该工具捕获路径的观察，不替代系统截图工具兼容性结论。
+
+代码审查：独立只读审查未发现 Critical，发现两项 Important，均已修复并回归：暂停解除后非悬停按钮不应吞掉首次进入；IMM 恢复失败必须传播。Minor 暂缓：HoverScrollBehavior 的 Loaded 重复订阅需要在产品阶段复用／卸载视图时补齐对称解绑，当前单次创建实验窗不重复加载。
+
+系统截图工具版本 11.2608.41.0 已定位并尝试启动，但 Computer Use 连续报告最小化／输入状态变化，未取得可用捕获界面，因此系统截图路径仍记为未验证。未修改系统缩放或隐私设置。
+
+## 运行方式
+
+自包含验证 EXE：`D:\Code\ExamHelper\artifacts\windows-core\ExamHelper.InteractionLab.exe`。保持同目录依赖文件一起使用，无需另装运行时。本阶段不是正式安装版，也没有云服务接入。
+
+同目录运行 `ExamHelper.InteractionLab.exe --verify D:\Code\ExamHelper\artifacts\windows-core-check` 可重复自动捕获和原生检查；只创建自身测试窗口。交互窗口 Ctrl+Alt+F9 隐藏／恢复，Ctrl+Alt+F12 退出；悬停退出等两秒。其他快捷键在此实验程序中只演示命令状态，不实际上传截图或录音。
 
 ## 仍需实际手势验证的关卡
 

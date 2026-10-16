@@ -62,7 +62,12 @@ public static class DwellBehavior
         }
         private void Detach() { _scope?.States.Remove(this); _scope = null; Block(); }
         private Point? ScreenPoint() => PresentationSource.FromVisual(_element) is null ? null : _element.PointToScreen(Mouse.GetPosition(_element));
-        public void Block() { _dwell.Suspend(); _timer.Stop(); _element.SetValue(ProgressKey, 0d); _blockedAt = ScreenPoint(); }
+        public void Block()
+        {
+            var pointerOver = _element.IsMouseOver;
+            _dwell.InvalidateLayout(pointerOver); _timer.Stop(); _element.SetValue(ProgressKey, 0d);
+            _blockedAt = pointerOver ? ScreenPoint() : null;
+        }
         private void Leave()
         {
             _timer.Stop(); _element.SetValue(ProgressKey, 0d);

@@ -23,26 +23,20 @@ public static class InputLanguageService
         if (context != 0) { try { ImmSetOpenStatus(context, false); } finally { ImmReleaseContext(hwnd, context); } }
         return (Read(hwnd).Layout.ToInt64() & 0xFFFF) == 0x409;
     }
-    public static bool Restore(nint hwnd, InputState state)
+    public static bool Restore(nint hwnd, InputState state) => new InputStateRestorer(new RestoreApi()).Restore(hwnd, state);
+    private sealed class RestoreApi : IInputRestoreApi
     {
-        var thread = GetWindowThreadProcessId(hwnd, out _);
-        if (thread == 0) return false;
-        if (GetKeyboardLayout(thread) != state.Layout)
+        public bool RestoreLayout(nint hwnd, nint layout)
         {
-            if (thread == GetCurrentThreadId()) { if (ActivateKeyboardLayout(state.Layout, 0) == 0) return false; }
-            else if (!PostMessage(hwnd, 0x0050, 0, state.Layout)) return false;
+            var thread = GetWindowThreadProcessId(hwnd, out _);
+            if (thread == 0) return false;
+            if (GetKeyboardLayout(thread) == layout) return true;
+            return thread == GetCurrentThreadId() ? ActivateKeyboardLayout(layout, 0) != 0 : PostMessage(hwnd, 0x0050, 0, layout);
         }
-        var context = ImmGetContext(hwnd);
-        if (context != 0)
-        {
-            try
-            {
-                if (state.Conversion is uint c && state.Sentence is uint s) ImmSetConversionStatus(context, c, s);
-                if (state.Open is bool open) ImmSetOpenStatus(context, open);
-            }
-            finally { ImmReleaseContext(hwnd, context); }
-        }
-        return true;
+        public nint GetContext(nint hwnd) => ImmGetContext(hwnd);
+        public bool SetConversion(nint context, uint conversion, uint sentence) => ImmSetConversionStatus(context, conversion, sentence);
+        public bool SetOpen(nint context, bool open) => ImmSetOpenStatus(context, open);
+        public void ReleaseContext(nint hwnd, nint context) => ImmReleaseContext(hwnd, context);
     }
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);
     [DllImport("user32.dll")] private static extern nint GetKeyboardLayout(uint thread);

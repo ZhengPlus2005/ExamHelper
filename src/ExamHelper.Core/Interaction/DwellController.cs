@@ -14,7 +14,7 @@ public sealed class DwellController(TimeProvider clock)
     }
     public void Leave() { _target = null; _blocked = false; }
     public void Suspend() { _target = null; _blocked = true; }
-    public void InvalidateLayout() => Suspend();
+    public void InvalidateLayout(bool pointerOver = true) { if (pointerOver) Suspend(); else Leave(); }
     public string? Tick()
     {
         if (_target is null || _blocked || clock.GetElapsedTime(_started) < _delay) return null;

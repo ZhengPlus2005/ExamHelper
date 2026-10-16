@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 10 LTS、WPF、System.Text.Json、HttpClient、Microsoft.Data.Sqlite、System.Security.Cryptography.ProtectedData、NAudio、xUnit、Inno Setup 6。第三方依赖在第一次实际恢复时选择稳定版本并锁定，不使用浮动版本或预览版。
 
-**Spec:** [已认可的设计文档](../specs/2026-10-16-examhelper-design.md)，含用户明确接受的第 14 节。计划日期：2026-10-16；状态：等待用户审核及选择执行方式。
+**Spec:** [已认可的设计文档](../specs/2026-10-16-examhelper-design.md)，含用户明确接受的第 14 节。计划日期：2026-10-16；状态：用户已认可计划并选择当前会话顺序执行，当前优先完成阶段 A。
 
 ## Global Constraints
 
@@ -90,6 +90,8 @@
 UI／Windows 命名空间一律 `ExamHelper.<Project>.<Feature>`，表中 Core／Windows／App 前缀分别映射至上述项目根目录。接口中异步省略写出的 Task 类型以下文所属任务为准，所有有外部 I/O 的接口接收 CancellationToken。
 
 ## 阶段 A：Windows 交互与技术关卡
+
+当前进度：任务 1～5 的实现已提交，Release 构建成功，30 项自动测试及 11 项真实原生检查通过。真实鼠标手势、外部答题程序／输入法、系统截图工具和其他 DPI 仍待实测，阶段关卡未完全关闭；详细证据和可运行程序位置见 `docs/verification/windows-interaction.md`。以下复合步骤包含未完成的实测，故未将整个任务提前标记完成。
 
 ### Task 1：可构建的受保护窗口验证程序
 
