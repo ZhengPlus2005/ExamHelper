@@ -1,0 +1,10 @@
+<Window x:Class="ExamHelper.InteractionLab.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="ExamHelper Interaction Lab" Width="640" Height="720" MinWidth="480" MinHeight="360" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowActivated="False">
+  <Border Background="#D9222938" CornerRadius="12" BorderBrush="#68748B" BorderThickness="1" Padding="20">
+    <StackPanel>
+      <TextBlock Text="ExamHelper · Windows 核心交互验证" Foreground="White" FontSize="20" />
+      <TextBlock x:Name="ProtectionStatus" Foreground="#A7F3D0" Margin="0,16" TextWrapping="Wrap" />
+      <TextBlock Text="这是独立开发验证窗口，尚未接入截图提问、语音或 AI。" Foreground="White" TextWrapping="Wrap" />
+      <Button Content="关闭验证窗口" Margin="0,20" Click="CloseClicked" />
+    </StackPanel>
+  </Border>
+</Window>

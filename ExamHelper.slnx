@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ExamHelper.Core/ExamHelper.Core.csproj" />
+    <Project Path="src/ExamHelper.Windows/ExamHelper.Windows.csproj" />
+    <Project Path="src/ExamHelper.App/ExamHelper.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ExamHelper.Core.Tests/ExamHelper.Core.Tests.csproj" />
+    <Project Path="tests/ExamHelper.Windows.Tests/ExamHelper.Windows.Tests.csproj" />
+    <Project Path="tests/ExamHelper.TestSupport/ExamHelper.TestSupport.csproj" />
+  </Folder>
+  <Folder Name="/tools/"><Project Path="tools/ExamHelper.InteractionLab/ExamHelper.InteractionLab.csproj" /></Folder>
+</Solution>
