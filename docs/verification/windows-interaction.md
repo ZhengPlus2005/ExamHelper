@@ -6,7 +6,7 @@
 
 2026-10-16：InteractionLab 创建绿色参考窗口，在其上展示半透明 WPF 保护窗口。保护窗口显示前设置并读回 WDA_EXCLUDEFROMCAPTURE=0x11，API 均成功，错误码 0。
 
-GDI BitBlt SRCCOPY 前后截图为 1125×950 像素，逐字节差异 0。通过 `--verify artifacts/capture` 重现，证据 reference.png、protected-capture.png、capture-result.json 保留在 artifacts。只捕获自身参考窗口，无上传。
+最终 GDI BitBlt SRCCOPY 检查将参考窗置顶，先校验已知绿色底图，再排除 DWM 圆角／边缘后比较 1085×910 像素，逐字节差异 0。早期 1125×950 的对比未校验底图可见性，因此被本次受控底图验证取代。证据 reference.png、protected-capture.png、capture-result.json 保留在 `D:\Code\ExamHelper\artifacts\windows-core-check`。最终夹具在底图不符合预期时不会保存桌面像素，无上传。
 
 此结果不等于系统截图工具、Chrome、OBS、腾讯会议已通过；这些外部工具尚未验证。
 
@@ -16,14 +16,16 @@ GDI BitBlt SRCCOPY 前后截图为 1125×950 像素，逐字节差异 0。通过
 | 半透明与 GDI 排除 | 当前 125% DPI 实测通过 |
 | 悬停与布局变化 | 状态测试通过；真实鼠标往返仍需手测 |
 | 免点击移动／缩放／滚动 | 状态与坐标测试通过；滑块真实加载可用；手势体验仍需手测 |
-| 焦点与英文输入恢复 | 自有测试窗口的真实焦点租用／英文切换／恢复通过；浏览器、记事本及第三方输入法未验证 |
+| 焦点与英文输入恢复 | 开发期间自有窗口曾通过；最终自包含版后台启动被 Windows 拒绝激活，不能判定真实用户悬停场景通过 |
 | 快捷键注册与冲突 | 当前系统实际注册、冲突、隐藏保留、释放再注册、临时 Esc 通过 |
 | 100%／150%／200% DPI | 未验证，未修改用户系统缩放 |
 | 外部截图／录屏路径 | 未验证 |
 
 ## 最新自动化与原生集成结果
 
-全部测试共 30 项通过（Core 13、Windows 17），包括实际 WPF 窗口模板加载与滑块命令挂载。源码编译为零警告、零错误。真实原生集成有 11 项通过，结果位于 `artifacts/capture/capture-result.json`：默认快捷键注册、重复注册失败、隐藏后仍占用、释放后重注册、Esc 注册与释放、焦点进入、英文布局、输入框禁用组合输入、焦点恢复、原布局恢复。
+全部测试共 30 项通过（Core 13、Windows 17），包括实际 WPF 窗口模板加载与滑块命令挂载。源码编译为零警告、零错误。开发版本的原生集成曾得到 11 项通过；最终自包含程序复测中，快捷键六项和输入框组合输入关闭仍通过，但 Windows 拒绝后台激活参考窗口及输入窗口，故焦点四项不能算通过，整体原生关卡为未完成。错误提示为“Windows 未允许切换到输入窗口”。程序保留错误并中止该次输入激活，没有模拟敲键绕过限制。
+
+`capture-result.json` 的 CapturePassed 只表示受控底图捕获对比；Passed 要求所有原生项一起通过。不能把 CapturePassed 当成整个阶段通过。`NativeDiagnostics` 记录参考窗激活返回值及焦点错误。可加 `--wait-for-reference`，由用户激活测试参考窗后再验证前台输入场景，45 秒未满足前提则中止，不误报成功。
 
 修复了实际启动才出现的只读进度绑定异常，以及 Aero2 默认 Track.IsEnabled 跟随鼠标悬停导致滑块离开即禁用的问题。两项均以先失败后通过的 WPF 回归测试验证。
 
@@ -37,7 +39,7 @@ Computer Use 的 WGC 窗口状态截图返回了受保护窗口后方的内容�
 
 自包含验证 EXE：`D:\Code\ExamHelper\artifacts\windows-core\ExamHelper.InteractionLab.exe`。保持同目录依赖文件一起使用，无需另装运行时。本阶段不是正式安装版，也没有云服务接入。
 
-同目录运行 `ExamHelper.InteractionLab.exe --verify D:\Code\ExamHelper\artifacts\windows-core-check` 可重复自动捕获和原生检查；只创建自身测试窗口。交互窗口 Ctrl+Alt+F9 隐藏／恢复，Ctrl+Alt+F12 退出；悬停退出等两秒。其他快捷键在此实验程序中只演示命令状态，不实际上传截图或录音。
+同目录运行 `ExamHelper.InteractionLab.exe --verify D:\Code\ExamHelper\artifacts\windows-core-check` 可重复自动捕获和原生检查；只创建自身测试窗口，后台前台切换限制可能使焦点项失败。交互窗口 Ctrl+Alt+F9 隐藏／恢复，Ctrl+Alt+F12 退出；悬停退出等两秒。其他快捷键在此实验程序中只演示命令状态，不实际上传截图或录音。
 
 ## 仍需实际手势验证的关卡
 

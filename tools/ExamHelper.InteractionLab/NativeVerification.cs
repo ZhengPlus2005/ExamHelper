@@ -9,6 +9,7 @@ namespace ExamHelper.InteractionLab;
 
 internal static class NativeVerification
 {
+    public static Dictionary<string, string> Diagnostics { get; } = [];
     public static IReadOnlyDictionary<string, bool> Run(Window reference, MainWindow overlay)
     {
         var target = new WindowInteropHelper(reference).Handle;
@@ -26,16 +27,18 @@ internal static class NativeVerification
         results["TemporaryEscapeRegisters"] = first.SetManipulationEscape(true);
         results["TemporaryEscapeReleases"] = first.SetManipulationEscape(false);
         overlay.Show();
-        reference.Activate();
+        Diagnostics.Clear(); Diagnostics["ReferenceActivateReturned"] = reference.Activate().ToString();
         var before = InputLanguageService.Read(target);
         var lease = new FocusLease();
         var begin = lease.Begin(hwnd);
+        Diagnostics["FocusBeginError"] = begin.Error ?? "none";
         results["ActualFocusLeaseBegins"] = begin.Success;
         results["EnglishLayoutSelected"] = (InputLanguageService.Read(hwnd).Layout.ToInt64() & 0xFFFF) == 0x409;
         results["EditorCompositionDisabled"] = !InputMethod.GetIsInputMethodEnabled((TextBox)overlay.FindName("Editor"));
         var end = lease.End();
-        results["ActualFocusLeaseRestores"] = end.Success;
-        results["OriginalLayoutRestored"] = InputLanguageService.Read(target).Layout == before.Layout;
+        Diagnostics["FocusEndError"] = end.Error ?? "none";
+        results["ActualFocusLeaseRestores"] = begin.Success && end.Success;
+        results["OriginalLayoutRestored"] = begin.Success && InputLanguageService.Read(target).Layout == before.Layout;
         return results;
     }
 }
