@@ -154,7 +154,10 @@
         }
       },
       "examhelper.testsupport": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "ExamHelper.Core": "[1.0.0, )"
+        }
       },
       "examhelper.windows": {
         "type": "Project",

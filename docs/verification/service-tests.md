@@ -7,3 +7,7 @@
 NAudio 版本固定为 2.2.1。实现使用 WASAPI 麦克风采集及 MediaFoundationResampler；没有使用系统声音回环采集。参考 [NAudio 官方重采样说明](https://github.com/naudio/NAudio/blob/main/Docs/Resampling.md)。
 
 云端 ASR 与 AI 尚无用户凭据，未发送真实服务请求。设置页应由用户填写并执行测试，协议测试不可替代服务通过资格。
+
+2026-10-17：ASR 协议与语音协调器实现，完整 Release 回归 69 项通过（Core38 Windows31）。假 HTTP 覆盖北京业务空间地址、WAV Base64、混合语言未传 language、401／429、超时与主动取消、不完整响应。协调器覆盖清空后晚到结果隔离、同一录音手动重试、自动截止触发识别及成功清理。未调用真实云服务，不能给设置标记服务通过。
+
+依据 [阿里云英文官方 ASR 文档](https://help.aliyun.com/en/model-studio/qwen-asr-api-reference) 核对请求格式；支持北京业务空间端点，公共北京域名仍可用。未固定语言参数，以适配中英混合语音。识别结果带 SessionId／Generation／OperationId，任务 14 再将事件接入三秒撤销及持久化草稿。

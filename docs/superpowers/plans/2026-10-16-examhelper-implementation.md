@@ -229,11 +229,11 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** 实现 IAsrClient；`SpeechCoordinator.ToggleAsync(CancellationToken ct)`、`RetryAsync(CancellationToken ct)`、`DiscardAsync()`、`CancelAsync()`；配置从只读快照传入，识别结果用 `(SessionId, Generation, OperationId, Transcript)` 事件交付草稿。
 
-- [ ] 编写协议测试：Base64 音频、模型 qwen3-asr-flash、北京端点、不传 language；401／429／超时转换到 ServiceFailure。协调器测试 `LateTranscriptAfterClearIsIgnored`、`FailedClipRetryKeepsSameAudio`、`SuccessDeletesTemporaryAudio`。
-- [ ] 运行两个项目的相关 Tests 过滤，确认红灯；假 HTTP 不访问真实云端。
-- [ ] 实现 Chat Completions 音频请求，ASR 用非流式返回，配置允许北京业务空间域名并保留官方仍支持的北京公共域名作为预填。失败保留录音置 RetryPending；重试／丢弃明确可见；取消增加代次，过期返回不能注入文字。
-- [ ] 运行测试；真实测试安排任务 15 的设置页，用中英混合句验证，音频与结果不写历史。录音识别成功通过任务 7 追加并建立撤销范围。
-- [ ] 提交：`git commit -m "feat: transcribe microphone clips with Aliyun Beijing ASR"`。
+- [x] 编写协议测试：Base64 音频、模型 qwen3-asr-flash、北京端点、不传 language；401／429／超时转换到 ServiceFailure。协调器测试 `LateTranscriptAfterClearIsIgnored`、`FailedClipRetryKeepsSameAudio`、`SuccessDeletesTemporaryAudio`。
+- [x] 运行两个项目的相关 Tests 过滤，确认红灯；假 HTTP 不访问真实云端。
+- [x] 实现 Chat Completions 音频请求，ASR 用非流式返回，配置允许北京业务空间域名并保留官方仍支持的北京公共域名作为预填。失败保留录音置 RetryPending；重试／丢弃明确可见；取消增加代次，过期返回不能注入文字。
+- [x] 运行测试；真实测试安排任务 15 的设置页，用中英混合句验证，音频与结果不写历史。录音识别成功通过任务 7 追加并建立撤销范围。
+- [x] 提交：`git commit -m "feat: transcribe microphone clips with Aliyun Beijing ASR"`。
 
 ## 阶段 C：图文 AI、配置、保存与会话
 
