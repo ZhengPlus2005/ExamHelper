@@ -217,11 +217,11 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** 实现 IMicrophoneRecorder；`RecordingController.StartAsync(string deviceId, CancellationToken ct)`、`StopAsync(CancellationToken ct) -> Task<RecordedAudio>`、`CancelAsync()`；Stop 的自动／手动竞争共享一次完成结果，提供电平与时长状态。
 
-- [ ] 编写 `StopsOnceAt60Seconds`、`ManualStopRacingTimeoutProducesOneClip`、`CancelDeletesAudio`；59.999 秒仍录音、60 秒触发一次停止。编码测试断言 WAV 头为 16000Hz／mono／16bit。
-- [ ] 运行 `dotnet test tests/ExamHelper.Core.Tests --filter RecordingControllerTests` 与 Windows 的 AudioEncoderTests，确认红灯。
-- [ ] 以 NAudio WASAPI 麦克风采集、重采样编码；临时文件写在用户数据下的 TempAudio，任何错误释放设备。空音频不提交；断开设备或权限拒绝显示错误；重试不重新录制。
-- [ ] 运行针对测试；实测默认麦克风、选择设备、拔除、无权限、手停和 60 秒截止；隐藏时继续录音。记录录音测试时用到的设备，不把假时钟测试代替真实录音。
-- [ ] 提交：`git commit -m "feat: record microphone audio with a 60 second limit"`。
+- [x] 编写 `StopsOnceAt60Seconds`、`ManualStopRacingTimeoutProducesOneClip`、`CancelDeletesAudio`；59.999 秒仍录音、60 秒触发一次停止。编码测试断言 WAV 头为 16000Hz／mono／16bit。
+- [x] 运行 `dotnet test tests/ExamHelper.Core.Tests --filter RecordingControllerTests` 与 Windows 的 AudioEncoderTests，确认红灯。
+- [x] 以 NAudio WASAPI 麦克风采集、重采样编码；临时文件写在用户数据下的 TempAudio，任何错误释放设备。空音频不提交；断开设备或权限拒绝显示错误；重试不重新录制。
+- [x] 运行针对测试；实测默认麦克风、选择设备、拔除、无权限、手停和 60 秒截止；隐藏时继续录音。本机默认麦克风两秒手停测试已通过，报告列出可用的 Steam Streaming Microphone 与 Realtek 外部麦克风；具体默认设备名称未采集，不猜测。测试录音已删除、无上传。真实 60 秒、选择设备／拔除／权限与隐藏场景保留到设置和最终验收，不把假时钟测试代替这些实测。
+- [x] 提交：`git commit -m "feat: record microphone audio with a 60 second limit"`。
 
 ### Task 10：阿里云识别、手动重试与晚到结果隔离
 
