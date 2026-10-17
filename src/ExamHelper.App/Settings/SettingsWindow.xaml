@@ -1,0 +1,41 @@
+<Window x:Class="ExamHelper.App.Settings.SettingsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="设置 · ExamHelper" Width="790" Height="780" MinWidth="620" MinHeight="560" Background="#F3F5F8" WindowStartupLocation="CenterOwner">
+ <Window.Resources>
+  <Style TargetType="TextBox"><Setter Property="Padding" Value="8"/><Setter Property="Margin" Value="0,4,0,12"/></Style>
+  <Style TargetType="PasswordBox"><Setter Property="Padding" Value="8"/><Setter Property="Margin" Value="0,4,0,12"/></Style>
+  <Style TargetType="Button"><Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="3"/></Style>
+ </Window.Resources>
+ <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <TextBlock Text="{Binding VerificationSummary}" FontWeight="SemiBold" Margin="0,0,0,12"/>
+  <TabControl Grid.Row="1">
+   <TabItem Header="AI 服务"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
+    <TextBlock Text="服务类型"/><ComboBox ItemsSource="{Binding Providers}" DisplayMemberPath="Name" SelectedValuePath="Kind" SelectedValue="{Binding AiProviderKind}" Margin="0,4,0,12"/>
+    <TextBlock Text="API 地址"/><TextBox Text="{Binding AiBaseAddress,UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBlock Text="模型名称"/><TextBox Text="{Binding AiModel,UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBlock Text="API 密钥（仅为当前 Windows 用户加密保存）"/><PasswordBox x:Name="AiKey" PasswordChanged="AiPasswordChanged"/>
+    <WrapPanel><Button Content="文字测试" Click="TextTestClick"/><Button Content="图片测试" Click="ImageTestClick"/></WrapPanel>
+    <TextBlock Text="图片测试使用内置 EH7Q9 测试图；文字测试不替代图片测试资格。" TextWrapping="Wrap" Foreground="#526174" Margin="0,12"/>
+   </StackPanel></ScrollViewer></TabItem>
+   <TabItem Header="语音识别"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
+    <TextBlock Text="阿里云北京 API 地址"/><TextBox Text="{Binding AsrBaseAddress,UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBlock Text="模型名称"/><TextBox Text="{Binding AsrModel,UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBlock Text="语音服务密钥"/><PasswordBox x:Name="AsrKey" PasswordChanged="AsrPasswordChanged"/>
+    <TextBlock Text="麦克风"/><ComboBox ItemsSource="{Binding Devices}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding DeviceId}" Margin="0,4,0,12"/>
+    <TextBlock Text="只采集麦克风。请说一句中文夹杂英文的话，停录后核对识别结果。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+    <ProgressBar Value="{Binding MicrophoneLevel,Mode=OneWay}" Minimum="0" Maximum="1" Height="8"/><TextBlock Text="{Binding RecordingSeconds,StringFormat='录音时长：{0:F1} 秒'}" Margin="0,8"/>
+    <WrapPanel><Button Content="开始／停止测试录音" Click="SpeechTestClick"/><Button Content="识别正确" Click="ConfirmSpeechClick" IsEnabled="{Binding CanConfirmSpeech}"/></WrapPanel>
+   </StackPanel></ScrollViewer></TabItem>
+   <TabItem Header="回答与外观"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
+    <TextBlock Text="默认编程语言"/><TextBox Text="{Binding DefaultCodeLanguage,UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBlock Text="截图直发预置提示词（自动保存，仅直发附加）"/><TextBox x:Name="PresetPrompt" Text="{Binding DirectCapturePrompt,UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="150" TextChanged="PromptChanged"/>
+    <TextBlock Text="辅助窗口背景不透明度（0.35～1.00）"/><Slider Minimum="0.35" Maximum="1" Value="{Binding Opacity}" TickFrequency="0.05" Margin="0,14"/>
+    <TextBlock Text="{Binding Opacity,StringFormat='当前值：{0:F2}'}"/>
+   </StackPanel></ScrollViewer></TabItem>
+   <TabItem Header="快捷键"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
+    <TextBlock Text="例如 Ctrl+Alt+F1，留空不绑定。保存时检查修改后的组合冲突；Esc 保留给移动／缩放／滚动。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+    <ItemsControl ItemsSource="{Binding Hotkeys}"><ItemsControl.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Name}" VerticalAlignment="Center"/><TextBox Grid.Column="1" Text="{Binding Text,UpdateSourceTrigger=PropertyChanged}"/></Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+   </StackPanel></ScrollViewer></TabItem>
+  </TabControl>
+  <StackPanel Grid.Row="2" Margin="0,12"><TextBlock Text="{Binding Status}" Foreground="#8A3A12" TextWrapping="Wrap"/><TextBox Text="{Binding ResultText,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="130" VerticalScrollBarVisibility="Auto"/></StackPanel>
+  <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="关闭" Click="CloseClick"/><Button Content="保存并返回" Click="SaveClick" Background="#D9EBFF"/></StackPanel>
+ </Grid>
+</Window>

@@ -297,11 +297,11 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** `HomeViewModel.StartAsync(ct)`／`ContinueAsync(Guid id, ct)` 对接 SessionCoordinator；`SettingsViewModel.RunTextTestAsync`／`RunImageTestAsync`／`RunSpeechTestAsync` 与 SaveAsync 对接任务 12。窗口创建经 `IOverlayHost.OpenAsync(ct) -> Task<ProtectionResult>`，具体由任务 16 实现，测试先用假 host。
 
-- [ ] 编写 `UnverifiedCannotStartOrContinue`、`ConfigChangedDuringTestDoesNotPassNewConfig`、`DeleteRequiresConfirmation`、`ProtectionFailureKeepsHomeVisible`，断言没有成功创建空历史会话；普通主页查看历史不要求服务通过。
-- [ ] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter EntryEligibilityTests`，确认红灯。
-- [ ] 实现常规可点击主页、历史只读查看、删除确认、继续入口、开始入口；设置提供所有字段、麦克风选择、电平、真实测试结果、默认代码语言与可修改快捷键。仅在保护通过并保存会话后隐藏主页，失败关闭临时 host。开始始终新建，继续载入既有会话。
-- [ ] 运行针对测试与 Debug 构建，设置中填入用户凭据后真实测 KIMI 文本／图片和阿里云混合语音，记录区域、模型、耗时、实际识别与结果，不记录密钥。无有效凭据则保持未验证，测试入口可交付但不宣布服务联调已通过。
-- [ ] 提交：`git commit -m "feat: add home settings and explicit service verification"`。
+- [x] 编写 `UnverifiedCannotStartOrContinue`、`ConfigChangedDuringTestDoesNotPassNewConfig`、`DeleteRequiresConfirmation`、`ProtectionFailureKeepsHomeVisible`，断言没有成功创建空历史会话；普通主页查看历史不要求服务通过。
+- [x] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter EntryEligibilityTests`，确认红灯。
+- [x] 实现常规可点击主页、历史只读查看、删除确认、继续入口、开始入口；设置提供所有字段、麦克风选择、电平、真实测试结果、默认代码语言与可修改快捷键。仅在保护通过并保存会话后隐藏主页，失败关闭临时 host。开始始终新建，继续载入既有会话。
+- [x] 运行针对测试与 Debug 构建，设置中填入用户凭据后真实测 KIMI 文本／图片和阿里云混合语音，当前未提供凭据，真实区域／模型／识别联调保留未验证；设置页交付真实测试入口，未测试不能进入。无有效凭据则保持未验证，测试入口可交付但不宣布服务联调已通过。
+- [x] 提交：`git commit -m "feat: add home settings and explicit service verification"`。
 
 ### Task 16：辅助小窗与流式纯文本／代码块呈现
 
