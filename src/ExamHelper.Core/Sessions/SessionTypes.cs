@@ -33,6 +33,7 @@ public sealed record SessionSnapshot
     public Guid Id { get; init; } = Guid.NewGuid();
     public long Generation { get; init; }
     public ImmutableArray<MessageSnapshot> Messages { get; init; } = [];
+    public ImmutableArray<RequestSnapshot> Requests { get; init; } = [];
     public DraftSnapshot Draft { get; init; } = DraftSnapshot.Empty;
     public RequestSnapshot? PendingRequest { get; init; }
     public SpeechState SpeechState { get; init; }

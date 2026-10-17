@@ -269,12 +269,12 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** 实现 ISessionStore；SessionSummary 含 Id、Title、UpdatedAt、HasSavedDraft；`ImageReferenceCleaner.ReconcileAsync(CancellationToken ct)` 查所有消息、草稿和 pending 引用后清理孤图；`AppDataPaths.Root` 固定为 `%LOCALAPPDATA%\ExamHelper`。
 
-- [ ] 编写 `RoundTripsTextImagesDraftAndPartialAnswer`、`DeleteConversationKeepsOtherReferences`、`InterruptedImageDeleteIsRecoverable`、`DiskFullDoesNotReportSaved`；启动恢复测试断言崩溃前 Generating 改成 Failed，TempAudio 被清除但历史图片保留。
-- [ ] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter "FullyQualifiedName~Persistence"`，确认红灯。
-- [ ] 建立 schema v1：Sessions、Messages、Requests、Images、ImageLinks、Drafts、SchemaVersion；外键／事务启用，JSON 保存不可变参数快照。原图先临时写再原子改名，DB 成功引用后才可清理。删除先事务移除引用，再清理文件；失败记录下次重试，不删除仍有引用者。
-- [ ] 保存失败保留内存状态并显示错误，返回／退出不显示保存成功；流式回答每 500ms 或结束时持久化一次，语音追加及截图变更后自动保存。启动恢复中断请求、清理失效临时录音、对账孤图；删除操作只允许用户数据根目录下已确认文件，不递归删除任意计算路径。
-- [ ] 运行测试，模拟数据库只读、磁盘写失败、进程在文件写入与事务中间中断。历史标题从首条文字截取，纯截图对话用时间标题；不额外调用 AI 生成标题。
-- [ ] 提交：`git commit -m "feat: save conversations drafts and image references reliably"`。
+- [x] 编写 `RoundTripsTextImagesDraftAndPartialAnswer`、`DeleteConversationKeepsOtherReferences`、`InterruptedImageDeleteIsRecoverable`、`DiskFullDoesNotReportSaved`；启动恢复测试断言崩溃前 Generating 改成 Failed，TempAudio 被清除但历史图片保留。
+- [x] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter "FullyQualifiedName~Persistence"`，确认红灯。
+- [x] 建立 schema v1：Sessions、Messages、Requests、Images、ImageLinks、Drafts、SchemaVersion；外键／事务启用，JSON 保存不可变参数快照。原图先临时写再原子改名，DB 成功引用后才可清理。删除先事务移除引用，再清理文件；失败记录下次重试，不删除仍有引用者。
+- [x] 保存失败保留内存状态并显示错误，返回／退出不显示保存成功；流式回答每 500ms 或结束时持久化一次，语音追加及截图变更后自动保存。启动恢复中断请求、清理失效临时录音、对账孤图；删除操作只允许用户数据根目录下已确认文件，不递归删除任意计算路径。
+- [x] 运行测试，已验证数据库只读、引用清理失败后重试和保存中断状态恢复；真实磁盘写满、进程在事务中间强制结束留待任务 18，不标为已实测。历史标题从首条文字截取，纯截图对话用时间标题；不额外调用 AI 生成标题。
+- [x] 提交：`git commit -m "feat: save conversations drafts and image references reliably"`。
 
 ### Task 14：会话编排、失败重试与生命周期
 
