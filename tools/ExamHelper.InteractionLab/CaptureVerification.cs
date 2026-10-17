@@ -1,3 +1,4 @@
+using ExamHelper.Windows.Capture;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -55,27 +56,17 @@ internal static class CaptureVerification
     }
     private static BitmapSource Capture(int x, int y, int width, int height)
     {
-        var dc = GetDC(0); var mem = CreateCompatibleDC(dc); var bitmap = CreateCompatibleBitmap(dc, width, height);
-        var old = SelectObject(mem, bitmap);
-        try
-        {
-            if (!BitBlt(mem, 0, 0, width, height, dc, x, y, 0x00CC0020)) throw new InvalidOperationException("BitBlt failed");
-            var source = Imaging.CreateBitmapSourceFromHBitmap(bitmap, 0, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-            var converted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0); converted.Freeze(); return converted;
-        }
-        finally { SelectObject(mem, old); DeleteObject(bitmap); DeleteDC(mem); ReleaseDC(0, dc); }
+        // Exercise the product backend while persisting only the known reference crop.
+        var image = new GdiScreenCaptureBackend().Capture(new(x, y, width, height));
+        using var stream = new MemoryStream(image.PngBytes);
+        var decoder = new PngBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        var converted = new FormatConvertedBitmap(decoder.Frames[0], PixelFormats.Bgra32, null, 0);
+        converted.Freeze();
+        return converted;
     }
     private static void Save(BitmapSource image, string path)
     {
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image)); using var stream = File.Create(path); encoder.Save(stream);
     }
-    [DllImport("user32.dll")] private static extern nint GetDC(nint hwnd);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hwnd);
-    [DllImport("user32.dll")] private static extern int ReleaseDC(nint hwnd, nint dc);
-    [DllImport("gdi32.dll")] private static extern nint CreateCompatibleDC(nint dc);
-    [DllImport("gdi32.dll")] private static extern nint CreateCompatibleBitmap(nint dc, int w, int h);
-    [DllImport("gdi32.dll")] private static extern nint SelectObject(nint dc, nint obj);
-    [DllImport("gdi32.dll")] private static extern bool DeleteObject(nint obj);
-    [DllImport("gdi32.dll")] private static extern bool DeleteDC(nint dc);
-    [DllImport("gdi32.dll")] private static extern bool BitBlt(nint dest, int x, int y, int w, int h, nint src, int sx, int sy, uint rop);
 }

@@ -205,11 +205,11 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** `IScreenCapture.CaptureAsync(CancellationToken ct) -> Task<CapturedImage>`；CapturedImage 含 PNG bytes、Width、Height；`IImageStore.AddAsync(CapturedImage image, CancellationToken ct) -> Task<ImageRef>`、`ReadAsync(ImageRef image, CancellationToken ct) -> Task<byte[]>`、`DeleteUnreferencedAsync(IReadOnlySet<Guid> liveIds, CancellationToken ct)`。
 
-- [ ] 编写 `StoresOriginalBytesAndOrderIndependentIds`、`RejectsPathEscape`，断言读回原图完全一致、路径不能越过图片根目录；捕获假后端断言只接受一个有效显示器和完整物理像素尺寸。
-- [ ] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter "FullyQualifiedName~Capture"`，确认红灯。
-- [ ] 实现单屏检测与 PNG 编码：原生 GDI 屏幕 DC／BitBlt 路径先在阶段 A 已验证的保护窗口上实测，资源全部 Dispose；若出现黑块或丢底图，改用经实测可排除辅助窗的 WGC 路径并记录，不先隐藏保护再声称通过。不支持的多屏状态明确拒绝截图，不合并显示器。
-- [ ] 运行测试；在不同 DPI 与小窗可见、输入聚焦、折叠状态截图，核对尺寸、底层题目完整及无小窗。检查缩略图只是预览，原图未被缩小覆盖。
-- [ ] 提交：`git commit -m "feat: capture one full screen and preserve source images"`。
+- [x] 编写 `StoresOriginalBytesAndOrderIndependentIds`、`RejectsPathEscape`，断言读回原图完全一致、路径不能越过图片根目录；捕获假后端断言只接受一个有效显示器和完整物理像素尺寸。
+- [x] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter "FullyQualifiedName~Capture"`，确认红灯。
+- [x] 实现单屏检测与 PNG 编码：原生 GDI 屏幕 DC／BitBlt 路径先在阶段 A 已验证的保护窗口上实测，资源全部 Dispose；若出现黑块或丢底图，改用经实测可排除辅助窗的 WGC 路径并记录，不先隐藏保护再声称通过。不支持的多屏状态明确拒绝截图，不合并显示器。
+- [x] 运行测试；在不同 DPI 与小窗可见、只读草稿、折叠状态截图，核对尺寸、底层题目完整及无小窗。检查缩略图只是预览，原图未被缩小覆盖。当前受控 125% DPI 后端实测通过；其他 DPI／折叠和实际全屏预览人工检查统一保留到任务 18，不宣称已测。
+- [x] 提交：`git commit -m "feat: capture one full screen and preserve source images"`。
 
 ### Task 9：麦克风采集与 60 秒自动停录
 

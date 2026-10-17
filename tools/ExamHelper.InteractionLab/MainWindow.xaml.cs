@@ -1,3 +1,6 @@
+using System.IO;
+using System.Windows.Media.Imaging;
+using ExamHelper.Windows.Capture;
 using System.Windows;
 using System.Windows.Interop;
 using ExamHelper.App.Controls;
@@ -45,8 +48,29 @@ public partial class MainWindow : Window
         Bind(LayoutButton, () => { CountButton.Visibility = CountButton.IsVisible ? Visibility.Collapsed : Visibility.Visible; DwellBehavior.InvalidateWindow(this); });
         Bind(FoldButton, () => Execute(AppCommand.ToggleCollapse)); Bind(HideButton, () => Execute(AppCommand.ToggleVisibility));
         Bind(CloseButton, () => Execute(AppCommand.Exit));
+        Bind(CapturePreviewButton, () => _ = CapturePreviewAsync());
         Bind(ClearButton, () => Execute(AppCommand.ClearInput)); Bind(InsertChinese, () => DraftPreview.Text += "模拟识别：请用 C++ 回答。\n");
         Closed += (_, _) => { _hotkeys.Dispose(); _nonActivating.Dispose(); _interaction.Dispose(); if (!_source.IsDisposed) _source.RemoveHook(HotkeyHook); };
+    }
+    private async Task CapturePreviewAsync()
+    {
+        if (!CapturePreviewButton.IsEnabled) return;
+        CapturePreviewButton.IsEnabled = false;
+        try
+        {
+            var image = await new FullScreenCapture().CaptureAsync(CancellationToken.None);
+            var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ExamHelper", "InteractionLab", "Images");
+            var stored = await new FileImageStore(root).AddAsync(image, CancellationToken.None);
+            if (!IsVisible) return;
+            using var stream = new MemoryStream(image.PngBytes);
+            var preview = new BitmapImage();
+            preview.BeginInit(); preview.CacheOption = BitmapCacheOption.OnLoad; preview.StreamSource = stream; preview.EndInit(); preview.Freeze();
+            CapturePreview.Source = preview; CapturePreview.Visibility = Visibility.Visible;
+            Status.Text = $"原图 {stored.Width}×{stored.Height} 已保存：{Path.Combine(root, stored.RelativePath)}（不上传）";
+            DwellBehavior.InvalidateWindow(this);
+        }
+        catch (Exception error) { if (IsVisible) Status.Text = $"截图失败：{error.Message}"; }
+        finally { CapturePreviewButton.IsEnabled = true; }
     }
     private static void Bind(System.Windows.Controls.Button button, Action action)
     {
@@ -63,7 +87,7 @@ public partial class MainWindow : Window
             case AppCommand.Exit: case AppCommand.ReturnHome: Close(); break;
             case AppCommand.ToggleVisibility: if (IsVisible) Hide(); else { Show(); DwellBehavior.InvalidateWindow(this); } break;
 
-            case AppCommand.ClearInput: DraftPreview.Text = string.Empty; break;
+            case AppCommand.ClearInput: DraftPreview.Text = string.Empty; CapturePreview.Source = null; CapturePreview.Visibility = Visibility.Collapsed; break;
             case AppCommand.ToggleCollapse:
                 _interaction.End(); _collapsed = !_collapsed;
                 AnswerScroll.Visibility = EditPanel.Visibility = _collapsed ? Visibility.Collapsed : Visibility.Visible;

@@ -10,7 +10,7 @@
       <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="28"/></Grid.RowDefinitions>
       <Border x:Name="MoveHandle" Background="#FF344154" CornerRadius="6"><StackPanel Margin="10,5"><TextBlock Text="ExamHelper · 核心交互验证" Foreground="White" FontSize="18"/><TextBlock Text="悬停标题一秒移动，停稳一秒固定" Foreground="#BDD1EB" FontSize="11"/></StackPanel></Border>
       <WrapPanel Grid.Row="1" Margin="0,8">
-        <Button x:Name="CountButton" Content="一秒触发测试"/><Button x:Name="LayoutButton" Content="缩略图移位测试"/>
+        <Button x:Name="CountButton" Content="一秒触发测试"/><Button x:Name="LayoutButton" Content="缩略图移位测试"/><Button x:Name="CapturePreviewButton" Content="全屏截图预览（保存原图）"/>
         <Button x:Name="FoldButton" Content="折叠／展开"/><Button x:Name="HideButton" Content="隐藏（F9 恢复）"/>
         <Button x:Name="CloseButton" Content="退出（两秒）" beh:DwellBehavior.Delay="2"/>
       </WrapPanel>
@@ -18,7 +18,7 @@
       <StackPanel x:Name="EditPanel" Grid.Row="3">
         <TextBlock Text="语音草稿预览（只读）。本验证版仅模拟识别结果，尚未接入麦克风。" Foreground="#C3D1E5" TextWrapping="Wrap" FontSize="11"/>
         <ScrollViewer Height="76" VerticalScrollBarVisibility="Auto" Margin="0,6" Padding="8" Background="#33101420" Focusable="False"><TextBlock x:Name="DraftPreview" Foreground="White" TextWrapping="Wrap" Focusable="False" /></ScrollViewer>
-        <WrapPanel><Button x:Name="InsertChinese" Content="模拟语音追加中文"/><Button x:Name="ClearButton" Content="清空输入"/></WrapPanel>
+        <Image x:Name="CapturePreview" MaxHeight="100" Stretch="Uniform" Visibility="Collapsed"/><WrapPanel><Button x:Name="InsertChinese" Content="模拟语音追加中文"/><Button x:Name="ClearButton" Content="清空输入"/></WrapPanel>
       </StackPanel>
       <StackPanel Grid.Row="4"><TextBlock x:Name="ProtectionStatus" Foreground="#A7F3D0" FontSize="11" TextWrapping="Wrap"/><TextBlock x:Name="Status" Foreground="#D5E4FA" FontSize="11" TextWrapping="Wrap"/></StackPanel>
       <Border x:Name="ResizeHandle" Grid.Row="5" Width="24" Height="24" Background="#FF526581" HorizontalAlignment="Right"><TextBlock Text="◢" Foreground="White" HorizontalAlignment="Center"/></Border>
