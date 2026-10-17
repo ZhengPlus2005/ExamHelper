@@ -73,7 +73,14 @@ public sealed class AppComposition : IAsyncDisposable
     }
     public async Task<SettingsViewModel> CreateSettingsViewModelAsync()
     {
+        _settings = AiProfileCatalog.Normalize(_settings);
         string ai = "",asr = "",warning = "";
+        var profileKeys = new Dictionary<string,string>();
+        foreach(var profile in _settings.AiProfiles!.Value)
+        {
+            try { profileKeys[profile.Settings.SecretId] = await Secrets.GetAsync(profile.Settings.SecretId,CancellationToken.None) ?? ""; }
+            catch(ServiceFailure error) { warning += error.Message; }
+        }
         try { ai = await Secrets.GetAsync(_settings.Ai.SecretId,CancellationToken.None) ?? ""; } catch(ServiceFailure error) { warning += error.Message; }
         try { asr = await Secrets.GetAsync(_settings.Asr.SecretId,CancellationToken.None) ?? ""; } catch(ServiceFailure error) { warning += error.Message; }
         var microphone = new MicrophoneRecorder(AppDataPaths.TempAudio);
@@ -83,7 +90,7 @@ public sealed class AppComposition : IAsyncDisposable
         var runner = new ServiceTestRunner(_http,Secrets,Verification,marker.ToArray());
         var dispatcher = Application.Current.Dispatcher;
         var viewModel = new SettingsViewModel(_settings,ai,asr,SettingsStore,Secrets,Verification,runner,recording,
-            saved => _settings = saved,action => dispatcher.BeginInvoke(action)) { ReadLevel = () => microphone.PeakLevel,ProbeHotkeys = HotkeyConflictProbe.Check };
+            saved => _settings = saved,action => dispatcher.BeginInvoke(action),profileKeys) { ReadLevel = () => microphone.PeakLevel,ProbeHotkeys = HotkeyConflictProbe.Check };
         var devices = new List<MicrophoneDevice> { new("","系统默认麦克风") };
         try { devices.AddRange(MicrophoneRecorder.GetDevices()); } catch { warning += "无法列出麦克风，请检查 Windows 权限。"; }
         if(!string.IsNullOrEmpty(_settings.Asr.DeviceId) && !devices.Any(d => d.Id == _settings.Asr.DeviceId))

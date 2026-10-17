@@ -6,6 +6,7 @@ using ExamHelper.Core.Settings;
 using ExamHelper.Windows.Audio;
 using ExamHelper.Windows.Settings;
 namespace ExamHelper.App.Settings;
+public enum SettingsCloseChoice { Save, Discard, Cancel }
 public sealed record ProviderOption(ProviderKind Kind,string Name);
 public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
 {
@@ -26,10 +27,19 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
     private Task _speechProcessing = Task.CompletedTask;
     private bool _busy,_speechWorking,_disposed;
     private string _status = "",_result = "";
-    public string AiBaseAddress { get; set; }
-    public string AiModel { get; set; }
-    public ProviderKind AiProviderKind { get; set; }
-    public string AiApiKey { get; set; }
+    private AiProfileEditor? _selectedAiProfile;
+    private Guid? _activeAiProfileId;
+    public ObservableCollection<AiProfileEditor> AiProfiles { get; } = [];
+    public AiProfileEditor? SelectedAiProfile
+    {
+        get => _selectedAiProfile;
+        set { if(Set(ref _selectedAiProfile,value)) { NotifyAiFields(); Notify(nameof(HasSelectedAiProfile)); } }
+    }
+    public bool HasSelectedAiProfile => SelectedAiProfile is not null;
+    public string AiBaseAddress { get => SelectedAiProfile?.BaseAddress ?? ""; set { if(SelectedAiProfile is { } p) p.BaseAddress = value; } }
+    public string AiModel { get => SelectedAiProfile?.Model ?? ""; set { if(SelectedAiProfile is { } p) p.Model = value; } }
+    public ProviderKind AiProviderKind { get => SelectedAiProfile?.ProviderKind ?? ProviderKind.Kimi; set { if(SelectedAiProfile is { } p) p.ProviderKind = value; } }
+    public string AiApiKey { get => SelectedAiProfile?.ApiKey ?? ""; set { if(SelectedAiProfile is { } p) p.ApiKey = value; } }
     public string AsrBaseAddress { get; set; }
     public string AsrModel { get; set; }
     public string AsrApiKey { get; set; }
@@ -55,37 +65,94 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
         get { try { var c = BuildCandidate(); return $"AI 图片：{(_verification.IsAiVerified(c) ? "已验证" : "未验证")}　语音：{(_verification.IsAsrVerified(c) ? "已验证" : "未验证")}"; } catch { return "配置尚未完整"; } }
     }
     public SettingsViewModel(AppSettings initial,string aiKey,string asrKey,ISettingsStore store,ISecretStore secrets,ServiceVerification verification,
-        ServiceTestRunner runner,RecordingController recording,Action<AppSettings> saved,Action<Action>? dispatch = null)
+        ServiceTestRunner runner,RecordingController recording,Action<AppSettings> saved,Action<Action>? dispatch = null,IReadOnlyDictionary<string,string>? aiKeys = null)
     {
+        initial = AiProfileCatalog.Normalize(initial);
         _initial = initial; _evidence = initial.Evidence; _store = store; _secrets = secrets; _verification = verification;
         _runner = runner; _recording = recording; _saved = saved; _dispatch = dispatch ?? (action => action());
-        AiBaseAddress = initial.Ai.BaseUri.ToString(); AiModel = initial.Ai.Model; AiProviderKind = initial.Ai.ProviderKind; AiApiKey = aiKey;
+        _activeAiProfileId = initial.ActiveAiProfileId;
+        foreach(var profile in initial.AiProfiles!.Value)
+            AddEditor(profile,aiKeys?.GetValueOrDefault(profile.Settings.SecretId) ?? (profile.Id == initial.ActiveAiProfileId ? aiKey : ""));
+        SelectedAiProfile = AiProfiles.FirstOrDefault(p => p.Id == _activeAiProfileId) ?? AiProfiles.FirstOrDefault();
         AsrBaseAddress = initial.Asr.BaseUri.ToString(); AsrModel = initial.Asr.Model; AsrApiKey = asrKey; DeviceId = initial.Asr.DeviceId;
         DefaultCodeLanguage = initial.DefaultCodeLanguage; DirectCapturePrompt = initial.DirectCapturePrompt; Opacity = initial.Ui.Opacity;
         foreach(var command in Enum.GetValues<ExamHelper.Core.Interaction.AppCommand>())
             Hotkeys.Add(new(command,HotkeyEditor.Format(initial.Hotkeys.Bindings.FirstOrDefault(b => b.Command == command))));
+        _initial = BuildCandidate();
         _recording.Stopped += OnClip; _recording.Failed += OnRecordingFailed;
     }
-    public AppSettings BuildCandidate() => _initial with
+    public AiProfileEditor AddAiProfile()
     {
-        Ai = _initial.Ai with { BaseUri = new(AiBaseAddress.Trim()),Model = AiModel.Trim(),ProviderKind = AiProviderKind,SecretFingerprint = _verification.SecretDigest(AiApiKey) },
+        var profile = new AiServiceProfile { Name = "新配置 " + (AiProfiles.Count + 1),Settings = new() { ProviderKind = ProviderKind.Compatible,SecretId = "ai-" + Guid.NewGuid().ToString("N") } };
+        var editor = AddEditor(profile,""); SelectedAiProfile = editor; Notify(nameof(HasUnsavedChanges)); return editor;
+    }
+    public void DeleteSelectedAiProfile()
+    {
+        if(SelectedAiProfile is not { } profile) return;
+        if(_activeAiProfileId == profile.Id) _activeAiProfileId = null;
+        AiProfiles.Remove(profile); SelectedAiProfile = AiProfiles.FirstOrDefault(); UpdateActiveMarkers(); Notify();
+    }
+    public void ActivateSelectedAiProfile()
+    {
+        if(SelectedAiProfile is not { } profile) return;
+        _activeAiProfileId = profile.Id; UpdateActiveMarkers();
+        Status = "已选择启用此配置，保存并返回后生效。"; Notify();
+    }
+    private AiProfileEditor AddEditor(AiServiceProfile profile,string key)
+    {
+        var editor = new AiProfileEditor(profile,key,_verification) { IsActive = profile.Id == _activeAiProfileId };
+        editor.PropertyChanged += (_,e) =>
+        {
+            if(ReferenceEquals(editor,SelectedAiProfile) && e.PropertyName is nameof(AiProfileEditor.BaseAddress) or nameof(AiProfileEditor.Model) or nameof(AiProfileEditor.ProviderKind) or nameof(AiProfileEditor.ApiKey)) NotifyAiFields();
+            Notify(nameof(VerificationSummary)); Notify(nameof(HasUnsavedChanges));
+        };
+        AiProfiles.Add(editor); return editor;
+    }
+    private void UpdateActiveMarkers() { foreach(var p in AiProfiles) p.IsActive = p.Id == _activeAiProfileId; }
+    private void NotifyAiFields()
+    {
+        Notify(nameof(AiBaseAddress)); Notify(nameof(AiModel)); Notify(nameof(AiProviderKind)); Notify(nameof(AiApiKey)); Notify(nameof(VerificationSummary));
+    }
+    public AppSettings BuildCandidate() => AiProfileCatalog.Normalize(_initial with
+    {
+        AiProfiles = AiProfiles.Select(p => p.BuildProfile()).ToImmutableArray(),ActiveAiProfileId = _activeAiProfileId,
         Asr = _initial.Asr with { BaseUri = new(AsrBaseAddress.Trim()),Model = AsrModel.Trim(),DeviceId = DeviceId,SecretFingerprint = _verification.SecretDigest(AsrApiKey) },
         Ui = _initial.Ui with { Opacity = Opacity },DefaultCodeLanguage = DefaultCodeLanguage.Trim(),DirectCapturePrompt = DirectCapturePrompt,
         Hotkeys = new() { Bindings = Hotkeys.Select(row => row.Parse()).OfType<HotkeyBinding>().ToImmutableArray() },Evidence = _evidence
-    };
+    });
+    public bool HasUnsavedChanges
+    {
+        get
+        {
+            try { return System.Text.Json.JsonSerializer.Serialize(BuildCandidate()) != System.Text.Json.JsonSerializer.Serialize(_initial); }
+            catch { return true; }
+        }
+    }
+    public async Task<bool> RequestCloseAsync(Func<Task<SettingsCloseChoice>> ask,CancellationToken ct)
+    {
+        await _saveGate.WaitAsync(ct); _saveGate.Release();
+        if(!HasUnsavedChanges) return true;
+        var choice = await ask();
+        if(choice == SettingsCloseChoice.Cancel) return false;
+        if(choice == SettingsCloseChoice.Discard) return true;
+        try { await SaveAsync(ct); return !HasUnsavedChanges; }
+        catch(Exception error) { Status = Explain(error); return false; }
+    }
     public async Task SaveAsync(CancellationToken ct)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
         await _saveGate.WaitAsync(linked.Token);
         try
         {
-            var aiKey = AiApiKey; var asrKey = AsrApiKey;
+            var aiKeys = AiProfiles.ToDictionary(p => p.BuildSettings().SecretId,p => p.ApiKey); var asrKey = AsrApiKey;
             var candidate = BuildCandidate(); JsonSettingsStore.Validate(candidate);
             if(!candidate.Hotkeys.Bindings.SequenceEqual(_initial.Hotkeys.Bindings) && ProbeHotkeys?.Invoke(candidate.Hotkeys.Bindings) is { Length: > 0 } conflict)
                 throw new ArgumentException(conflict);
-            await _secrets.SetAsync(candidate.Ai.SecretId,aiKey,linked.Token);
+            foreach(var key in aiKeys) await _secrets.SetAsync(key.Key,key.Value,linked.Token);
             await _secrets.SetAsync(candidate.Asr.SecretId,asrKey,linked.Token);
+            var removedSecrets = (_initial.AiProfiles ?? []).Select(p => p.Settings.SecretId).Except(aiKeys.Keys).ToArray();
             await _store.SaveAsync(candidate,linked.Token); _initial = candidate; _saved(candidate);
+            foreach(var id in removedSecrets) await _secrets.SetAsync(id,"",linked.Token);
             Status = "设置已保存。"; Notify();
         }
         finally { _saveGate.Release(); }
@@ -105,22 +172,24 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
     public Task RunImageTestAsync(CancellationToken ct) => RunAiTestAsync(true,ct);
     private async Task RunAiTestAsync(bool image,CancellationToken ct)
     {
-        if(IsBusy || _speechWorking) return;
+        if(IsBusy || _speechWorking || SelectedAiProfile is not { } profile) return;
         IsBusy = true;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
         try
         {
-            await SaveAsync(linked.Token); var tested = _initial; Status = image ? "正在测试图片识别……" : "正在测试文字连接……";
+            await SaveAsync(linked.Token); var tested = profile.TestSettings();
+            Status = $"正在测试 {profile.Name} 的" + (image ? "图片识别……" : "文字连接……");
             var result = image ? await _runner.TestImageAsync(tested,linked.Token) : await _runner.TestTextAsync(tested,linked.Token);
             if(_disposed) return;
             ResultText = result.Text;
+            if(!AiProfiles.Contains(profile)) { Status = "配置已删除，本次测试结果已丢弃。"; return; }
             if(image && result.Passed)
             {
-                try { var accepted = _verification.RecordAiSuccess(BuildCandidate(),result.Fingerprint); _evidence = accepted.Evidence; }
+                try { profile.VerifiedFingerprint = _verification.RecordAiSuccess(profile.TestSettings(),result.Fingerprint).Evidence.AiFingerprint; }
                 catch(Exception error) when(error is InvalidOperationException or ArgumentException) { Status = "配置已变化，本次结果不计入验证资格，请重新测试。"; return; }
                 await SaveAsync(linked.Token);
             }
-            Status = result.Passed ? $"测试通过（{result.Elapsed.TotalSeconds:F1} 秒）。" : result.Error ?? "测试未通过。";
+            Status = result.Passed ? $"{profile.Name} 测试通过（{result.Elapsed.TotalSeconds:F1} 秒）。" : result.Error ?? "测试未通过。";
         }
         catch(OperationCanceledException) { if(!_disposed) Status = "测试已取消。"; }
         catch(Exception error) { Status = Explain(error); }

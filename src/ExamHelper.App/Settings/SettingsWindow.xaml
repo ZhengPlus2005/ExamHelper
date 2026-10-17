@@ -7,14 +7,23 @@
  <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <TextBlock Text="{Binding VerificationSummary}" FontWeight="SemiBold" Margin="0,0,0,12"/>
   <TabControl Grid.Row="1">
-   <TabItem Header="AI 服务"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
-    <TextBlock Text="服务类型"/><ComboBox ItemsSource="{Binding Providers}" DisplayMemberPath="Name" SelectedValuePath="Kind" SelectedValue="{Binding AiProviderKind}" Margin="0,4,0,12"/>
-    <TextBlock Text="API 地址"/><TextBox Text="{Binding AiBaseAddress,UpdateSourceTrigger=PropertyChanged}"/>
-    <TextBlock Text="模型名称"/><TextBox Text="{Binding AiModel,UpdateSourceTrigger=PropertyChanged}"/>
-    <TextBlock Text="API 密钥（仅为当前 Windows 用户加密保存）"/><PasswordBox x:Name="AiKey" PasswordChanged="AiPasswordChanged"/>
-    <WrapPanel><Button Content="文字测试" Click="TextTestClick"/><Button Content="图片测试" Click="ImageTestClick"/></WrapPanel>
-    <TextBlock Text="图片测试使用内置 EH7Q9 测试图；文字测试不替代图片测试资格。" TextWrapping="Wrap" Foreground="#526174" Margin="0,12"/>
-   </StackPanel></ScrollViewer></TabItem>
+   <TabItem Header="AI 服务"><Grid Margin="14"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <WrapPanel Margin="0,0,0,12"><Button Content="＋ 添加配置" Click="AddProfileClick"/><Button Content="启用选中配置" Click="ActivateProfileClick" IsEnabled="{Binding HasSelectedAiProfile}"/><Button Content="删除" Click="DeleteProfileClick" IsEnabled="{Binding HasSelectedAiProfile}"/></WrapPanel>
+    <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <ListBox x:Name="ProfilesList" ItemsSource="{Binding AiProfiles}" SelectedItem="{Binding SelectedAiProfile,Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+      <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="5,9"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="{Binding Status}" Foreground="#4A6B5A" FontSize="11" Margin="0,5,0,0"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+     </ListBox>
+     <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto"><StackPanel IsEnabled="{Binding HasSelectedAiProfile}">
+      <TextBlock Text="配置名称"/><TextBox Text="{Binding SelectedAiProfile.Name,UpdateSourceTrigger=PropertyChanged}"/>
+      <TextBlock Text="服务类型"/><ComboBox ItemsSource="{Binding Providers}" DisplayMemberPath="Name" SelectedValuePath="Kind" SelectedValue="{Binding AiProviderKind}" Margin="0,4,0,12"/>
+      <TextBlock Text="API 地址"/><TextBox Text="{Binding AiBaseAddress,UpdateSourceTrigger=PropertyChanged}"/>
+      <TextBlock Text="模型名称"/><TextBox Text="{Binding AiModel,UpdateSourceTrigger=PropertyChanged}"/>
+      <TextBlock Text="API 密钥（仅为当前 Windows 用户加密保存）"/><PasswordBox x:Name="AiKey" PasswordChanged="AiPasswordChanged"/>
+      <WrapPanel><Button Content="文字测试" Click="TextTestClick"/><Button Content="图片测试" Click="ImageTestClick"/></WrapPanel>
+      <TextBlock Text="测试仅针对选中项，不会自动启用。每项图片资格独立保存；新增、编辑、启用或删除后请保存并返回。" TextWrapping="Wrap" Foreground="#526174" Margin="0,12"/>
+     </StackPanel></ScrollViewer>
+    </Grid>
+   </Grid></TabItem>
    <TabItem Header="语音识别"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
     <TextBlock Text="阿里云北京 API 地址"/><TextBox Text="{Binding AsrBaseAddress,UpdateSourceTrigger=PropertyChanged}"/>
     <TextBlock Text="模型名称"/><TextBox Text="{Binding AsrModel,UpdateSourceTrigger=PropertyChanged}"/>
