@@ -23,6 +23,7 @@ public sealed record RequestSnapshot
     public string Text { get; init; } = "";
     public ImmutableArray<ImageRef> Images { get; init; } = [];
     public string Prompt { get; init; } = "";
+    public string SystemPrompt { get; init; } = "";
     public bool IsDirectCapture { get; init; }
     public MessageStatus Status { get; init; } = MessageStatus.Pending;
     public long? RestoredDraftRevision { get; init; }

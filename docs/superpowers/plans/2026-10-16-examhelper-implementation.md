@@ -243,12 +243,12 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** 实现 IAiClient；`PromptBuilder.BuildSystem(AppSettings settings) -> string`；`ContextBuilder.Build(SessionSnapshot session, RequestSnapshot request, AppSettings settings) -> AiRequest`；图片通过 IImageStore 读取，保持顺序。
 
-- [ ] 编写 `DirectCaptureUsesPresetOrdinarySendDoesNot`、`DefaultLanguageIsCpp`、`RetryDoesNotDuplicateUserMessage`；协议测试 `ParsesSplitUtf8AndSseEvents`、`EofWithoutFinishIsIncomplete`、`CancelsWhileWaiting`、`ProviderErrorsNeverAutoRetry`；断言先后图片 Id 对应输入顺序。
-- [ ] 运行 Core 的 PromptBuilderTests 和 Windows 的 ChatCompletionsClientTests，确认红灯。
-- [ ] 实现 `/chat/completions`，只拼接一次路径，支持 BaseUri 子路径；HTTP streaming 用 ResponseHeadersRead，自行按 SSE 空行组帧，保留跨包 UTF-8。正文只显示 content，不将 reasoning_content 当作答案；finish_reason=length 标记未完成，异常 EOF 不标成功，usage-only 块不丢先前内容。
-- [ ] 使用默认大陆地址 `https://api.moonshot.cn/v1`，默认视觉模型 `kimi-k2.6`；KIMI 专属预设仅针对已验证支持的型号发送 `"thinking":{"type":"disabled"}`，通用兼容模式不发送专属参数。不强加 temperature。开始实现时再次核对官方模型可用性，实际账户仍须测试通过；不静默切换供应商或模型。
-- [ ] 运行测试；基础提示词写入中文、题型规则和可配置语言，精确沿用规格中的直发提示词；保存原始输出。超出服务容量显示错误，不自动删除历史或图片；部分回答重试用同一 RequestId，新的尝试替换该请求的回答视图，旧尝试不重复加入上下文。
-- [ ] 提交：`git commit -m "feat: stream multimodal KIMI and compatible API responses"`。
+- [x] 编写 `DirectCaptureUsesPresetOrdinarySendDoesNot`、`DefaultLanguageIsCpp`、`RetryDoesNotDuplicateUserMessage`；协议测试 `ParsesSplitUtf8AndSseEvents`、`EofWithoutFinishIsIncomplete`、`CancelsWhileWaiting`、`ProviderErrorsNeverAutoRetry`；断言先后图片 Id 对应输入顺序。
+- [x] 运行 Core 的 PromptBuilderTests 和 Windows 的 ChatCompletionsClientTests，确认红灯。
+- [x] 实现 `/chat/completions`，只拼接一次路径，支持 BaseUri 子路径；HTTP streaming 用 ResponseHeadersRead，自行按 SSE 空行组帧，保留跨包 UTF-8。正文只显示 content，不将 reasoning_content 当作答案；finish_reason=length 标记未完成，异常 EOF 不标成功，usage-only 块不丢先前内容。
+- [x] 使用默认大陆地址 `https://api.moonshot.cn/v1`，默认视觉模型 `kimi-k2.6`；KIMI 专属预设仅针对已验证支持的型号发送 `"thinking":{"type":"disabled"}`，通用兼容模式不发送专属参数。不强加 temperature。开始实现时再次核对官方模型可用性，实际账户仍须测试通过；不静默切换供应商或模型。
+- [x] 运行测试；基础提示词写入中文、题型规则和可配置语言，精确沿用规格中的直发提示词；保存原始输出。超出服务容量显示错误，不自动删除历史或图片；部分回答重试用同一 RequestId，新的尝试替换该请求的回答视图，旧尝试不重复加入上下文。
+- [x] 提交：`git commit -m "feat: stream multimodal KIMI and compatible API responses"`。
 
 ### Task 12：设置持久化、加密密钥与验证资格
 

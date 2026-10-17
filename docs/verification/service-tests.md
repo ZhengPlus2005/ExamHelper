@@ -11,3 +11,7 @@ NAudio 版本固定为 2.2.1。实现使用 WASAPI 麦克风采集及 MediaFound
 2026-10-17：ASR 协议与语音协调器实现，完整 Release 回归 69 项通过（Core38 Windows31）。假 HTTP 覆盖北京业务空间地址、WAV Base64、混合语言未传 language、401／429、超时与主动取消、不完整响应。协调器覆盖清空后晚到结果隔离、同一录音手动重试、自动截止触发识别及成功清理。未调用真实云服务，不能给设置标记服务通过。
 
 依据 [阿里云英文官方 ASR 文档](https://help.aliyun.com/en/model-studio/qwen-asr-api-reference) 核对请求格式；支持北京业务空间端点，公共北京域名仍可用。未固定语言参数，以适配中英混合语音。识别结果带 SessionId／Generation／OperationId，任务 14 再将事件接入三秒撤销及持久化草稿。
+
+2026-10-17：图文流式客户端、基础提示词及上下文构建实现，完整 Release 测试 80 项通过（Core42 Windows38）。测试覆盖 UTF-8 每字节拆分、SSE 组帧、缺少完成标记、length 未完成、usage-only 块、取消／超时、原图顺序、重试问题去重、失败历史排除、普通发送不附加直发提示词。未发真实请求。
+
+已核对 [Kimi 官方 K2.6 指南](https://platform.kimi.ai/docs/guide/kimi-k2-6-quickstart)：该模型支持图片输入及关闭 thinking。仅 KIMI 预设的 kimi-k2.6 发送 thinking disabled，兼容模式不发送此参数；不强制 temperature。仍须用用户账户验证模型可用性，不根据文档直接签发资格。客户端明确拒绝超过 100MB 的请求，不静默缩图或丢上下文。
