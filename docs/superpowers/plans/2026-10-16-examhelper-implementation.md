@@ -256,12 +256,12 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** `ISettingsStore.LoadAsync(ct) -> Task<AppSettings>`、`SaveAsync(AppSettings settings, ct)`；`UserSecretStore.SetAsync(string id, string secret, ct)`、`GetAsync(string id, ct) -> Task<string?>`；`ServiceVerification.CanStart(AppSettings settings) -> bool`；`ServiceTestRunner.TestTextAsync`／`TestImageAsync`／`TestSpeechAsync` 各接收当前配置和 ct，返回 ServiceTestResult。
 
-- [ ] 编写 `AiEditInvalidatesOnlyAi`、`AsrDeviceEditInvalidatesOnlyAsr`、`AppearanceAndPromptDoNotInvalidate`；存储测试断言配置文件和诊断日志均无明文密钥，损坏配置不覆盖原文件而返回可恢复错误。
-- [ ] 运行针对测试确认红灯。
-- [ ] 用 CurrentUser DPAPI 存密钥、JSON 存设置及指纹；指纹包含端点、模型、ProviderKind、密钥内容的本地 HMAC 摘要，语音另含 DeviceId。规范化端点，保存前验证 URI。密钥更改不以 SecretId 不变误判未变。
-- [ ] 创建内置测试图“EH7Q9”，图片测试必须返回标记才记通过；ASR 用用户实际录音，展示结果后由用户点击“识别正确”记通过，空结果不允许通过；文字测试单独展示，不额外改变进入门槛。标记结果时核对配置指纹，测试期间修改配置不能给新配置发通过证。
-- [ ] 运行测试和实际 CurrentUser 加解密检查；初始设置含默认语言、提示词、透明度及快捷键。修改快捷键不使服务证据失效，密钥解密失败需要重新填写而不清空历史。
-- [ ] 提交：`git commit -m "feat: persist encrypted settings and service verification state"`。
+- [x] 编写 `AiEditInvalidatesOnlyAi`、`AsrDeviceEditInvalidatesOnlyAsr`、`AppearanceAndPromptDoNotInvalidate`；存储测试断言配置文件和诊断日志均无明文密钥，损坏配置不覆盖原文件而返回可恢复错误。
+- [x] 运行针对测试确认红灯。
+- [x] 用 CurrentUser DPAPI 存密钥、JSON 存设置及指纹；指纹包含端点、模型、ProviderKind、密钥内容的本地 HMAC 摘要，语音另含 DeviceId。规范化端点，保存前验证 URI。密钥更改不以 SecretId 不变误判未变。
+- [x] 创建内置测试图“EH7Q9”，图片测试必须返回标记才记通过；ASR 用用户实际录音，展示结果后由用户点击“识别正确”记通过，空结果不允许通过；文字测试单独展示，不额外改变进入门槛。标记结果时核对配置指纹，测试期间修改配置不能给新配置发通过证。
+- [x] 运行测试和实际 CurrentUser 加解密检查；初始设置含默认语言、提示词、透明度及快捷键。修改快捷键不使服务证据失效，密钥解密失败需要重新填写而不清空历史。
+- [x] 提交：`git commit -m "feat: persist encrypted settings and service verification state"`。
 
 ### Task 13：历史、图片引用、退出草稿与故障恢复
 
