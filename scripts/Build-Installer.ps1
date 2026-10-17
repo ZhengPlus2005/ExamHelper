@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.1.0',[string]$IsccPath,[string]$PublishDirectory,[string]$OutputDirectory)
+param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.0',[string]$IsccPath,[string]$PublishDirectory,[string]$OutputDirectory)
 . (Join-Path $PSScriptRoot 'Common.ps1')
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (-not $IsccPath) {

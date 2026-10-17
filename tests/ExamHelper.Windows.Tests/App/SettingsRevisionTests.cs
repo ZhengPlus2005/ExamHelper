@@ -94,8 +94,58 @@ public class SettingsRevisionTests
             Assert.Contains("55",label.Text);
             var preview = Assert.IsType<ExamHelper.App.Controls.OpacityPreview>(window.FindName("OpacityDemo"));
             Assert.Equal(0.55,preview.BackgroundOpacity);
+            SavePreview(window,"opacity55.png");
+            rig.Vm.Opacity = 0.35; window.UpdateLayout(); StaTest.Pump(); SavePreview(window,"opacity35.png");
+            rig.Vm.Opacity = 0.85; window.UpdateLayout(); StaTest.Pump(); SavePreview(window,"opacity85.png");
             window.Close(); StaTest.Pump(); rig.DisposeAsync().AsTask().GetAwaiter().GetResult();
         });
+    }
+    [Fact]
+    public async Task ProfileListAndMicrophoneMeterRenderWithLiveBindings()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            var rig = new Rig(); var backup = rig.Vm.AddAiProfile(); backup.Name = "备用兼容接口"; backup.ApiKey = "fake-backup-key";
+            var window = new SettingsWindow(rig.Vm,() => Task.FromResult(SettingsCloseChoice.Discard));
+            window.Show(); window.UpdateLayout(); StaTest.Pump(); SavePreview(window,"ai-profiles.png");
+            var tabs = Assert.IsType<System.Windows.Controls.TabControl>(window.FindName("SettingsTabs")); tabs.SelectedIndex = 1;
+            rig.Vm.ReadLevel = () => 0.1f; rig.Vm.RefreshTelemetry(); window.UpdateLayout(); StaTest.Pump();
+            var meter = Assert.IsType<System.Windows.Controls.ProgressBar>(window.FindName("MicrophoneMeter"));
+            Assert.InRange(meter.Value,0.65,0.68); SavePreview(window,"microphone-meter.png");
+            rig.Vm.ReadLevel = () => 0; rig.Vm.RefreshTelemetry(); StaTest.Pump(); Assert.Equal(0,meter.Value);
+            window.Close(); StaTest.Pump(); rig.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        });
+    }
+    [Fact]
+    public async Task ActualProfileSelectionDoesNotOverwriteKeysOrDirtySavedConfiguration()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            var rig = new Rig(); var first = rig.Vm.SelectedAiProfile!;
+            var second = rig.Vm.AddAiProfile(); second.Name = "B"; second.ApiKey = "key-B"; second.Model = "model-B";
+            rig.Vm.SaveAsync(default).GetAwaiter().GetResult(); var prompts = 0;
+            var window = new SettingsWindow(rig.Vm,() => { prompts++; return Task.FromResult(SettingsCloseChoice.Discard); });
+            window.Show(); StaTest.Pump();
+            var list = Assert.IsType<System.Windows.Controls.ListBox>(window.FindName("ProfilesList"));
+            list.SelectedItem = first; StaTest.Pump();
+            Assert.Equal("ai",Assert.IsType<System.Windows.Controls.PasswordBox>(window.FindName("AiKey")).Password);
+            list.SelectedItem = second; StaTest.Pump();
+            Assert.Equal("key-B",Assert.IsType<System.Windows.Controls.PasswordBox>(window.FindName("AiKey")).Password);
+            Assert.Equal("model-B",rig.Vm.AiModel); Assert.False(rig.Vm.HasUnsavedChanges);
+            window.Close(); StaTest.Pump(); Assert.Equal(0,prompts);
+            rig.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        });
+    }
+    private static void SavePreview(System.Windows.Window window,string name)
+    {
+        var directory = Environment.GetEnvironmentVariable("EXAMHELPER_TEST_UI_OUTPUT");
+        if(string.IsNullOrEmpty(directory)) return;
+        Directory.CreateDirectory(directory);
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)window.ActualWidth,(int)window.ActualHeight,96,96,System.Windows.Media.PixelFormats.Pbgra32);
+        bitmap.Render(window);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var output = File.Create(Path.Combine(directory,name)); encoder.Save(output);
     }
     private sealed class Rig : IAsyncDisposable
     {

@@ -1,5 +1,5 @@
-#ifndef AppVersion
- #define AppVersion "0.1.0"
+﻿#ifndef AppVersion
+ #define AppVersion "0.2.0"
 #endif
 #ifndef PublishDir
  #error PublishDir must be provided by Build-Installer.ps1
@@ -22,6 +22,7 @@ OutputBaseFilename=ExamHelper-Setup-{#AppVersion}-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=../src/ExamHelper.App/Assets/app-icon.ico
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\ExamHelper.App.exe
 CloseApplications=yes
@@ -34,6 +35,8 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignorever
 Name: "{userprograms}\ExamHelper"; Filename: "{app}\ExamHelper.App.exe"
 [Run]
 Filename: "{app}\ExamHelper.App.exe"; Description: "Launch ExamHelper"; Flags: nowait postinstall skipifsilent
+[UninstallDelete]
+Type: files; Name: "{userdesktop}\ExamHelper.lnk"
 [Code]
 function InitializeSetup(): Boolean;
 var
@@ -43,4 +46,50 @@ begin
   Result := (Version.Major >= 10) and (Version.Build >= 22000) and (Version.ProductType = VER_NT_WORKSTATION);
   if not Result then
     MsgBox('ExamHelper requires Windows 11 x64 workstation.', mbError, MB_OK);
+end;
+
+var
+  DesktopShortcutBox: TNewCheckBox;
+
+procedure InitializeWizard;
+begin
+  DesktopShortcutBox := TNewCheckBox.Create(WizardForm);
+  DesktopShortcutBox.Parent := WizardForm.FinishedPage;
+  DesktopShortcutBox.Left := WizardForm.RunList.Left;
+  DesktopShortcutBox.Width := WizardForm.RunList.Width;
+  DesktopShortcutBox.Height := ScaleY(24);
+  DesktopShortcutBox.Caption := '添加快捷方式到桌面';
+  DesktopShortcutBox.Checked := False;
+  DesktopShortcutBox.Visible := False;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  DesktopShortcutBox.Visible := (CurPageID = wpFinished) and not WizardSilent;
+  if CurPageID = wpFinished then
+  begin
+    DesktopShortcutBox.Top := WizardForm.RunList.Top + ScaleY(34);
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = wpFinished) and not WizardSilent and DesktopShortcutBox.Checked then
+  begin
+    try
+      CreateShellLink(
+        ExpandConstant('{userdesktop}\ExamHelper.lnk'),
+        'ExamHelper',
+        ExpandConstant('{app}\ExamHelper.App.exe'),
+        '',
+        ExpandConstant('{app}'),
+        ExpandConstant('{app}\ExamHelper.App.exe'),
+        0, SW_SHOWNORMAL);
+    except
+      MsgBox('未能创建桌面快捷方式：' + GetExceptionMessage() + #13#10 +
+        '可以取消勾选后再次点击完成。', mbError, MB_OK);
+      Result := False;
+    end;
+  end;
 end;

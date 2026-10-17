@@ -1,4 +1,4 @@
-<Window x:Class="ExamHelper.App.Settings.SettingsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:ExamHelper.App.Controls" Title="设置 · ExamHelper" Width="790" Height="780" MinWidth="620" MinHeight="560" Background="#F3F5F8" WindowStartupLocation="CenterOwner">
+<Window Icon="/ExamHelper.App;component/Assets/app-icon.ico" x:Class="ExamHelper.App.Settings.SettingsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:ExamHelper.App.Controls" Title="设置 · ExamHelper" Width="790" Height="780" MinWidth="620" MinHeight="560" Background="#F3F5F8" WindowStartupLocation="CenterOwner">
  <Window.Resources>
   <Style TargetType="TextBox"><Setter Property="Padding" Value="8"/><Setter Property="Margin" Value="0,4,0,12"/></Style>
   <Style TargetType="PasswordBox"><Setter Property="Padding" Value="8"/><Setter Property="Margin" Value="0,4,0,12"/></Style>
