@@ -53,7 +53,9 @@ public sealed class AppComposition : IAsyncDisposable
             result.Coordinator = new(new ChatCompletionsClient(result._http,result.Secrets,result.Images),
                 new AliyunAsrClient(result._http,result.Secrets),result._microphone,new FullScreenCapture(),result.Images,
                 () => result.CurrentSettings,result.Sessions,TimeProvider.System);
-            result.Overlay = overlayFactory?.Invoke(result) ?? new UnavailableOverlay();
+            result.Overlay = overlayFactory?.Invoke(result) ?? new OverlayHost(result.Coordinator,result.Images,() => result.CurrentSettings,result.SaveUiAsync,
+                () => result.Home.ReturnedAsync(CancellationToken.None),async () => { await result.DisposeAsync(); Application.Current.Shutdown(); },
+                report: message => result.Home.Status = message);
             result.Home = new(result.Coordinator,result.Sessions,result.Images,result.ReadSettingsForEntryAsync,result.Verification,result.Overlay,
                 () => result._cleaner.ReconcileAsync(CancellationToken.None));
             result.Home.Status = string.Join(Environment.NewLine,warnings);
@@ -84,6 +86,8 @@ public sealed class AppComposition : IAsyncDisposable
             saved => _settings = saved,action => dispatcher.BeginInvoke(action)) { ReadLevel = () => microphone.PeakLevel,ProbeHotkeys = HotkeyConflictProbe.Check };
         var devices = new List<MicrophoneDevice> { new("","系统默认麦克风") };
         try { devices.AddRange(MicrophoneRecorder.GetDevices()); } catch { warning += "无法列出麦克风，请检查 Windows 权限。"; }
+        if(!string.IsNullOrEmpty(_settings.Asr.DeviceId) && !devices.Any(d => d.Id == _settings.Asr.DeviceId))
+            devices.Add(new(_settings.Asr.DeviceId,"已保存的麦克风（当前不可用）"));
         viewModel.Devices = devices; viewModel.Status = warning;
         return viewModel;
     }
@@ -95,9 +99,4 @@ public sealed class AppComposition : IAsyncDisposable
         _http.Dispose();
     }
     private static string ObservableMessage(Exception error) => error is ServiceFailure ? error.Message : "部分本地恢复未完成，请检查存储后重试。";
-    private sealed class UnavailableOverlay : IOverlayHost
-    {
-        public Task<ProtectionResult> OpenAsync(CancellationToken ct) => throw new InvalidOperationException("辅助窗口尚待任务 16 组装。");
-        public void Show() { } public void Close() { }
-    }
 }

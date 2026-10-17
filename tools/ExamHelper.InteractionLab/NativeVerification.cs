@@ -8,7 +8,7 @@ using ExamHelper.Windows.Native;
 namespace ExamHelper.InteractionLab;
 internal static class NativeVerification
 {
-    public static IReadOnlyDictionary<string, bool> Run(Window reference, MainWindow overlay)
+    public static IReadOnlyDictionary<string, bool> Run(Window reference, Window overlay)
     {
         var target = new WindowInteropHelper(reference).Handle;
         var hwnd = new WindowInteropHelper(overlay).Handle;

@@ -6,9 +6,9 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        if (e.Args.Length >= 2 && (e.Args[0] == "--verify" || e.Args[0] == "--verify-audio"))
+        if (e.Args.Length >= 2 && (e.Args[0] == "--verify" || e.Args[0] == "--verify-audio" || e.Args[0] == "--verify-product"))
         {
-            try { if (e.Args[0] == "--verify-audio") await AudioVerification.RunAsync(Path.GetFullPath(e.Args[1])); else await CaptureVerification.RunAsync(Path.GetFullPath(e.Args[1])); Shutdown(0); }
+            try { if (e.Args[0] == "--verify-audio") await AudioVerification.RunAsync(Path.GetFullPath(e.Args[1])); else await CaptureVerification.RunAsync(Path.GetFullPath(e.Args[1]),e.Args[0] == "--verify-product"); Shutdown(0); }
             catch (Exception ex) { Directory.CreateDirectory(e.Args[1]); File.WriteAllText(Path.Combine(e.Args[1], "error.txt"), ex.ToString()); Shutdown(1); }
             return;
         }

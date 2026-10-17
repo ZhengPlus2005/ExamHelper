@@ -309,12 +309,12 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** `OverlayHost` 实现 IOverlayHost；`CodeBlockParser.Parse(string accumulatedText, bool isFinal) -> IReadOnlyList<AnswerSegment>`，AnswerSegment 包含 Kind、Text、Language；OverlayViewModel 只通过 ExecuteAsync 发命令，不直接 HTTP／写 DB。
 
-- [ ] 编写 `IncompleteFenceDoesNotLoseText`、`PlainMarkdownStaysLiteral`、`HideKeepsRequestsAndHotkeys`、`ReturnClearsDraftAndUnregisters`、`ExitSavesDraft`、`RecreatedHandleMustReapplyProtection`；验证同一 hover 结束不能因内容重排再触发。
-- [ ] 运行相关 Core／Windows 测试确认红灯，WPF 测试用 STA 调度器辅助，不在普通测试线程直接 new Window。
-- [ ] 组合此前交互：顶部截图直发／截图入草稿／录音／新对话／停止／折叠／主页／退出；无设置入口。下方回答、缩略图、只读语音草稿、清空输入／发送；撤销语音及各失败重试按钮按状态出现。信息多时布局换行但不覆盖命中区域。
-- [ ] 流式回答以原始文本为真源解析 fence，允许未闭合代码块，等宽代码标注语言；代码过长优先换行，避免只有无法操作的横向滚动。回答列表增量更新、节流刷新，不每个 token 重建整个窗口。所有 tooltip／错误提示在同一保护 HWND 内，不弹普通 Toast 承载问题或答案。
-- [ ] 实现捕获保护先于展示、关闭不是隐藏、隐藏／折叠时结束操作锁，不操作输入法或恢复焦点；截图／录音／删除不抢焦点。全局注册失败保持主页展示并列出冲突供修改。运行测试并按规格全流程手测：图文发送、三秒撤销、链式误删防护、长回答往返阅读、隐藏后台任务、返回与退出恢复。
-- [ ] 提交：`git commit -m "feat: assemble the protected hover assistant window"`。
+- [x] 编写 `IncompleteFenceDoesNotLoseText`、`PlainMarkdownStaysLiteral`、`HideKeepsRequestsAndHotkeys`、`ReturnClearsDraftAndUnregisters`、`ExitSavesDraft`、`RecreatedHandleMustReapplyProtection`；验证同一 hover 结束不能因内容重排再触发。
+- [x] 运行相关 Core／Windows 测试确认红灯，WPF 测试用 STA 调度器辅助，不在普通测试线程直接 new Window。
+- [x] 组合此前交互：顶部截图直发／截图入草稿／录音／新对话／停止／折叠／主页／退出；无设置入口。下方回答、缩略图、只读语音草稿、清空输入／发送；撤销语音及各失败重试按钮按状态出现。信息多时布局换行但不覆盖命中区域。
+- [x] 流式回答以原始文本为真源解析 fence，允许未闭合代码块，等宽代码标注语言；代码过长优先换行，避免只有无法操作的横向滚动。回答列表增量更新、节流刷新，不每个 token 重建整个窗口。所有 tooltip／错误提示在同一保护 HWND 内，不弹普通 Toast 承载问题或答案。
+- [x] 实现捕获保护先于展示、关闭不是隐藏、隐藏／折叠时结束操作锁，不操作输入法或恢复焦点；截图／录音／删除不抢焦点。全局注册失败保持主页展示并列出冲突供修改。完整自动回归及正式窗口受控捕获通过，包含隐藏任务／快捷键保留、返回清空、退出保存、重新创建 HWND 保护与只读草稿。真实云服务全流程、链式误删和新产品窗口的长回答手势保留到任务 18；未把组件测试当作全部人工验收。
+- [x] 提交：`git commit -m "feat: assemble the protected hover assistant window"`。
 
 ### Task 17：自包含发布与当前用户 EXE 安装包
 

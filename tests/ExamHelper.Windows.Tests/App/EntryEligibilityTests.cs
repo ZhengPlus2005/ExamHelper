@@ -44,6 +44,15 @@ public class EntryEligibilityTests
         Assert.Null(await rig.Store.LoadAsync(session.Id,default));
     }
     [Fact]
+    public async Task ShowFailureWhenContinuingPreservesSavedDraftAndReturnsToHomeMode()
+    {
+        await using var rig = new Rig(Verified()); rig.Host.ThrowOnShow = true;
+        var session = new SessionSnapshot { IsAuxiliaryMode = false,Draft = new("必须保留的退出草稿",[],2) };
+        await rig.Store.SaveAsync(session,default); await rig.Home.ContinueAsync(session.Id,default);
+        Assert.True(rig.Home.HomeVisible); Assert.False(rig.Coordinator.State.IsAuxiliaryMode);
+        Assert.Equal("必须保留的退出草稿",(await rig.Store.LoadAsync(session.Id,default))!.Draft.Text);
+    }
+    [Fact]
     public async Task ConfigChangedDuringTestDoesNotPassNewConfig()
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -74,8 +83,8 @@ public class EntryEligibilityTests
     }
     private sealed class Host : IOverlayHost
     {
-        public int OpenCalls,ShowCalls; public ProtectionResult Result = new(true,0,0x11);
+        public int OpenCalls,ShowCalls; public bool ThrowOnShow; public ProtectionResult Result = new(true,0,0x11);
         public Task<ProtectionResult> OpenAsync(CancellationToken ct) { OpenCalls++; return Task.FromResult(Result); }
-        public void Show() => ShowCalls++; public void Close() { }
+        public void Show() { ShowCalls++; if(ThrowOnShow) throw new InvalidOperationException("显示前保护复核失败"); } public void Close() { }
     }
 }

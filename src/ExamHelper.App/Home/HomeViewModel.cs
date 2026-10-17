@@ -48,9 +48,11 @@ public sealed class HomeViewModel(SessionCoordinator coordinator,ISessionStore s
         catch(Exception error)
         {
             overlay.Close(); HomeVisible = true; Status = Explain(error);
+            if(coordinator.State.IsAuxiliaryMode)
+                try { await coordinator.AbortEntryAsync(CancellationToken.None); } catch(Exception saveError) { Status += Environment.NewLine + Explain(saveError); }
             if(created.HasValue && coordinator.State.Messages.Length == 0)
             {
-                try { await coordinator.ReturnHomeAsync(CancellationToken.None); await sessions.DeleteAsync(created.Value,CancellationToken.None); } catch { }
+                try { await sessions.DeleteAsync(created.Value,CancellationToken.None); } catch { }
             }
         }
         finally { IsBusy = false; }

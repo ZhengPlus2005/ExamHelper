@@ -311,7 +311,8 @@ public sealed class SessionCoordinator : IAsyncDisposable
     private bool CaptureCurrent(CaptureWork work) => _state.IsAuxiliaryMode && _state.Id == work.SessionId && _state.Generation == work.Generation && _captureEpoch == work.Epoch;
     public Task ReturnHomeAsync(CancellationToken ct) => LeaveAsync(false,ct);
     public Task ExitAsync(CancellationToken ct) => LeaveAsync(true,ct);
-    private async Task LeaveAsync(bool preserveDraft,CancellationToken ct)
+    public Task AbortEntryAsync(CancellationToken ct) => LeaveAsync(true,ct,false);
+    private async Task LeaveAsync(bool preserveDraft,CancellationToken ct,bool notifyUi = true)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -327,7 +328,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
             catch { _draft.Restore(before); _state = _state with { IsAuxiliaryMode = true,PendingRequest = pendingBefore }; Publish(); throw; }
         }
         finally { _gate.Release(); }
-        UiCommandRequested?.Invoke(preserveDraft ? AppCommand.Exit : AppCommand.ReturnHome);
+        if(notifyUi) UiCommandRequested?.Invoke(preserveDraft ? AppCommand.Exit : AppCommand.ReturnHome);
     }
     private void Publish()
     {

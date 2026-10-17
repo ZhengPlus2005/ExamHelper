@@ -12,7 +12,7 @@ namespace ExamHelper.InteractionLab;
 // Integration fixture captures only its own reference surface; never uploads pixels.
 internal static class CaptureVerification
 {
-    public static async Task RunAsync(string directory)
+    public static async Task RunAsync(string directory,bool productWindow = false)
     {
         Directory.CreateDirectory(directory);
         File.WriteAllText(Path.Combine(directory, "capture-result.json"), "{\"Passed\":false,\"Status\":\"Running\"}");
@@ -34,10 +34,14 @@ internal static class CaptureVerification
             if (baselinePixels[i] != 68 || baselinePixels[i + 1] != 102 || baselinePixels[i + 2] != 34)
                 throw new InvalidOperationException($"Reference surface not fully visible (first non-green BGR={baselinePixels[i]},{baselinePixels[i + 1]},{baselinePixels[i + 2]}); capture test inconclusive. No desktop pixels saved.");
         Save(before, Path.Combine(directory, "reference.png"));
-        var overlay = new MainWindow(registerHotkeys: false) { Left = 120, Top = 100, Width = 640, Height = 600 };
-        if (!overlay.Protection.Success) throw new InvalidOperationException($"Protection failed: {overlay.Protection}");
+        await using var product = productWindow ? await ProductCaptureFixture.CreateAsync() : null;
+        var lab = productWindow ? null : new MainWindow(registerHotkeys: false) { Left = 120, Top = 100, Width = 640, Height = 600 };
+        Window overlay = product?.Window ?? (Window)lab!;
+        var protection = product?.Window.Protection ?? lab!.Protection;
+        if (!protection.Success) throw new InvalidOperationException($"Protection failed: {protection}");
         overlay.Show();
         await Task.Delay(500);
+        product?.SavePreview(directory);
         var after = Capture((int)origin.X + inset, (int)origin.Y + inset, before.PixelWidth, before.PixelHeight);
         Save(after, Path.Combine(directory, "protected-capture.png"));
         var a = new byte[before.PixelWidth * before.PixelHeight * 4];
@@ -46,11 +50,11 @@ internal static class CaptureVerification
         int differences = 0; for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) differences++;
         var nativeChecks = NativeVerification.Run(reference, overlay);
         File.WriteAllText(Path.Combine(directory, "capture-result.json"), JsonSerializer.Serialize(new {
-            OS = Environment.OSVersion.VersionString, Protection = overlay.Protection,
+            OS = Environment.OSVersion.VersionString, Protection = protection,
             CaptureBackend = "GDI BitBlt SRCCOPY; own reference surface only", before.PixelWidth, before.PixelHeight,
             Differences = differences, CapturePassed = differences == 0, Passed = differences == 0 && nativeChecks.All(c => c.Value), NativeChecks = nativeChecks, Dpi = scale.PixelsPerInchX
         }, new JsonSerializerOptions { WriteIndented = true }));
-        overlay.Close(); reference.Close();
+        if(product is not null) product.Window.CloseFromHost(); else overlay.Close(); reference.Close();
         if (differences != 0) throw new InvalidOperationException($"Capture contains {differences} changed bytes; inspect artifacts.");
         if (nativeChecks.Any(c => !c.Value)) throw new InvalidOperationException("Native integration check failed; inspect capture-result.json.");
     }

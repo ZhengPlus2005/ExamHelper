@@ -10,6 +10,7 @@ public sealed record ProviderOption(ProviderKind Kind,string Name);
 public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
 {
     private readonly ISettingsStore _store;
+    private readonly SemaphoreSlim _saveGate = new(1);
     private readonly ISecretStore _secrets;
     private readonly ServiceVerification _verification;
     private readonly ServiceTestRunner _runner;
@@ -74,18 +75,31 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
     };
     public async Task SaveAsync(CancellationToken ct)
     {
-        var candidate = BuildCandidate(); JsonSettingsStore.Validate(candidate);
-        if(!candidate.Hotkeys.Bindings.SequenceEqual(_initial.Hotkeys.Bindings) && ProbeHotkeys?.Invoke(candidate.Hotkeys.Bindings) is { Length: > 0 } conflict)
-            throw new ArgumentException(conflict);
-        await _secrets.SetAsync(candidate.Ai.SecretId,AiApiKey,ct);
-        await _secrets.SetAsync(candidate.Asr.SecretId,AsrApiKey,ct);
-        await _store.SaveAsync(candidate,ct); _initial = candidate; _saved(candidate);
-        Status = "设置已保存。"; Notify();
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
+        await _saveGate.WaitAsync(linked.Token);
+        try
+        {
+            var aiKey = AiApiKey; var asrKey = AsrApiKey;
+            var candidate = BuildCandidate(); JsonSettingsStore.Validate(candidate);
+            if(!candidate.Hotkeys.Bindings.SequenceEqual(_initial.Hotkeys.Bindings) && ProbeHotkeys?.Invoke(candidate.Hotkeys.Bindings) is { Length: > 0 } conflict)
+                throw new ArgumentException(conflict);
+            await _secrets.SetAsync(candidate.Ai.SecretId,aiKey,linked.Token);
+            await _secrets.SetAsync(candidate.Asr.SecretId,asrKey,linked.Token);
+            await _store.SaveAsync(candidate,linked.Token); _initial = candidate; _saved(candidate);
+            Status = "设置已保存。"; Notify();
+        }
+        finally { _saveGate.Release(); }
     }
     public async Task AutoSavePromptAsync(CancellationToken ct)
     {
-        var candidate = _initial with { DirectCapturePrompt = DirectCapturePrompt };
-        await _store.SaveAsync(candidate,ct); _initial = candidate; _saved(candidate);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
+        await _saveGate.WaitAsync(linked.Token);
+        try
+        {
+            var candidate = _initial with { DirectCapturePrompt = DirectCapturePrompt };
+            await _store.SaveAsync(candidate,linked.Token); _initial = candidate; _saved(candidate);
+        }
+        finally { _saveGate.Release(); }
     }
     public Task RunTextTestAsync(CancellationToken ct) => RunAiTestAsync(false,ct);
     public Task RunImageTestAsync(CancellationToken ct) => RunAiTestAsync(true,ct);

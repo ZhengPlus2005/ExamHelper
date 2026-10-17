@@ -36,7 +36,7 @@ public sealed class JsonSettingsStore(string path) : ISettingsStore
         if(string.IsNullOrWhiteSpace(settings.Ai.Model) || string.IsNullOrWhiteSpace(settings.Asr.Model) || string.IsNullOrWhiteSpace(settings.DefaultCodeLanguage))
             throw new ArgumentException("模型名称与默认编程语言不能为空。");
         if(!double.IsFinite(settings.Ui.Opacity) || settings.Ui.Opacity is < 0.35 or > 1 || !double.IsFinite(settings.Ui.Width) ||
-            !double.IsFinite(settings.Ui.Height) || settings.Ui.Width < 480 || settings.Ui.Height < 360 ||
+            !double.IsFinite(settings.Ui.Height) || settings.Ui.Width <= 0 || settings.Ui.Height <= 0 ||
             (settings.Ui.Left.HasValue && !double.IsFinite(settings.Ui.Left.Value)) || (settings.Ui.Top.HasValue && !double.IsFinite(settings.Ui.Top.Value)))
             throw new ArgumentException("窗口尺寸或透明度无效。");
         if(settings.Hotkeys.Bindings.IsDefault || settings.Hotkeys.Bindings.GroupBy(b => (b.Modifiers,b.VirtualKey)).Any(g => g.Count() > 1))

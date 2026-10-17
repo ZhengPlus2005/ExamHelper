@@ -1,0 +1,9 @@
+<UserControl x:Class="ExamHelper.App.Controls.ThumbnailStrip" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:beh="clr-namespace:ExamHelper.App.Controls" Focusable="False">
+ <ItemsControl x:Name="Items"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+  <ItemsControl.ItemTemplate><DataTemplate>
+   <Border Background="#702F4055" BorderBrush="#738AA7" BorderThickness="1" CornerRadius="4" Padding="4" Margin="0,0,6,6" Width="112" Height="82" beh:DwellBehavior.Command="{Binding DeleteCommand}">
+    <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Image Source="{Binding Preview}" Stretch="Uniform"/><TextBlock Grid.Row="1" Text="{Binding Sequence,StringFormat='截图 {0} · 悬停删除'}" Foreground="White" FontSize="10" HorizontalAlignment="Center"/><ProgressBar Grid.RowSpan="2" VerticalAlignment="Bottom" Height="3" Maximum="1" Value="{Binding RelativeSource={RelativeSource AncestorType=Border},Path=(beh:DwellBehavior.Progress),Mode=OneWay}"/></Grid>
+   </Border>
+  </DataTemplate></ItemsControl.ItemTemplate>
+ </ItemsControl>
+</UserControl>
