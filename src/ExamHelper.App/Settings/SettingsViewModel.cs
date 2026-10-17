@@ -8,7 +8,7 @@ using ExamHelper.Windows.Settings;
 namespace ExamHelper.App.Settings;
 public enum SettingsCloseChoice { Save, Discard, Cancel }
 public sealed record ProviderOption(ProviderKind Kind,string Name);
-public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
+public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposable
 {
     private readonly ISettingsStore _store;
     private readonly SemaphoreSlim _saveGate = new(1);
@@ -22,6 +22,7 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
     private AppSettings _initial;
     private ServiceEvidence _evidence;
     private AppSettings? _speechSettings;
+    private string _speechKey = "";
     private ServiceTestResult? _speechResult;
     private Guid? _speechOperation;
     private Task _speechProcessing = Task.CompletedTask;
@@ -130,46 +131,6 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
             catch { return true; }
         }
     }
-    public async Task<bool> RequestCloseAsync(Func<Task<SettingsCloseChoice>> ask,CancellationToken ct)
-    {
-        await _saveGate.WaitAsync(ct); _saveGate.Release();
-        if(!HasUnsavedChanges) return true;
-        var choice = await ask();
-        if(choice == SettingsCloseChoice.Cancel) return false;
-        if(choice == SettingsCloseChoice.Discard) return true;
-        try { await SaveAsync(ct); return !HasUnsavedChanges; }
-        catch(Exception error) { Status = Explain(error); return false; }
-    }
-    public async Task SaveAsync(CancellationToken ct)
-    {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
-        await _saveGate.WaitAsync(linked.Token);
-        try
-        {
-            var aiKeys = AiProfiles.ToDictionary(p => p.BuildSettings().SecretId,p => p.ApiKey); var asrKey = AsrApiKey;
-            var candidate = BuildCandidate(); JsonSettingsStore.Validate(candidate);
-            if(!candidate.Hotkeys.Bindings.SequenceEqual(_initial.Hotkeys.Bindings) && ProbeHotkeys?.Invoke(candidate.Hotkeys.Bindings) is { Length: > 0 } conflict)
-                throw new ArgumentException(conflict);
-            foreach(var key in aiKeys) await _secrets.SetAsync(key.Key,key.Value,linked.Token);
-            await _secrets.SetAsync(candidate.Asr.SecretId,asrKey,linked.Token);
-            var removedSecrets = (_initial.AiProfiles ?? []).Select(p => p.Settings.SecretId).Except(aiKeys.Keys).ToArray();
-            await _store.SaveAsync(candidate,linked.Token); _initial = candidate; _saved(candidate);
-            foreach(var id in removedSecrets) await _secrets.SetAsync(id,"",linked.Token);
-            Status = "设置已保存。"; Notify();
-        }
-        finally { _saveGate.Release(); }
-    }
-    public async Task AutoSavePromptAsync(CancellationToken ct)
-    {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
-        await _saveGate.WaitAsync(linked.Token);
-        try
-        {
-            var candidate = _initial with { DirectCapturePrompt = DirectCapturePrompt };
-            await _store.SaveAsync(candidate,linked.Token); _initial = candidate; _saved(candidate);
-        }
-        finally { _saveGate.Release(); }
-    }
     public Task RunTextTestAsync(CancellationToken ct) => RunAiTestAsync(false,ct);
     public Task RunImageTestAsync(CancellationToken ct) => RunAiTestAsync(true,ct);
     private async Task RunAiTestAsync(bool image,CancellationToken ct)
@@ -179,17 +140,17 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
         try
         {
-            await SaveAsync(linked.Token); var tested = profile.TestSettings();
+            var tested = profile.TestSettings(); var key = profile.ApiKey; var snapshot = profile.BuildProfile();
             Status = $"正在测试 {profile.Name} 的" + (image ? "图片识别……" : "文字连接……");
-            var result = image ? await _runner.TestImageAsync(tested,linked.Token) : await _runner.TestTextAsync(tested,linked.Token);
+            var result = image ? await _runner.TestImageAsync(tested,key,linked.Token) : await _runner.TestTextAsync(tested,key,linked.Token);
             if(_disposed) return;
             ResultText = result.Text;
             if(!AiProfiles.Contains(profile)) { Status = "配置已删除，本次测试结果已丢弃。"; return; }
             if(image && result.Passed)
             {
-                try { profile.VerifiedFingerprint = _verification.RecordAiSuccess(profile.TestSettings(),result.Fingerprint).Evidence.AiFingerprint; }
+                try { _verification.RecordAiSuccess(profile.TestSettings(),result.Fingerprint); }
                 catch(Exception error) when(error is InvalidOperationException or ArgumentException) { Status = "配置已变化，本次结果不计入验证资格，请重新测试。"; return; }
-                await SaveAsync(linked.Token);
+                if(!await PersistAiTestAsync(profile,snapshot,key,result.Fingerprint,linked.Token)) return;
             }
             Status = result.Passed ? $"{profile.Name} 测试通过（{result.Elapsed.TotalSeconds:F1} 秒）。" : result.Error ?? "测试未通过。";
         }
@@ -206,7 +167,7 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
         if(_speechWorking || IsBusy) return;
         try
         {
-            await SaveAsync(ct); _speechSettings = _initial; _speechResult = null; _speechOperation = null;
+            _speechSettings = _initial with { Asr = BuildAsr() }; _speechKey = AsrApiKey; _speechResult = null; _speechOperation = null;
             _speechWorking = true; Status = "正在录音，请说一句中英混合的话；再次点击停止，最多 60 秒。"; Notify();
             await _recording.StartAsync(DeviceId,_lifetime.Token);
         }
@@ -221,7 +182,7 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
         try
         {
             Status = "正在识别测试录音……"; Notify();
-            var result = await _runner.TestSpeechAsync(clip,_speechSettings!,_lifetime.Token);
+            var result = await _runner.TestSpeechAsync(clip,_speechSettings!,_speechKey,_lifetime.Token);
             if(_disposed) return;
             _speechResult = result; ResultText = result.Text;
             Status = result.RequiresConfirmation ? "请核对识别文字，正确后点击“识别正确”。" : result.Error ?? "识别测试未通过。";
@@ -235,8 +196,8 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
         if(_speechResult?.RequiresConfirmation != true || string.IsNullOrWhiteSpace(_speechResult.Text)) return;
         try
         {
-            _evidence = _verification.RecordAsrSuccess(BuildCandidate(),_speechResult.Fingerprint).Evidence;
-            await SaveAsync(ct); _speechResult = _speechResult with { Passed = true,RequiresConfirmation = false };
+            _verification.RecordAsrSuccess(_initial with { Asr = BuildAsr() },_speechResult.Fingerprint);
+            if(!await PersistSpeechTestAsync(ct)) return; _speechResult = _speechResult with { Passed = true,RequiresConfirmation = false };
             Status = "语音识别测试已确认并保存。"; Notify();
         }
         catch(Exception error) { Status = Explain(error); }

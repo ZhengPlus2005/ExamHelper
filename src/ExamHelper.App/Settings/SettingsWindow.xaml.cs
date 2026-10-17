@@ -72,7 +72,7 @@ public partial class SettingsWindow : Window
     private void CloseClick(object sender,RoutedEventArgs args) => Close();
     private async void SaveClick(object sender,RoutedEventArgs args)
     {
-        try { _promptSave.Stop(); await _viewModel.SaveAsync(CancellationToken.None); _allowClose = true; Close(); }
+        try { _promptSave.Stop(); await _viewModel.SaveAsync(CancellationToken.None); Close(); }
         catch(Exception error) { _viewModel.Status = Common.ObservableObject.Explain(error); }
     }
 }

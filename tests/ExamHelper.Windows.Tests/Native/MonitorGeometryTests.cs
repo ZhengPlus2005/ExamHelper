@@ -30,4 +30,29 @@ public class MonitorGeometryTests
             finally { window.Close(); }
         });
     }
+
+    [Fact]
+    public async Task PhysicalResizeIsNotScaledAgainWhenMovingBetweenMonitorDpis()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            var previous = SetThreadDpiAwarenessContext(-4);
+            Window? window = null;
+            try
+            {
+                window = new Window { Width = 400,Height = 300,MinWidth = 0,MinHeight = 0,WindowStyle = WindowStyle.None,ShowActivated = false };
+                var hwnd = new WindowInteropHelper(window).EnsureHandle();
+                foreach(var display in new ExamHelper.Windows.Capture.GdiScreenCaptureBackend().GetDisplays())
+                {
+                    var expected = new ExamHelper.Core.Settings.PhysicalWindowPlacement(display.X + 40,display.Y + 40,
+                        Math.Min(1200,display.Width - 80),Math.Min(1000,display.Height - 80));
+                    MonitorGeometry.SetBounds(hwnd,expected); StaTest.Pump();
+                    Assert.Equal(expected,MonitorGeometry.WindowBounds(hwnd));
+                }
+            }
+            finally { window?.Close(); if(previous != 0) SetThreadDpiAwarenessContext(previous); }
+        });
+    }
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint SetThreadDpiAwarenessContext(nint context);
 }

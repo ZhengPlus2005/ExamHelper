@@ -1,20 +1,23 @@
 # ExamHelper
 
-Windows 11 x64、单屏、C#／.NET 10＋WPF 桌面应用。启动显示历史主页，服务验证及捕获保护通过后进入置顶半透明辅助小窗。辅助模式采用悬停和可配置快捷键，草稿文字只由麦克风语音识别追加，不接受键盘编辑；主页和设置正常点击与输入。
+Windows 11 x64、C#／.NET 10＋WPF 桌面应用。启动显示历史主页，服务验证及捕获保护通过后进入置顶半透明辅助小窗。辅助模式采用悬停和可配置快捷键，草稿文字只由麦克风语音识别追加，不接受键盘编辑；主页和设置正常点击与输入。
 
-本地预览安装包：D:\Code\ExamHelper\artifacts\installers\ExamHelper-Setup-0.1.0-x64.exe，相邻 .sha256 可核对散列。无需单独安装 .NET；也可保持发布目录完整后运行 artifacts/publish/win-x64/ExamHelper.App.exe。不要只复制入口 EXE。
+0.2.0 安装包输出到 D:\Code\ExamHelper\artifacts\installers\ExamHelper-Setup-0.2.0-x64.exe，相邻 .sha256 可核对散列。无需单独安装 .NET；也可保持发布目录完整后运行 artifacts/publish/win-x64-0.2.0/ExamHelper.App.exe，不要只复制入口 EXE。安装完成页可选添加桌面快捷方式，默认不勾选。已有无关或被修改的同名桌面快捷方式会保留。
 
-首次使用从主页进入设置，配置 KIMI／兼容 AI 地址、密钥与模型，以及阿里云北京识别地址、密钥和麦克风。执行 AI 图片测试，完成语音测试并确认“识别正确”后才能开始。文字测试单独提供，不代替图片测试。密钥按 Windows 当前用户加密；不要求在聊天中提供密钥。开始始终新建对话，继续此对话恢复历史及退出保存的草稿。
+首次使用从主页进入设置。AI 服务支持新增、删除、单独测试及启用一个配置，默认 KIMI，也支持兼容接口。每个配置有独立地址、密钥、模型和图片测试资格，测试不会切换当前启用项，也不会替你保存其他页面的草稿。语音采用阿里云北京识别服务。AI 图片测试和语音测试（确认“识别正确”）均通过后才能开始；文字连接测试不能代替图片测试。修改配置后资格失效，需要重新测试。密钥按 Windows 当前用户加密，保存失败保留原有配置。
 
-普通按钮悬停一秒，主页／退出两秒；移开取消，触发后必须重新进入。标题和右下角手柄可免点击移动／缩放，回答滚动条支持悬停拖动。截图可直发或多图加入草稿；直发只在空草稿且任务允许时启用。录音最长六十秒，识别失败保留录音供手动重试，成功后显示三秒撤销入口。发送与重试保留当前上下文。返回主页清空草稿，退出保存草稿；隐藏仅影响显示。
+关闭设置时有未保存修改，会询问保存、放弃或取消。预置提示词保留防抖自动保存，其他设置以“保存并返回”为准。不透明度设置显示百分比，并在合成答题窗口上预览本软件的背景透明效果。语音测试音量条反映实际录音样本音量。
 
-默认 Ctrl+Alt+F1 截图直发、F2 入草稿、F3 录音、F4 发送、F6 清空、F7 新对话、F8 停止回答、F9 隐藏／显示、F10 折叠、F11 主页、F12 退出，Ctrl+Alt+Z 撤销语音。F5 留空。设置可修改组合并检查冲突。
+普通按钮悬停一秒；返回主页、隐藏按钮两秒并显示红色进度，其他进度为绿色，移开取消。提示按钮悬停一秒显示当前快捷键，离开立即关闭。标题和右下角手柄可免点击移动／缩放，回答与草稿使用正常鼠标滚轮滚动。支持多个显示器，截图截取辅助小窗所在的整块屏幕；跨屏按最大重叠面积确定，窗口位置按物理像素保存，屏幕拔除后回到最近可用区域。
 
-当前代码与安装预览已实现。阶段 A 已由用户实测验收；Windows 自带截图／录屏及 Chrome 屏幕共享通过，正式窗口另完成受控 GDI 捕获和原生检查。真实云服务需在设置中配置用户自己的凭据后验证；OBS、腾讯会议、其他 DPI 和未细分捕获后端仍未实测，不宣称所有环境均已通过。兼容性、持久化及安装证据见 docs/verification/。
+截图可直发或多图加入草稿；直发只在空草稿且任务允许时启用。录音最长六十秒，识别失败保留录音供手动重试，成功后显示三秒撤销入口。悬停缩略图一秒删除该图。发送与重试保留当前上下文。开始默认新建对话，历史可继续。返回主页清空草稿，退出应用保存草稿；隐藏仅影响显示，不中断任务，快捷键仍可用。
 
-开发使用 global.json 锁定的 .NET 10 SDK。运行 scripts/Test.ps1 -Configuration Release -DotnetPath <dotnet.exe> 完成锁定恢复与完整回归；scripts/Publish.ps1 -Version 0.1.0 发布自包含程序；scripts/Build-Installer.ps1 -Version 0.1.0 -IsccPath <ISCC.exe> 生成当前用户安装器。可用 OutputDirectory／PublishDirectory 参数指定输出。构建信息和依赖散列存于发布目录 build-info.json，第三方许可见 THIRD-PARTY-NOTICES.md 和 packaging/licenses/。
+默认 Ctrl+Alt+F1 截图直发、F2 入草稿、F3 录音、F4 发送、F6 清空、F7 新对话、F8 停止回答、F9 隐藏／显示、F10 折叠、F11 主页、F12 隐藏，Ctrl+Alt+Z 撤销语音；F5 留空。设置可修改组合并检查冲突。旧版本默认退出快捷键升级后迁移为隐藏，已保存的自定义绑定尽可能保留。
 
-tools/ExamHelper.InteractionLab 是独立开发验证工具，不随安装器分发。--verify 只保存已知绿色参考区域；--verify-product 检查正式保护窗口的合成内容；--verify-audio 进行本机麦克风两秒采集并删除测试录音，均不上传。实验窗“全屏截图预览”会真实保存原图至 %LOCALAPPDATA%\ExamHelper\InteractionLab\Images。
+阶段 A 已由用户实测验收；用户也反馈配置 API 后功能正常。Windows 自带截图／录屏及 Chrome 屏幕共享已有用户验收。0.2.0 的自动回归和双屏受控实测见 [本版验证](docs/verification/revision-0.2.0.md)。OBS、腾讯会议以及不同捕获后端的结果不作未经验证的保证。
 
-应用设置、历史、原图位于 %LOCALAPPDATA%\ExamHelper，卸载默认保留。清理用户数据前请自行备份，不默认删除历史。
-最终本机回归：139 项通过，零跳过，Release 编译零警告零错误。独立审查发现的四项必要问题已修复，具体触发链及未完成验收见 [交付清单](docs/verification/release-checklist.md) 与 [最终审查](docs/verification/final-review.md)。已知轻微问题：编辑预置提示词后立即关闭可能未保存，当前请用“保存并返回”。
+开发使用 global.json 锁定的 .NET 10 SDK。运行 scripts/Test.ps1 -Configuration Release -DotnetPath <dotnet.exe> 完成锁定恢复与完整回归；scripts/Publish.ps1 -Version 0.2.0 发布自包含程序；scripts/Build-Installer.ps1 -Version 0.2.0 -IsccPath <ISCC.exe> 生成当前用户安装器。可用 OutputDirectory／PublishDirectory 参数指定输出。build-info.json 记录版本、提交和依赖散列，第三方许可见 THIRD-PARTY-NOTICES.md 和 packaging/licenses/。
+
+tools/ExamHelper.InteractionLab 为独立验证工具，不随安装器分发。--verify 只保存已知绿色参考区域；--verify-product 检查正式保护窗口的合成内容；--verify-audio 采集本机麦克风并删除测试录音，均不上传。实验窗“全屏截图预览”会真实保存原图至 %LOCALAPPDATA%\ExamHelper\InteractionLab\Images。
+
+应用设置、历史、原图位于 %LOCALAPPDATA%\ExamHelper，卸载默认保留。清理用户数据前请自行备份。0.1.0 的验证文档保留作历史记录，其单屏限制、悬停滚动、退出按钮及提示词立即关闭的轻微问题已被本版需求和修复取代。

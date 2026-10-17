@@ -49,6 +49,7 @@ public partial class OverlayWindow : Window
         if(settings.Ui.Placement is { } placement)
         {
             var work = MonitorGeometry.ForPlacement(placement).WorkArea;
+            MonitorGeometry.Move(NativeHandle,placement.X,placement.Y);
             var dpi = VisualTreeHelper.GetDpi(this);
             MinWidth = Math.Min(480,work.Width / dpi.DpiScaleX); MinHeight = Math.Min(360,work.Height / dpi.DpiScaleY);
             MonitorGeometry.SetBounds(NativeHandle,ScreenPlacement.Clamp(placement,work));

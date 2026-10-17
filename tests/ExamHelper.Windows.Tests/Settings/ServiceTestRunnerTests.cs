@@ -30,10 +30,17 @@ public class ServiceTestRunnerTests
         var file = Path.GetTempFileName(); await File.WriteAllBytesAsync(file,[1]);
         try
         {
-            using var handler = new FakeHttpHandler((_,_) => Task.FromResult(FakeHttpHandler.Json(System.Text.Json.JsonSerializer.Serialize(new { choices = new[] { new { finish_reason = "stop",message = new { content = transcript } } } }))));
+            string? sentKey = null;
+            using var handler = new FakeHttpHandler((request,_) =>
+            {
+                sentKey = request.Headers.Authorization?.Parameter;
+                return Task.FromResult(FakeHttpHandler.Json(System.Text.Json.JsonSerializer.Serialize(new { choices = new[] { new { finish_reason = "stop",message = new { content = transcript } } } })));
+            });
             using var http = new HttpClient(handler); var secrets = new InMemorySecretStore(); await secrets.SetAsync("asr","test",default);
             var verification = new ServiceVerification(new byte[32]); var settings = await verification.RefreshSecretDigestsAsync(new(),secrets,default);
-            var result = await new ServiceTestRunner(http,secrets,verification,[1]).TestSpeechAsync(new(Guid.NewGuid(),file,TimeSpan.FromSeconds(1)),settings,default);
+            await secrets.SetAsync("asr","edited-after-snapshot",default);
+            var result = await new ServiceTestRunner(http,secrets,verification,[1]).TestSpeechAsync(new(Guid.NewGuid(),file,TimeSpan.FromSeconds(1)),settings,"test",default);
+            Assert.Equal("test",sentKey); Assert.Equal(verification.AsrFingerprint(settings),result.Fingerprint);
             Assert.False(result.Passed); Assert.Equal(canConfirm,result.RequiresConfirmation);
             if(canConfirm) Assert.Equal(transcript,result.Text);
         }

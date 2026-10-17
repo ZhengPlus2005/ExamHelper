@@ -136,6 +136,114 @@ public class SettingsRevisionTests
             rig.DisposeAsync().AsTask().GetAwaiter().GetResult();
         });
     }
+    [Fact]
+    public async Task KeyEditedDuringEvidenceSaveCannotReceiveOldKeyQualification()
+    {
+        await using var rig = new Rig();
+        rig.Store.DelayNext = true; var running = rig.Vm.RunImageTestAsync(default);
+        await rig.Store.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        rig.Vm.AiApiKey = "new-untested-key"; rig.Store.Release.TrySetResult(); await running;
+        Assert.Equal("ai",rig.SentKey);
+        Assert.False(rig.Vm.SelectedAiProfile!.IsVerified);
+        Assert.True(rig.Verification.IsAiVerified(rig.Store.Value));
+        Assert.Equal(rig.Verification.SecretDigest("ai"),rig.Store.Value.Ai.SecretFingerprint);
+        Assert.Equal("ai",await rig.Secrets.GetAsync(rig.Store.Value.Ai.SecretId,default));
+        Assert.True(rig.Vm.HasUnsavedChanges);
+    }
+    [Fact]
+    public async Task ImageTestDoesNotCommitOtherProfilesOrFormEdits()
+    {
+        await using var rig = new Rig(); var first = rig.Vm.SelectedAiProfile!;
+        var oldModel = first.Model; var second = rig.Vm.AddAiProfile(); second.ApiKey = "B";
+        rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
+        first.Model = "uncommitted-A"; rig.Vm.Opacity = 0.45;
+        rig.Release.TrySetResult(); await running;
+        Assert.Equal(oldModel,rig.Store.Value.AiProfiles!.Value.Single(p => p.Id == first.Id).Settings.Model);
+        Assert.Equal(0.85,rig.Store.Value.Ui.Opacity); Assert.True(rig.Vm.HasUnsavedChanges);
+        Assert.True(second.IsVerified);
+    }
+    [Fact]
+    public async Task InvalidUnrelatedDraftDoesNotPreventIndependentTest()
+    {
+        await using var rig = new Rig(); var first = rig.Vm.SelectedAiProfile!;
+        var second = rig.Vm.AddAiProfile(); second.ApiKey = "B"; second.Model = "model-B";
+        first.BaseAddress = "not a valid URI";
+        await rig.Vm.RunImageTestAsync(default);
+        Assert.Equal("model-B",rig.SentModel); Assert.True(second.IsVerified); Assert.True(rig.Vm.HasUnsavedChanges);
+    }
+    [Fact]
+    public async Task FailedSaveThenDiscardDoesNotAlterPreviouslyWorkingSecret()
+    {
+        await using var rig = new Rig(); await rig.Vm.SaveAsync(default); var old = rig.Store.Value.Ai;
+        Assert.Equal("ai",await rig.Secrets.GetAsync(old.SecretId,default));
+        rig.Vm.AiApiKey = "discarded-new-key"; rig.Store.Fail = true;
+        Assert.False(await rig.Vm.RequestCloseAsync(() => Task.FromResult(SettingsCloseChoice.Save),default));
+        Assert.True(await rig.Vm.RequestCloseAsync(() => Task.FromResult(SettingsCloseChoice.Discard),default));
+        Assert.Equal("ai",await rig.Secrets.GetAsync(old.SecretId,default));
+        Assert.Equal(old.SecretFingerprint,rig.Store.Value.Ai.SecretFingerprint);
+    }
+    [Fact]
+    public async Task SaveAndReturnRechecksEditsMadeDuringSave()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            var rig = new Rig(); var choice = SettingsCloseChoice.Cancel; var prompts = 0;
+            var window = new SettingsWindow(rig.Vm,() => { prompts++; return Task.FromResult(choice); });
+            try
+            {
+                window.Show(); StaTest.Pump(); rig.Store.DelayNext = true;
+                var button = VisualChildren(window).OfType<System.Windows.Controls.Button>().Single(b => (string?)b.Content == "保存并返回");
+                window.Dispatcher.BeginInvoke(() => button.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)));
+                PumpUntil(() => rig.Store.Entered.Task.IsCompleted);
+                rig.Vm.AiModel = "edit-during-save"; rig.Store.Release.TrySetResult();
+                PumpUntil(() => prompts > 0 || !window.IsVisible);
+                Assert.True(window.IsVisible); Assert.True(rig.Vm.HasUnsavedChanges);
+                Assert.Equal("kimi-k2.6",rig.Store.Value.Ai.Model);
+            }
+            finally { choice = SettingsCloseChoice.Discard; window.Close(); StaTest.Pump(); rig.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(SettingsCloseChoice.Discard,false)]
+    [InlineData(SettingsCloseChoice.Cancel,true)]
+    public async Task TestCompletionWaitsForDirtyCloseDecision(SettingsCloseChoice choice,bool persists)
+    {
+        await using var rig = new Rig(); var tested = rig.Vm.AddAiProfile(); tested.ApiKey = "B";
+        rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
+        var asked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answer = new TaskCompletionSource<SettingsCloseChoice>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var closing = rig.Vm.RequestCloseAsync(() => { asked.TrySetResult(); return answer.Task; },default);
+        await asked.Task; rig.Release.TrySetResult(); await Task.Delay(30);
+        Assert.False(running.IsCompleted);
+        Assert.DoesNotContain(rig.Store.Value.AiProfiles ?? [],p => p.Id == tested.Id);
+        answer.TrySetResult(choice); await closing; await running;
+        Assert.Equal(persists,rig.Store.Value.AiProfiles?.Any(p => p.Id == tested.Id) == true);
+    }
+    [Fact]
+    public async Task KeyEditedDuringNetworkTestNeverGetsQualification()
+    {
+        await using var rig = new Rig(); rig.Delay = true;
+        var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
+        rig.Vm.AiApiKey = "new-key"; rig.Release.TrySetResult(); await running;
+        Assert.Equal("ai",rig.SentKey); Assert.False(rig.Vm.SelectedAiProfile!.IsVerified);
+        Assert.False(rig.Verification.IsAiVerified(rig.Store.Value));
+    }
+
+    private static IEnumerable<System.Windows.DependencyObject> VisualChildren(System.Windows.DependencyObject parent)
+    {
+        for(int i=0;i<System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);i++)
+        {
+            var child=System.Windows.Media.VisualTreeHelper.GetChild(parent,i);yield return child;
+            foreach(var descendant in VisualChildren(child)) yield return descendant;
+        }
+    }
+    private static void PumpUntil(Func<bool> condition)
+    {
+        var stop = System.Diagnostics.Stopwatch.StartNew();
+        while(!condition() && stop.Elapsed < TimeSpan.FromSeconds(3)) { StaTest.Pump();Thread.Sleep(1); }
+        Assert.True(condition());
+    }
     private static void SavePreview(System.Windows.Window window,string name)
     {
         var directory = Environment.GetEnvironmentVariable("EXAMHELPER_TEST_UI_OUTPUT");
@@ -153,6 +261,7 @@ public class SettingsRevisionTests
         public SettingsViewModel Vm { get; } public bool Delay; public string? SentModel,SentKey;
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public InMemorySecretStore Secrets { get; } = new();
         private readonly HttpClient _http;
         public Rig()
         {
@@ -164,15 +273,21 @@ public class SettingsRevisionTests
                 if(Delay) await Release.Task.WaitAsync(ct);
                 return new(HttpStatusCode.OK) { Content = new StringContent("data: {\"choices\":[{\"delta\":{\"content\":\"EH7Q9\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",Encoding.UTF8,"text/event-stream") };
             }));
-            var secrets = new InMemorySecretStore(); var recording = new RecordingController(new StubServices(),new ManualTimeProvider());
+            var secrets = Secrets; secrets.SetAsync("ai","ai",default).GetAwaiter().GetResult(); secrets.SetAsync("asr","asr",default).GetAwaiter().GetResult(); var recording = new RecordingController(new StubServices(),new ManualTimeProvider());
             Vm = new(new(),"ai","asr",Store,secrets,Verification,new(_http,secrets,Verification,[1]),recording,_ => { });
         }
         public async ValueTask DisposeAsync() { await Vm.DisposeAsync(); _http.Dispose(); }
     }
     private sealed class Store : ISettingsStore
     {
-        public AppSettings Value = new(); public bool Fail;
+        public AppSettings Value = new(); public bool Fail,DelayNext;
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<AppSettings> LoadAsync(CancellationToken ct) => Task.FromResult(Value);
-        public Task SaveAsync(AppSettings s,CancellationToken ct) { if(Fail) throw new IOException("save"); Value = s; return Task.CompletedTask; }
+        public async Task SaveAsync(AppSettings s,CancellationToken ct)
+        {
+            if(DelayNext) { DelayNext = false;Entered.TrySetResult();await Release.Task.WaitAsync(ct); }
+            if(Fail) throw new IOException("save"); Value = s;
+        }
     }
 }

@@ -21,6 +21,9 @@ public static class MonitorGeometry
     }
     public static void SetBounds(nint hwnd,PhysicalWindowPlacement bounds)
     {
+        // Let WM_DPICHANGED finish moving to the target monitor before applying
+        // physical dimensions; WPF otherwise scales this same resize a second time.
+        Move(hwnd,bounds.X,bounds.Y);
         if(!SetWindowPos(hwnd,0,bounds.X,bounds.Y,bounds.Width,bounds.Height,0x0014)) throw Failure("无法更新辅助窗口位置。");
     }
     public static void Move(nint hwnd,int x,int y)

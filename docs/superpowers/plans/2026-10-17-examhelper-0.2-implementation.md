@@ -26,41 +26,41 @@
 ### Task 1: 多配置目录、迁移和独立资格
 **Files:** Core/Settings/{SettingsTypes,AiProfileCatalog,ServiceVerification}.cs；Windows/Settings/JsonSettingsStore.cs；Core/Windows 设置测试。
 **Interfaces:** AiServiceProfile；AppSettings.AiProfiles／ActiveAiProfileId；AiProfileCatalog.Normalize(AppSettings)；保留有效 Ai 字段供现有客户端。
-- [ ] 写旧配置导入、两配置切换资格独立、修改非启用配置不影响当前的失败测试并运行 RED。
-- [ ] 实现目录规范化、JSON 验证和密钥摘要刷新；运行针对测试 GREEN 与全套回归。
-- [ ] 提交。
+- [x] 写旧配置导入、两配置切换资格独立、修改非启用配置不影响当前的失败测试并运行 RED。
+- [x] 实现目录规范化、JSON 验证和密钥摘要刷新；运行针对测试 GREEN 与全套回归。
+- [x] 提交。
 
 ### Task 2: 多配置设置 UI 与关闭未保存保护
 **Files:** App/Settings/{AiProfileEditor,SettingsViewModel,SettingsWindow}.cs/xaml；Composition；App 设置测试。
 **Interfaces:** SelectedAiProfile、ActivateSelected／AddProfile／DeleteSelected；HasUnsavedChanges；RequestCloseAsync(Func<Task<SettingsCloseChoice>>,ct)。
-- [ ] 写新增／启用／删除／独立测试（含测试中换配置／删除），以及保存／丢弃／取消／失败保留测试 RED。
-- [ ] 实现独立密钥编辑、列表与状态，关闭异步保护；原有提示词防抖仍可用。运行 GREEN 与全套。
-- [ ] 提交。
+- [x] 写新增／启用／删除／独立测试（含测试中换配置／删除），以及保存／丢弃／取消／失败保留测试 RED。
+- [x] 实现独立密钥编辑、列表与状态，关闭异步保护；原有提示词防抖仍可用。运行 GREEN 与全套。
+- [x] 提交。
 
 ### Task 3: 不透明度与音量显示
 **Files:** App/Controls/OpacityPreview.xaml；Settings；Windows/Audio/AudioPeakMeter.cs、MicrophoneRecorder.cs；对应测试。
 **Interfaces:** OpacityPercent；AudioPeakMeter.Measure(samples,format)；MicrophoneLevel 映射到0～1。
-- [ ] 写百分比／预览绑定、PCM16/24/32/float/静音样本映射测试 RED。
-- [ ] 实现合成答题双层预览和样本峰值／dB映射，运行 GREEN／完整回归并渲染查看。
-- [ ] 提交。
+- [x] 写百分比／预览绑定、PCM16/24/32/float/静音样本映射测试 RED。
+- [x] 实现合成答题双层预览和样本峰值／dB映射，运行 GREEN／完整回归并渲染查看。
+- [x] 提交。
 
 ### Task 4: 小窗提示、隐藏、进度与滚轮
 **Files:** Core Interaction/Settings命令；App Overlay、Controls滚轮行为；对应状态和 WPF 测试。
 **Interfaces:** HideOverlay 追加；HintButton 同 HWND 面板；两秒 Delay，红／绿前景；滚轮行为不安装 HoverScrollBehavior。
-- [ ] 写隐藏保留请求／快捷键、提示离开关闭、无悬停滚动命令、滚轮改变 offset 回归 RED。
-- [ ] 实现按钮／快捷键迁移与展示；测试 GREEN 全套。
-- [ ] 提交。
+- [x] 写隐藏保留请求／快捷键、提示离开关闭、无悬停滚动命令、滚轮改变 offset 回归 RED。
+- [x] 实现按钮／快捷键迁移与展示；测试 GREEN 全套。
+- [x] 提交。
 
 ### Task 5: 多屏物理捕获和位置
 **Files:** Windows/Capture/FullScreenCapture.cs、Native/MonitorGeometry.cs；App窗口交互与Composition；UiSettings；对应测试。
 **Interfaces:** IScreenCaptureBackend.GetWindowDisplay(hwnd)；FullScreenCapture 后端+窗口回调；NativeWindowBounds 和可选 Ui.Placement。
-- [ ] 写两屏所属 HWND、负坐标原像素、取消／无所属窗拒绝与拔屏恢复数学测试 RED。
-- [ ] 实现 MonitorFromWindow／GetMonitorInfo、物理移动／缩放与位置恢复；运行 GREEN 全套、已有受控捕获。
-- [ ] 提交。
+- [x] 写两屏所属 HWND、负坐标原像素、取消／无所属窗拒绝与拔屏恢复数学测试 RED。
+- [x] 实现 MonitorFromWindow／GetMonitorInfo、物理移动／缩放与位置恢复；运行 GREEN 全套、已有受控捕获。
+- [x] 提交。
 
 ### Task 6: 图标、完成页快捷方式、发布
 **Files:** Assets/app-icon.svg/png/ico；窗口icon及csproj；packaging/ExamHelper.iss；scripts/Generate-AppIcon.ps1；说明／验证记录。
-- [ ] 生成／检查矢量与多尺寸图标，添加完成页可选快捷方式及自身卸载项。
-- [ ] locked restore、Release build/test；独立全分支审查，必要问题一轮RED→GREEN。
+- [x] 生成／检查矢量与多尺寸图标，添加完成页可选快捷方式及自身卸载项。
+- [x] locked restore、Release build/test；独立全分支审查，必要问题一轮RED→GREEN。
 - [ ] 提交最终代码／说明后从干净提交发布0.2.0，生成安装器／校验、自检；不覆盖0.1.0。
 - [ ] 记录无法实测的硬件／安装向导路径，不冒充全部通过，交付。
