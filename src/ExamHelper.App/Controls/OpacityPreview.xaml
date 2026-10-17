@@ -1,0 +1,17 @@
+<UserControl x:Class="ExamHelper.App.Controls.OpacityPreview" x:Name="Root" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Focusable="False">
+ <Grid Height="250" ClipToBounds="True">
+  <Border Background="White" BorderBrush="#CCD5E1" BorderThickness="1" CornerRadius="7">
+   <Grid Margin="10"><Grid.RowDefinitions><RowDefinition Height="25"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <TextBlock Text="●  ●  ●    在线答题 · 窗口预览" Foreground="#65748A" FontSize="11"/>
+    <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Margin="5,4,16,4"><TextBlock Text="示例题目" FontSize="16" FontWeight="SemiBold"/><Separator Margin="0,9"/><TextBlock Text="题目内容&#10;&#10;阅读题意，编写程序处理输入数据。&#10;&#10;输入描述&#10;第一行包含两个整数 n 和 m。&#10;&#10;输出描述&#10;输出计算结果。" FontSize="11" TextWrapping="Wrap" Foreground="#384558"/></StackPanel>
+     <Border Grid.Column="1" BorderBrush="#DFE4EB" BorderThickness="1" Background="#FAFCFF" Padding="9"><TextBlock Text="C++&#10;&#10;#include &lt;iostream&gt;&#10;using namespace std;&#10;&#10;int main() {&#10;    int n, m;&#10;    cin &gt;&gt; n &gt;&gt; m;&#10;    // 编写解答&#10;    return 0;&#10;}" FontFamily="Consolas" FontSize="11" Foreground="#425B9B"/></Border>
+    </Grid>
+   </Grid>
+  </Border>
+  <Border Width="290" Height="155" HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="10" BorderBrush="#849AB7" BorderThickness="1" Padding="12">
+   <Border.Background><SolidColorBrush Color="#18202D" Opacity="{Binding BackgroundOpacity,ElementName=Root}"/></Border.Background>
+   <StackPanel><TextBlock Text="ExamHelper" FontWeight="SemiBold" Foreground="White"/><TextBlock Text="截图入草稿    开始录音    提示" Foreground="#DEEBFF" FontSize="11" Margin="0,10"/><TextBlock Text="AI 的回答显示在这里。&#10;背景可透出下方的答题界面，&#10;文字保持清晰。" Foreground="White" FontSize="12" LineHeight="21"/></StackPanel>
+  </Border>
+ </Grid>
+</UserControl>

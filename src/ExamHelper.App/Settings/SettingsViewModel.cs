@@ -46,7 +46,9 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
     public string DeviceId { get; set; }
     public string DefaultCodeLanguage { get; set; }
     public string DirectCapturePrompt { get; set; }
-    public double Opacity { get; set; }
+    private double _opacity;
+    public double Opacity { get => _opacity; set { if(Set(ref _opacity,value)) Notify(nameof(OpacityPercent)); } }
+    public string OpacityPercent => Opacity.ToString("P0",System.Globalization.CultureInfo.CurrentCulture);
     public ObservableCollection<HotkeyEditor> Hotkeys { get; } = [];
     public IReadOnlyList<ProviderOption> Providers { get; } = [new(ProviderKind.Kimi,"KIMI"),new(ProviderKind.Compatible,"自定义兼容接口")];
     public IReadOnlyList<MicrophoneDevice> Devices { get; set; } = [];
@@ -56,7 +58,7 @@ public sealed class SettingsViewModel : ObservableObject,IAsyncDisposable
     public bool IsRecording => _recording.IsRecording;
     public bool IsSpeechWorking => _speechWorking;
     public double RecordingSeconds => _recording.Elapsed.TotalSeconds;
-    public float MicrophoneLevel => ReadLevel();
+    public float MicrophoneLevel => AudioPeakMeter.ToDisplayLevel(ReadLevel());
     public bool CanConfirmSpeech => _speechResult?.RequiresConfirmation == true;
     public string Status { get => _status; set => Set(ref _status,value); }
     public string ResultText { get => _result; private set => Set(ref _result,value); }

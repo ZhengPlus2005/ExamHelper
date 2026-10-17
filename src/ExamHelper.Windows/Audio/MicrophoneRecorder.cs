@@ -16,7 +16,8 @@ public sealed class MicrophoneRecorder(string temporaryDirectory) : IMicrophoneR
     private TaskCompletionSource? _stopped;
     private string? _rawPath, _encodedPath;
     private Guid _operationId;
-    public float PeakLevel { get; private set; }
+    private volatile float _peakLevel;
+    public float PeakLevel { get => _peakLevel; private set => _peakLevel = value; }
     public static IReadOnlyList<MicrophoneDevice> GetDevices()
     {
         using var devices = new MMDeviceEnumerator();
@@ -59,7 +60,7 @@ public sealed class MicrophoneRecorder(string temporaryDirectory) : IMicrophoneR
         lock (_audioSync)
         {
             _writer?.Write(args.Buffer, 0, args.BytesRecorded);
-            try { PeakLevel = _device?.AudioMeterInformation.MasterPeakValue ?? 0; } catch { PeakLevel = 0; }
+            PeakLevel = _capture?.WaveFormat is { } format ? AudioPeakMeter.Measure(args.Buffer.AsSpan(0,args.BytesRecorded),format) : 0;
         }
     }
     private void OnStopped(object? sender, StoppedEventArgs args)

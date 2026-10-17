@@ -81,6 +81,22 @@ public class SettingsRevisionTests
             rig.DisposeAsync().AsTask().GetAwaiter().GetResult();
         });
     }
+    [Fact]
+    public async Task OpacityPercentageAndPreviewFollowSliderValue()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            var rig = new Rig(); var window = new SettingsWindow(rig.Vm,() => Task.FromResult(SettingsCloseChoice.Discard));
+            window.Show();
+            var tabs = Assert.IsType<System.Windows.Controls.TabControl>(window.FindName("SettingsTabs")); tabs.SelectedIndex = 2;
+            rig.Vm.Opacity = 0.55; window.UpdateLayout(); StaTest.Pump();
+            var label = Assert.IsType<System.Windows.Controls.TextBlock>(window.FindName("OpacityPercentage"));
+            Assert.Contains("55",label.Text);
+            var preview = Assert.IsType<ExamHelper.App.Controls.OpacityPreview>(window.FindName("OpacityDemo"));
+            Assert.Equal(0.55,preview.BackgroundOpacity);
+            window.Close(); StaTest.Pump(); rig.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        });
+    }
     private sealed class Rig : IAsyncDisposable
     {
         public Store Store { get; } = new(); public ServiceVerification Verification { get; } = new(new byte[32]);
