@@ -17,3 +17,4 @@ Windows 11 x64、单屏、C#／.NET 10＋WPF 桌面应用。启动显示历史�
 tools/ExamHelper.InteractionLab 是独立开发验证工具，不随安装器分发。--verify 只保存已知绿色参考区域；--verify-product 检查正式保护窗口的合成内容；--verify-audio 进行本机麦克风两秒采集并删除测试录音，均不上传。实验窗“全屏截图预览”会真实保存原图至 %LOCALAPPDATA%\ExamHelper\InteractionLab\Images。
 
 应用设置、历史、原图位于 %LOCALAPPDATA%\ExamHelper，卸载默认保留。清理用户数据前请自行备份，不默认删除历史。
+最终本机回归：139 项通过，零跳过，Release 编译零警告零错误。独立审查发现的四项必要问题已修复，具体触发链及未完成验收见 [交付清单](docs/verification/release-checklist.md) 与 [最终审查](docs/verification/final-review.md)。已知轻微问题：编辑预置提示词后立即关闭可能未保存，当前请用“保存并返回”。

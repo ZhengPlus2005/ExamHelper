@@ -337,12 +337,14 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** 无新产品 API；交付输出为安装器、SHA-256、说明与真实验证记录，发现缺陷回到所属任务修复并重跑受影响检查。
 
-- [ ] 运行 `dotnet restore ExamHelper.slnx --locked-mode`、`dotnet build ExamHelper.slnx -c Release --no-restore`、`dotnet test ExamHelper.slnx -c Release --no-build`。预期所有适用测试通过且发现测试数大于零；记录实际结果，不把 Skip 记为通过。
+- [x] 运行 `dotnet restore ExamHelper.slnx --locked-mode`、`dotnet build ExamHelper.slnx -c Release --no-restore`、`dotnet test ExamHelper.slnx -c Release --no-build`。预期所有适用测试通过且发现测试数大于零；记录实际结果，不把 Skip 记为通过。
 - [ ] 执行规格第 13 节全部验收场景；追加断网／401／429、录音设备断开、写盘失败、强制结束恢复、答题窗口正常输入期间操作辅助小窗、连续快捷键与悬停竞争。确认失败请求不覆盖新草稿、无额外自动请求、退出无音频残留。
 - [ ] 在系统截图工具、截图工具录屏、Xbox Game Bar、Chrome、OBS、腾讯会议逐项实测。Chrome 覆盖整屏／窗口／标签页的适用来源；OBS 记录捕获后端；腾讯会议检查接收端。用无敏感内容的验证窗进行测试，记录工具版本、Windows 构建、模式、结果及证据路径。
-- [ ] 若某工具不可用或某模式不适用，准确写“未验证”或“不适用”及原因；用户要求的适用路径未验证或失败时，明确作为交付限制，不能把完成安装包写成全部验收通过。修复必要缺陷后重跑相应路径。
+- [x] 若某工具不可用或某模式不适用，准确写“未验证”或“不适用”及原因；用户要求的适用路径未验证或失败时，明确作为交付限制，不能把完成安装包写成全部验收通过。修复必要缺陷后重跑相应路径。
 - [ ] 按 executing-plans／所选执行方式完成最终代码审查、verification-before-completion 和分支收尾流程；无用户授权不自行合并、推送或发布安装器到外部平台。提供本地可检查结果。
-- [ ] 提交：`git commit -m "docs: record release verification and compatibility evidence"`。
+- [x] 提交：`git commit -m "docs: record release verification and compatibility evidence"`。
+
+任务 18 本机回归与必要修复已完成，139 项测试通过、零跳过；正式窗口受控捕获及真实六十秒停录通过。OBS／腾讯会议、真实云服务、其他系统 DPI、干净无运行时机器及真实硬件／写盘故障组合保留未验收，不能将整阶段勾为全部通过。兼容性矩阵与最终审查已记录；源码留在托管工作树，未合并、推送或外部发布。
 
 ## 需求覆盖索引
 
