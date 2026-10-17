@@ -17,7 +17,7 @@ public sealed record HotkeyBinding(AppCommand Command, uint Modifiers, uint Virt
         new(AppCommand.ToggleVisibility, 3, 0x78),
         new(AppCommand.ToggleCollapse, 3, 0x79),
         new(AppCommand.ReturnHome, 3, 0x7A),
-        new(AppCommand.Exit, 3, 0x7B),
+        new(AppCommand.HideOverlay, 3, 0x7B),
         new(AppCommand.UndoSpeech, 3, 0x5A)
     ];
 }

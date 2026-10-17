@@ -12,6 +12,8 @@ public static class AiProfileCatalog
     private static readonly Guid LegacyId = new("6c1ae390-a820-4f68-8ca3-119614ebc11b");
     public static AppSettings Normalize(AppSettings settings)
     {
+        if(settings.FormatVersion < 2)
+            settings = settings with { FormatVersion = 2,Hotkeys = settings.Hotkeys with { Bindings = settings.Hotkeys.Bindings.Select(b => b.Command == Interaction.AppCommand.Exit ? b with { Command = Interaction.AppCommand.HideOverlay } : b).ToImmutableArray() } };
         if(settings.AiProfiles is null)
         {
             var imported = new AiServiceProfile { Id = LegacyId,Name = settings.Ai.ProviderKind == ProviderKind.Kimi ? "KIMI 默认" : "原有配置",Settings = settings.Ai,VerifiedFingerprint = settings.Evidence.AiFingerprint };

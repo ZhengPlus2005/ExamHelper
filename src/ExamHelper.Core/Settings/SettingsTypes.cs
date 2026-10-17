@@ -31,6 +31,7 @@ public sealed record HotkeySettings
 }
 public sealed record AppSettings
 {
+    public int FormatVersion { get; init; } = 1;
     public AiSettings Ai { get; init; } = new();
     // null identifies the legacy single-provider format; [] is an intentionally empty list.
     public ImmutableArray<AiServiceProfile>? AiProfiles { get; init; }

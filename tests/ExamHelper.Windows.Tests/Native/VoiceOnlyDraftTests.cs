@@ -47,11 +47,11 @@ public class VoiceOnlyDraftTests
         });
     }
     [Fact]
-    public void RemovingCancelDoesNotShiftVisibilityOrExitShortcuts()
+    public void VisibilityShortcutStaysStableAndFormerExitNowHides()
     {
         Assert.DoesNotContain(HotkeyBinding.Defaults, b => b.Modifiers == 3 && b.VirtualKey == 0x74);
         Assert.Contains(HotkeyBinding.Defaults, b => b.Command == AppCommand.ToggleVisibility && b.Modifiers == 3 && b.VirtualKey == 0x78);
-        Assert.Contains(HotkeyBinding.Defaults, b => b.Command == AppCommand.Exit && b.Modifiers == 3 && b.VirtualKey == 0x7B);
+        Assert.Contains(HotkeyBinding.Defaults, b => b.Command == AppCommand.HideOverlay && b.Modifiers == 3 && b.VirtualKey == 0x7B);
     }
     private static async Task RunStaAsync(Action action)
     {

@@ -3,16 +3,16 @@
   <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
   <Style TargetType="Button">
    <Setter Property="Focusable" Value="False"/><Setter Property="Margin" Value="3"/><Setter Property="Padding" Value="9,6"/>
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Frame" Background="#FFE0EAF6" CornerRadius="5" Padding="{TemplateBinding Padding}"><Grid><ContentPresenter HorizontalAlignment="Center"/><ProgressBar Height="3" VerticalAlignment="Bottom" Margin="0,0,0,-4" Maximum="1" Value="{Binding RelativeSource={RelativeSource TemplatedParent},Path=(beh:DwellBehavior.Progress),Mode=OneWay}"/></Grid></Border><ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter TargetName="Frame" Property="Opacity" Value="0.4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Frame" Background="#FFE0EAF6" CornerRadius="5" Padding="{TemplateBinding Padding}"><Grid><ContentPresenter HorizontalAlignment="Center"/><ProgressBar Height="3" VerticalAlignment="Bottom" Margin="0,0,0,-4" Maximum="1" Foreground="{Binding RelativeSource={RelativeSource TemplatedParent},Path=(beh:DwellBehavior.ProgressBrush)}" Value="{Binding RelativeSource={RelativeSource TemplatedParent},Path=(beh:DwellBehavior.Progress),Mode=OneWay}"/></Grid></Border><ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter TargetName="Frame" Property="Opacity" Value="0.4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
   </Style>
  </Window.Resources>
  <Border x:Name="Surface" CornerRadius="12" BorderBrush="#657C99" BorderThickness="1" Padding="12">
   <Grid><Grid.RowDefinitions><RowDefinition Height="38"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="24"/></Grid.RowDefinitions>
-   <Border x:Name="MoveHandle" Background="#FF344154" CornerRadius="5"><DockPanel Margin="9,5"><TextBlock Text="ExamHelper" Foreground="White" FontWeight="SemiBold" FontSize="16"/><TextBlock Text="悬停操作 · 主页／退出两秒" Foreground="#BED0E9" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel></Border>
+   <Border x:Name="MoveHandle" Background="#FF344154" CornerRadius="5"><DockPanel Margin="9,5"><TextBlock Text="ExamHelper" Foreground="White" FontWeight="SemiBold" FontSize="16"/><TextBlock Text="悬停操作 · 主页／隐藏两秒" Foreground="#BED0E9" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel></Border>
    <WrapPanel Grid.Row="1" Margin="0,6">
     <Button x:Name="DirectButton" Content="截图直发"/><Button x:Name="CaptureButton" Content="截图入草稿"/><Button x:Name="RecordButton" Content="{Binding RecordingLabel}"/>
     <Button x:Name="NewButton" Content="新对话"/><Button x:Name="StopButton" Content="停止回答"/><Button x:Name="FoldButton" Content="折叠／展开"/>
-    <Button x:Name="HomeButton" Content="返回主页" beh:DwellBehavior.Delay="2"/><Button x:Name="ExitButton" Content="退出" beh:DwellBehavior.Delay="2"/>
+    <Button x:Name="HomeButton" Content="返回主页" beh:DwellBehavior.Delay="2" beh:DwellBehavior.ProgressBrush="#E45454"/><Button x:Name="HideButton" Content="隐藏" beh:DwellBehavior.Delay="2" beh:DwellBehavior.ProgressBrush="#E45454"/><Button x:Name="HintButton" Content="提示" MouseLeave="HintLeave"/>
    </WrapPanel>
    <Grid x:Name="Body" Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <ScrollViewer x:Name="AnswerScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#30101827" Padding="10" Margin="0,0,0,8" Focusable="False">
@@ -30,6 +30,11 @@
    </Grid>
    <ScrollViewer x:Name="StatusScroll" Grid.Row="3" MaxHeight="40" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"><TextBlock Text="{Binding Status}" Foreground="#D2E1F5" TextWrapping="Wrap" FontSize="11" Margin="2,5"/></ScrollViewer>
    <Border x:Name="ResizeHandle" Grid.Row="4" Width="24" Height="24" Background="#FF526581" HorizontalAlignment="Right"><TextBlock Text="◢" Foreground="White" HorizontalAlignment="Center"/></Border>
+   <Border x:Name="HintsPanel" Grid.RowSpan="5" Panel.ZIndex="20" Visibility="Collapsed" VerticalAlignment="Top" Background="#FF223047" BorderBrush="#839CBA" BorderThickness="1" CornerRadius="7" Padding="10" IsHitTestVisible="False">
+    <StackPanel><TextBlock Text="快捷键提示（移开“提示”立即关闭）" Foreground="White" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,5"/>
+     <ItemsControl x:Name="HintItems"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Foreground="#D9E7FB" FontSize="10" Margin="3,4" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+    </StackPanel>
+   </Border>
   </Grid>
  </Border>
 </Window>

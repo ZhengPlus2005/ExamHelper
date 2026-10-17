@@ -37,10 +37,9 @@ public partial class OverlayWindow : Window
         Surface.Background = new SolidColorBrush(Color.FromArgb((byte)Math.Round(settings.Ui.Opacity * 255),24,32,45));
         _interaction = new(this);
         _ = new WindowManipulationBehavior(this,MoveHandle,ResizeHandle,_interaction);
-        _ = new HoverScrollBehavior(AnswerScroll,_interaction);
-        _ = new HoverScrollBehavior(DraftImages.ScrollViewer,_interaction);
-        _ = new HoverScrollBehavior(DraftScroll,_interaction);
-        _ = new HoverScrollBehavior(StatusScroll,_interaction);
+        _ = new MouseWheelScrollBehavior(this);
+        HintItems.ItemsSource = settings.Hotkeys.Bindings.Select(b => CommandNames.Get(b.Command) + "  " + HotkeyEditor.Format(b)).ToArray();
+        DwellBehavior.SetCommand(HintButton,new DelegateCommand(ShowHints,() => !_interaction.IsActive));
         _interaction.ActiveChanged += active =>
         {
             if(_hotkeys?.SetManipulationEscape(active) == false && active) { _interaction.End(); _viewModel.ReportError("Esc 已被占用，本次移动操作已取消。"); }
@@ -48,10 +47,10 @@ public partial class OverlayWindow : Window
         SourceInitialized += OnSourceInitialized; new WindowInteropHelper(this).EnsureHandle();
         Bind(DirectButton,AppCommand.CaptureAndSend); Bind(CaptureButton,AppCommand.CaptureToDraft); Bind(RecordButton,AppCommand.ToggleRecording);
         Bind(NewButton,AppCommand.NewConversation); Bind(StopButton,AppCommand.StopAnswer); Bind(FoldButton,AppCommand.ToggleCollapse);
-        Bind(HomeButton,AppCommand.ReturnHome); Bind(ExitButton,AppCommand.Exit); Bind(ClearButton,AppCommand.ClearInput); Bind(SendButton,AppCommand.Send);
+        Bind(HomeButton,AppCommand.ReturnHome); Bind(HideButton,AppCommand.HideOverlay); Bind(ClearButton,AppCommand.ClearInput); Bind(SendButton,AppCommand.Send);
         Bind(UndoButton,AppCommand.UndoSpeech); Bind(RetrySpeechButton,AppCommand.RetrySpeech); Bind(DiscardSpeechButton,AppCommand.DiscardSpeech);
         Bind(RetryRequestButton,AppCommand.RetryRequest); Bind(DiscardRequestButton,AppCommand.DiscardRequest);
-        IsVisibleChanged += (_,_) => { viewModel.SetVisible(IsVisible); if(IsVisible) DwellBehavior.InvalidateWindow(this); };
+        IsVisibleChanged += (_,_) => { viewModel.SetVisible(IsVisible); if(IsVisible) DwellBehavior.InvalidateWindow(this); else HintsPanel.Visibility = Visibility.Collapsed; };
         Closing += OnClosing;
         Closed += (_,_) =>
         {
@@ -82,11 +81,25 @@ public partial class OverlayWindow : Window
     public UiSettings CaptureGeometry() => _settings.Ui with { Left = Left,Top = Top,Width = Width,Height = _collapsed ? _expandedHeight : Height };
     public void ToggleCollapse()
     {
-        _interaction.End();
+        _interaction.End(); HintsPanel.Visibility = Visibility.Collapsed;
         if(!_collapsed) { _expandedHeight = Height; _collapsed = true; Body.Visibility = Visibility.Collapsed; MinHeight = Math.Min(180,SystemParameters.WorkArea.Height); Height = Math.Min(240,SystemParameters.WorkArea.Height); }
         else { _collapsed = false; Body.Visibility = Visibility.Visible; MinHeight = Math.Min(360,SystemParameters.WorkArea.Height); Height = Math.Min(_expandedHeight,SystemParameters.WorkArea.Height); }
         DwellBehavior.InvalidateWindow(this);
     }
+    public bool HideWithRecovery()
+    {
+        if(!_settings.Hotkeys.Bindings.Any(b => b.Command == AppCommand.ToggleVisibility))
+        { _viewModel.ReportError("请先在设置中绑定“隐藏／显示”快捷键，避免隐藏后无法恢复。"); return false; }
+        Hide(); return true;
+    }
+    private void ShowHints()
+    {
+        var point = HintButton.TranslatePoint(new Point(0,HintButton.ActualHeight),Surface);
+        HintsPanel.Margin = new Thickness(0,point.Y + 5,0,0);
+        HintsPanel.MaxHeight = Math.Max(50,ActualHeight - point.Y - 40);
+        HintsPanel.Visibility = Visibility.Visible;
+    }
+    private void HintLeave(object sender,System.Windows.Input.MouseEventArgs args) => HintsPanel.Visibility = Visibility.Collapsed;
     public void CloseFromHost() { _allowClose = true; Close(); }
     private void OnClosing(object? sender,CancelEventArgs args)
     {

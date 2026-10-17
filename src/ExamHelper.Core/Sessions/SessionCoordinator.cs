@@ -129,7 +129,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
                     Publish(); break;
                 case AppCommand.UndoSpeech:
                     if(_undo.TryUndo()) { Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); } break;
-                case AppCommand.ToggleVisibility: case AppCommand.ToggleCollapse: ui = true; break;
+                case AppCommand.HideOverlay: case AppCommand.ToggleVisibility: case AppCommand.ToggleCollapse: ui = true; break;
             }
         }
         finally { _gate.Release(); }

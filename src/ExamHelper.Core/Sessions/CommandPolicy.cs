@@ -26,7 +26,7 @@ public sealed class CommandPolicy
             AppCommand.UndoSpeech => Check(state.SpeechUndoAvailable, "语音撤销已过期。"),
             AppCommand.RetrySpeech or AppCommand.DiscardSpeech => Check(state.SpeechState == SpeechState.RetryPending, "当前没有待处理录音。"),
             AppCommand.RetryRequest or AppCommand.DiscardRequest => Check(pending && !generating && !speech, "当前没有可处理的失败请求，或正在录音／识别。"),
-            AppCommand.ClearInput or AppCommand.ToggleVisibility or AppCommand.ToggleCollapse or AppCommand.ReturnHome or AppCommand.Exit => new(true),
+            AppCommand.ClearInput or AppCommand.HideOverlay or AppCommand.ToggleVisibility or AppCommand.ToggleCollapse or AppCommand.ReturnHome or AppCommand.Exit => new(true),
             _ => new(false, "未知操作。")
         };
     }

@@ -1,3 +1,4 @@
+using System.Windows.Media;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -7,6 +8,9 @@ namespace ExamHelper.App.Controls;
 
 public static class DwellBehavior
 {
+    public static readonly DependencyProperty ProgressBrushProperty = DependencyProperty.RegisterAttached("ProgressBrush",typeof(Brush),typeof(DwellBehavior),new PropertyMetadata(Brushes.SeaGreen));
+    public static Brush GetProgressBrush(DependencyObject o) => (Brush)o.GetValue(ProgressBrushProperty);
+    public static void SetProgressBrush(DependencyObject o,Brush value) => o.SetValue(ProgressBrushProperty,value);
     public static readonly DependencyProperty CommandProperty = DependencyProperty.RegisterAttached("Command", typeof(ICommand), typeof(DwellBehavior), new PropertyMetadata(null, Changed));
     public static readonly DependencyProperty DelayProperty = DependencyProperty.RegisterAttached("Delay", typeof(double), typeof(DwellBehavior), new PropertyMetadata(1d));
     private static readonly DependencyPropertyKey ProgressKey = DependencyProperty.RegisterAttachedReadOnly("Progress", typeof(double), typeof(DwellBehavior), new PropertyMetadata(0d));

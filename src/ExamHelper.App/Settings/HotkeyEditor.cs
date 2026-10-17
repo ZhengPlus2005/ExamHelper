@@ -35,7 +35,7 @@ public static class CommandNames
     {
         AppCommand.CaptureAndSend => "截图并立即发送",AppCommand.CaptureToDraft => "截图加入草稿",AppCommand.ToggleRecording => "开始／停止录音",
         AppCommand.Send => "发送",AppCommand.ClearInput => "清空输入",AppCommand.NewConversation => "新对话",AppCommand.StopAnswer => "停止回答",
-        AppCommand.ToggleVisibility => "隐藏／显示",AppCommand.ToggleCollapse => "折叠／展开",AppCommand.ReturnHome => "返回主页",AppCommand.Exit => "退出",
+        AppCommand.ToggleVisibility => "隐藏／显示",AppCommand.ToggleCollapse => "折叠／展开",AppCommand.ReturnHome => "返回主页",AppCommand.Exit => "退出软件",AppCommand.HideOverlay => "隐藏小窗",
         AppCommand.UndoSpeech => "撤销本次语音",AppCommand.RetrySpeech => "重试识别",AppCommand.DiscardSpeech => "丢弃录音",
         AppCommand.RetryRequest => "重试回答",AppCommand.DiscardRequest => "丢弃失败请求",_ => command.ToString()
     };

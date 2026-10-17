@@ -99,7 +99,67 @@ public class OverlayLifecycleTests
             Assert.InRange(lastBounds.Bottom,1,window.ActualHeight);
             var bar = Assert.IsType<System.Windows.Controls.Primitives.ScrollBar>(scroller.Template.FindName("PART_VerticalScrollBar",scroller));
             var track = Assert.IsType<System.Windows.Controls.Primitives.Track>(bar.Template.FindName("PART_Track",bar));
-            Assert.NotNull(ExamHelper.App.Controls.DwellBehavior.GetCommand(track.Thumb));
+            Assert.Null(ExamHelper.App.Controls.DwellBehavior.GetCommand(track.Thumb));
+        });
+    }
+    [Fact]
+    public async Task HintStaysInsideProtectedWindowAndClosesOnLeave()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            using var rig = new Rig(); rig.Start("草稿");
+            rig.Host.OpenAsync(default).GetAwaiter().GetResult(); rig.Host.Show(); StaTest.Pump();
+            var window = rig.Host.CurrentWindow!;
+            var button = Assert.IsType<System.Windows.Controls.Button>(window.FindName("HintButton"));
+            Assert.Equal(1,ExamHelper.App.Controls.DwellBehavior.GetDelay(button));
+            ExamHelper.App.Controls.DwellBehavior.GetCommand(button)!.Execute(null); StaTest.Pump();
+            var panel = Assert.IsType<System.Windows.Controls.Border>(window.FindName("HintsPanel"));
+            Assert.True(panel.IsVisible); Assert.Same(window,System.Windows.Window.GetWindow(panel));
+            button.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0) { RoutedEvent = System.Windows.UIElement.MouseLeaveEvent });
+            Assert.False(panel.IsVisible);
+        });
+    }
+    [Fact]
+    public async Task HideButtonUsesTwoSecondRedDwellAndKeepsDraftAndHotkeys()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            using var rig = new Rig(); rig.Start("草稿");
+            rig.Host.OpenAsync(default).GetAwaiter().GetResult(); rig.Host.Show(); StaTest.Pump();
+            var window = rig.Host.CurrentWindow!;
+            var hide = Assert.IsType<System.Windows.Controls.Button>(window.FindName("HideButton"));
+            var home = Assert.IsType<System.Windows.Controls.Button>(window.FindName("HomeButton"));
+            foreach(var button in new[] { hide,home })
+            {
+                Assert.Equal(2,ExamHelper.App.Controls.DwellBehavior.GetDelay(button));
+                var brush = Assert.IsType<System.Windows.Media.SolidColorBrush>(ExamHelper.App.Controls.DwellBehavior.GetProgressBrush(button));
+                Assert.True(brush.Color.R > brush.Color.G);
+            }
+            var normal = Assert.IsType<System.Windows.Controls.Button>(window.FindName("CaptureButton"));
+            var green = Assert.IsType<System.Windows.Media.SolidColorBrush>(ExamHelper.App.Controls.DwellBehavior.GetProgressBrush(normal));
+            Assert.True(green.Color.G > green.Color.R);
+            hide.Command!.Execute(null); StaTest.Pump();
+            Assert.False(window.IsVisible); Assert.Equal("草稿",rig.Coordinator.State.Draft.Text); Assert.NotEmpty(rig.Keys.Registered);
+            Assert.Equal(0,rig.ExitCalls);
+        });
+    }
+    [Fact]
+    public async Task OrdinaryWheelScrollsWithoutInstallingDwellOnScrollThumb()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            using var rig = new Rig(); rig.Start(string.Join("\n",Enumerable.Repeat("语音草稿长行",120)));
+            rig.Host.OpenAsync(default).GetAwaiter().GetResult(); rig.Host.Show(); StaTest.Pump();
+            var window = rig.Host.CurrentWindow!;
+            var scroll = Assert.IsType<System.Windows.Controls.ScrollViewer>(window.FindName("DraftScroll"));
+            scroll.ScrollToTop(); window.UpdateLayout(); StaTest.Pump();
+            var bar = Assert.IsType<System.Windows.Controls.Primitives.ScrollBar>(scroll.Template.FindName("PART_VerticalScrollBar",scroll));
+            bar.ApplyTemplate();
+            var track = Assert.IsType<System.Windows.Controls.Primitives.Track>(bar.Template.FindName("PART_Track",bar));
+            Assert.Null(ExamHelper.App.Controls.DwellBehavior.GetCommand(track.Thumb));
+            var preview = Assert.IsType<System.Windows.Controls.TextBlock>(window.FindName("DraftPreview"));
+            preview.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0,-120) { RoutedEvent = System.Windows.Input.Mouse.PreviewMouseWheelEvent });
+            window.UpdateLayout(); StaTest.Pump(); Assert.True(scroll.VerticalOffset > 0);
         });
     }
     private static IEnumerable<System.Windows.DependencyObject> Descendants(System.Windows.DependencyObject root)

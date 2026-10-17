@@ -3,6 +3,17 @@ using Xunit;
 namespace ExamHelper.Core.Tests.Settings;
 public class AiProfileCatalogTests
 {
+    [Fact]
+    public void LegacyExitHotkeyMigratesToHideWithoutRenumberingStoredCommands()
+    {
+        var legacy = new AppSettings { Hotkeys = new() { Bindings = [new(ExamHelper.Core.Interaction.AppCommand.Exit,3,0x7B)] } };
+        var migrated = AiProfileCatalog.Normalize(legacy);
+        Assert.Equal(2,migrated.FormatVersion);
+        Assert.Equal(ExamHelper.Core.Interaction.AppCommand.HideOverlay,Assert.Single(migrated.Hotkeys.Bindings).Command);
+        Assert.Equal(10,(int)ExamHelper.Core.Interaction.AppCommand.Exit);
+        var current = migrated with { Hotkeys = legacy.Hotkeys };
+        Assert.Equal(ExamHelper.Core.Interaction.AppCommand.Exit,Assert.Single(AiProfileCatalog.Normalize(current).Hotkeys.Bindings).Command);
+    }
     private readonly ServiceVerification _verification = new(new byte[32]);
     [Fact]
     public void LegacyMigrationRetainsEndpointSecretIdentityAndEvidence()

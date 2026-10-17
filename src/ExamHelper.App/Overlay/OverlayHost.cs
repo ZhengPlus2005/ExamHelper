@@ -53,7 +53,8 @@ public sealed class OverlayHost : IOverlayHost
             var window = CurrentWindow; if(window is null) return;
             switch(command)
             {
-                case AppCommand.ToggleVisibility: if(window.IsVisible) window.Hide(); else Show(); break;
+                case AppCommand.HideOverlay: window.HideWithRecovery(); break;
+                case AppCommand.ToggleVisibility: if(window.IsVisible) window.HideWithRecovery(); else Show(); break;
                 case AppCommand.ToggleCollapse: window.ToggleCollapse(); break;
                 case AppCommand.ReturnHome: case AppCommand.Exit:
                     try { await _saveUi(window.CaptureGeometry()); } catch(Exception error) { _report(Common.ObservableObject.Explain(error)); }
