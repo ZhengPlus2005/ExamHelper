@@ -282,12 +282,12 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** `SessionCoordinator.StartNewAsync(ct)`、`ContinueAsync(Guid id, ct)`、`ExecuteAsync(AppCommand command, ct)`、`ReturnHomeAsync(ct)`、`ExitAsync(ct)`；事件 StateChanged 产出 SessionSnapshot，不从后台线程直接操作 WPF。构造注入 AI、语音、截图、图片仓库、设置、存储与 TimeProvider。
 
-- [ ] 编写 `FailureRestoresEmptyDraft`、`FailureKeepsNewDraftAndPendingRequest`、`RetryTwiceKeepsOneUserMessage`、`LateChunkAfterNewSessionIsIgnored`、`ReturnClearsButExitRestoresDraft`、`ClearCancelsSpeechAndDiscardsLateResult`，断言请求快照不可变、恢复图像顺序不变、上下文无重复请求。
-- [ ] 运行 Core 的 SessionCoordinatorTests／RequestRecoveryTests，确认红灯。
-- [ ] 实现操作串行入口与会话代次，网络流不占住整个命令锁；发送前原子冻结快照、写入单个用户消息、腾空草稿，然后异步接收回答。每个命令进入时重新检查 CanExecute，防止按钮和快捷键同时发送。
-- [ ] 失败空草稿恢复时关联同一 RequestId，提供重试／丢弃；已恢复草稿若被追加语音／截图或清空，先解决失败请求后才能作为新请求发送，不能把原快照与修改后的草稿混作同一次重试。非空草稿使用独立 pending 卡片。停止回答保留部分答案且允许继续追问；中途失败必须先重试或丢弃。丢弃后历史仍显示失败状态，上下文排除未完成的失败尝试。
-- [ ] 返回主页先废弃代次并取消任务，再清理草稿和录音、保存历史；退出保存含 pending 的快照；隐藏不取消任务。所有线程回调先核对 session／generation／operation。用延迟假服务跑上述测试，再运行全部 Core 测试。
-- [ ] 提交：`git commit -m "feat: orchestrate sessions and preserve recoverable failures"`。
+- [x] 编写 `FailureRestoresEmptyDraft`、`FailureKeepsNewDraftAndPendingRequest`、`RetryTwiceKeepsOneUserMessage`、`LateChunkAfterNewSessionIsIgnored`、`ReturnClearsButExitRestoresDraft`、`ClearCancelsSpeechAndDiscardsLateResult`，断言请求快照不可变、恢复图像顺序不变、上下文无重复请求。
+- [x] 运行 Core 的 SessionCoordinatorTests／RequestRecoveryTests，确认红灯。
+- [x] 实现操作串行入口与会话代次，网络流不占住整个命令锁；发送前原子冻结快照、写入单个用户消息、腾空草稿，然后异步接收回答。每个命令进入时重新检查 CanExecute，防止按钮和快捷键同时发送。
+- [x] 失败空草稿恢复时关联同一 RequestId，提供重试／丢弃；已恢复草稿若被追加语音／截图或清空，先解决失败请求后才能作为新请求发送，不能把原快照与修改后的草稿混作同一次重试。非空草稿使用独立 pending 卡片。停止回答保留部分答案且允许继续追问；中途失败必须先重试或丢弃。丢弃后历史仍显示失败状态，上下文排除未完成的失败尝试。
+- [x] 返回主页先废弃代次并取消任务，再清理草稿和录音、保存历史；退出保存含 pending 的快照；隐藏不取消任务。所有线程回调先核对 session／generation／operation。用延迟假服务跑上述测试，再运行全部 Core 测试。
+- [x] 提交：`git commit -m "feat: orchestrate sessions and preserve recoverable failures"`。
 
 ## 阶段 D：产品界面、打包与验收
 

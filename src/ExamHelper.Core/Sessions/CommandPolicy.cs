@@ -20,7 +20,7 @@ public sealed class CommandPolicy
                 "需要非空草稿，且录音、识别和当前请求已处理完毕。"),
             AppCommand.NewConversation => Check(!draft && !speech && !generating && !pending && !state.CaptureInProgress,
                 "请先处理草稿和当前任务。"),
-            AppCommand.ToggleRecording => Check(state.SpeechState is SpeechState.Idle or SpeechState.Recording,
+            AppCommand.ToggleRecording => Check(!state.DirectCaptureInProgress && state.SpeechState is SpeechState.Idle or SpeechState.Recording,
                 "请先完成识别或处理待重试录音。"),
             AppCommand.StopAnswer => Check(generating, "当前没有正在生成的回答。"),
             AppCommand.UndoSpeech => Check(state.SpeechUndoAvailable, "语音撤销已过期。"),

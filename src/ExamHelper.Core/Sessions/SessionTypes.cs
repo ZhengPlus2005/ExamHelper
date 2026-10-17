@@ -32,6 +32,7 @@ public sealed record SessionSnapshot
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public long Generation { get; init; }
+    public long SpeechGeneration { get; init; }
     public ImmutableArray<MessageSnapshot> Messages { get; init; } = [];
     public ImmutableArray<RequestSnapshot> Requests { get; init; } = [];
     public DraftSnapshot Draft { get; init; } = DraftSnapshot.Empty;
@@ -40,6 +41,7 @@ public sealed record SessionSnapshot
     public AnswerState AnswerState { get; init; }
     public bool IsAuxiliaryMode { get; init; } = true;
     public bool CaptureInProgress { get; init; }
+    public bool DirectCaptureInProgress { get; init; }
     public bool SpeechUndoAvailable { get; init; }
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
 }

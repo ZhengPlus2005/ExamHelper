@@ -1,0 +1,17 @@
+using ExamHelper.Core.Common;
+using ExamHelper.Core.Sessions;
+namespace ExamHelper.TestSupport;
+public sealed class InMemorySessionStore : ISessionStore
+{
+    private readonly Dictionary<Guid,SessionSnapshot> _sessions = [];
+    public bool FailWrites { get; set; }
+    public Task SaveAsync(SessionSnapshot snapshot,CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if(FailWrites) throw new ServiceFailure(FailureCategory.Storage,"模拟磁盘写入失败。");
+        _sessions[snapshot.Id] = snapshot; return Task.CompletedTask;
+    }
+    public Task<SessionSnapshot?> LoadAsync(Guid id,CancellationToken ct) => Task.FromResult(_sessions.GetValueOrDefault(id));
+    public Task<IReadOnlyList<SessionSummary>> ListAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<SessionSummary>>(_sessions.Values.Select(s => new SessionSummary(s.Id,"会话",s.UpdatedAt,s.Draft.HasContent)).ToArray());
+    public Task DeleteAsync(Guid id,CancellationToken ct) { _sessions.Remove(id); return Task.CompletedTask; }
+}
