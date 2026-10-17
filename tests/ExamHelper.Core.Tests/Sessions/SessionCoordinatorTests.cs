@@ -124,6 +124,70 @@ public class SessionCoordinatorTests
         await rig.Coordinator.ExecuteAsync(AppCommand.UndoSpeech,default);
         Assert.Equal("",rig.Coordinator.State.Draft.Text); Assert.Single(rig.Coordinator.State.Draft.Images);
     }
+    [Fact]
+    public async Task ClearAfterDirectCaptureKeepsAnswerRunning()
+    {
+        await using var rig = new Rig(); await rig.Coordinator.StartNewAsync(default);
+        var attempt = rig.Ai.QueueAttempt();
+        await rig.Coordinator.ExecuteAsync(AppCommand.CaptureAndSend,default); await attempt.Started.Task;
+        await rig.Voice("下一题草稿");
+        await rig.Coordinator.ExecuteAsync(AppCommand.ClearInput,default);
+        attempt.Text("直发完整答案"); attempt.Complete(); await rig.Coordinator.WaitForIdleAsync(default);
+        Assert.Equal(MessageStatus.Complete,rig.Coordinator.State.Messages[^1].Status);
+        Assert.Equal("直发完整答案",rig.Coordinator.State.Messages[^1].Text);
+        Assert.False(rig.Coordinator.State.Draft.HasContent);
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RestoredFailedRequestClearsOnlyItsUnmodifiedDraft(bool retry)
+    {
+        await using var rig = new Rig();
+        var request = new RequestSnapshot { Text = "失败原题",Status = MessageStatus.Failed,RestoredDraftRevision = 42 };
+        var saved = new SessionSnapshot { IsAuxiliaryMode = false,Draft = new("失败原题",[],42),PendingRequest = request,Requests = [request] };
+        // Match disk serialization rather than sharing the original snapshot instance.
+        saved = System.Text.Json.JsonSerializer.Deserialize<SessionSnapshot>(System.Text.Json.JsonSerializer.Serialize(saved))!;
+        await rig.Store.SaveAsync(saved,default); await rig.Coordinator.ContinueAsync(saved.Id,default);
+        if(retry)
+        {
+            var attempt = rig.Ai.QueueAttempt();
+            await rig.Coordinator.ExecuteAsync(AppCommand.RetryRequest,default); await attempt.Started.Task;
+            attempt.Complete(); await rig.Coordinator.WaitForIdleAsync(default);
+        }
+        else await rig.Coordinator.ExecuteAsync(AppCommand.DiscardRequest,default);
+        Assert.False(rig.Coordinator.State.Draft.HasContent);
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RestoredModifiedDraftCannotCollideWithAnotherBufferRevision(bool retry)
+    {
+        await using var rig = new Rig();
+        var request = new RequestSnapshot { Text = "原题",Status = MessageStatus.Failed,RestoredDraftRevision = 1 };
+        var saved = new SessionSnapshot { IsAuxiliaryMode = false,Draft = new("原题与后来追加",[],42),PendingRequest = request,Requests = [request] };
+        await rig.Store.SaveAsync(saved,default); await rig.Coordinator.ContinueAsync(saved.Id,default);
+        if(retry)
+        {
+            var attempt = rig.Ai.QueueAttempt();
+            await rig.Coordinator.ExecuteAsync(AppCommand.RetryRequest,default); await attempt.Started.Task;
+            attempt.Complete(); await rig.Coordinator.WaitForIdleAsync(default);
+        }
+        else await rig.Coordinator.ExecuteAsync(AppCommand.DiscardRequest,default);
+        Assert.Equal("原题与后来追加",rig.Coordinator.State.Draft.Text);
+    }
+    [Fact]
+    public async Task FailedReturnRollbackPreservesFailedDraftIdentity()
+    {
+        await using var rig = new Rig(); await rig.Start("原题");
+        var attempt = rig.Ai.QueueAttempt(); await rig.Coordinator.ExecuteAsync(AppCommand.Send,default);
+        await attempt.Started.Task; attempt.Fail(new ServiceFailure(FailureCategory.Transport,"失败"));
+        await rig.Coordinator.WaitForIdleAsync(default); rig.Store.FailWrites = true;
+        await Assert.ThrowsAsync<ServiceFailure>(() => rig.Coordinator.ReturnHomeAsync(default));
+        Assert.Equal(rig.Coordinator.State.Draft.Revision,rig.Coordinator.State.PendingRequest!.RestoredDraftRevision);
+        rig.Store.FailWrites = false;
+        await rig.Coordinator.ExecuteAsync(AppCommand.DiscardRequest,default);
+        Assert.False(rig.Coordinator.State.Draft.HasContent);
+    }
     private sealed class Rig : IAsyncDisposable
     {
         public DeferredAiClient Ai { get; } = new(); public InMemorySessionStore Store { get; } = new();

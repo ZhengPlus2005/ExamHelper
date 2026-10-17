@@ -46,6 +46,47 @@ public class SpeechCoordinatorTests
         var result = await completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(2, result.Generation); Assert.Equal(1, mic.StopCalls); Assert.True(mic.CancelCalls > 0);
     }
+    [Fact]
+    public async Task QueuedToggleCannotRestartAfterLifecycleCancellation()
+    {
+        var mic = new GatedMicrophone(); await using var recording = new RecordingController(mic,new ManualTimeProvider());
+        long generation = 1;
+        await using var speech = new SpeechCoordinator(recording,new RetryAsr(),() => new AsrSettings(),() => (Guid.Empty,generation));
+        var starting = speech.ToggleAsync(default); await mic.Started.Task;
+        // Both calls are queued on the speech gate held by device startup.
+        var cancelling = speech.CancelAsync();
+        var staleToggle = speech.ToggleAsync(default);
+        generation++;
+        mic.Release.TrySetResult();
+        await Task.WhenAll(starting,cancelling,staleToggle).WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal(1,mic.StartCalls); Assert.Equal(SpeechState.Idle,speech.State);
+        Assert.False(recording.IsRecording);
+    }
+    [Theory]
+    [InlineData("toggle")]
+    [InlineData("retry")]
+    [InlineData("discard")]
+    public async Task DispatchFromOldContextCannotAffectNewRecording(string command)
+    {
+        var mic = new Microphone(); await using var recording = new RecordingController(mic,new ManualTimeProvider());
+        await using var speech = new SpeechCoordinator(recording,new RetryAsr(),() => new AsrSettings(),() => (Guid.Empty,2L));
+        await speech.ToggleAsync(default);
+        var oldContext = (Guid.Empty,1L);
+        if(command == "toggle") await speech.ToggleAsync(default,oldContext);
+        else if(command == "retry") await speech.RetryAsync(default,oldContext);
+        else await speech.DiscardAsync(oldContext);
+        Assert.Equal(SpeechState.Recording,speech.State);
+        Assert.Equal(1,mic.StartCalls); Assert.Equal(0,mic.StopCalls); Assert.Equal(0,mic.CancelCalls);
+    }
+    private sealed class GatedMicrophone : IMicrophoneRecorder
+    {
+        public int StartCalls;
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async Task StartAsync(string d,CancellationToken ct) { StartCalls++; Started.TrySetResult(); await Release.Task.WaitAsync(ct); }
+        public Task<RecordedAudio> StopAsync(CancellationToken ct) => Task.FromResult(new RecordedAudio(Guid.NewGuid(),"test.wav",TimeSpan.FromSeconds(1)));
+        public Task CancelAsync() => Task.CompletedTask;
+    }
     private sealed class Microphone : IMicrophoneRecorder
     {
         public int StartCalls, StopCalls, CancelCalls;

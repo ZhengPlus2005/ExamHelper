@@ -24,7 +24,13 @@ public sealed class DraftBuffer
         if (images.Length != _value.Images.Length) Set(_value with { Images = images }, DraftChangeKind.ImageRemoved);
     }
     public void Clear() => Set(DraftSnapshot.Empty, DraftChangeKind.Cleared);
-    public void Restore(DraftSnapshot snapshot) => Set(snapshot, DraftChangeKind.Restored);
+    public void Restore(DraftSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        // Restore the persisted identity as well as its content; pending requests refer to it.
+        _value = snapshot;
+        Changed?.Invoke(new(DraftChangeKind.Restored, _value.Revision));
+    }
     internal bool RemoveSpeechTail(string suffix)
     {
         if (!_value.Text.EndsWith(suffix, StringComparison.Ordinal)) return false;

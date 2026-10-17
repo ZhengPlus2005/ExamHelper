@@ -8,6 +8,7 @@ public partial class ThumbnailStrip : UserControl
     public static readonly DependencyProperty ItemsSourceProperty = DependencyProperty.Register(nameof(ItemsSource),typeof(IEnumerable),typeof(ThumbnailStrip),new PropertyMetadata(null,Changed));
     public IEnumerable? ItemsSource { get => (IEnumerable?)GetValue(ItemsSourceProperty); set => SetValue(ItemsSourceProperty,value); }
     private INotifyCollectionChanged? _source;
+    internal ScrollViewer ScrollViewer => Scroller;
     public ThumbnailStrip()
     {
         InitializeComponent(); Loaded += (_,_) => Attach(); Unloaded += (_,_) => Detach();

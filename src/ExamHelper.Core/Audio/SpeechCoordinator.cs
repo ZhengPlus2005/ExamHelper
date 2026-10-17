@@ -24,16 +24,18 @@ public sealed class SpeechCoordinator : IAsyncDisposable
     public SpeechCoordinator(RecordingController recording, IAsrClient asr, Func<AsrSettings> settings, Func<(Guid SessionId,long Generation)> context)
     { _recording = recording; _asr = asr; _settings = settings; _context = context; }
 
-    public async Task ToggleAsync(CancellationToken ct)
+    public async Task ToggleAsync(CancellationToken ct, (Guid SessionId,long Generation)? expectedContext = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        var dispatchContext = expectedContext ?? _context();
         bool stop = false; long stopEpoch = 0;
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            if (_disposed || dispatchContext != _context()) return;
             if (State == SpeechState.Idle)
             {
-                Error = null; var epoch = ++_epoch; var context = _context(); var settings = _settings();
+                Error = null; var epoch = ++_epoch; var context = dispatchContext; var settings = _settings();
                 _operation?.Dispose(); _operation = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 var operationToken = _operation.Token;
                 _stoppedHandler = clip => _processing = ProcessAsync(new(clip, epoch, context, settings), operationToken);
@@ -54,13 +56,15 @@ public sealed class SpeechCoordinator : IAsyncDisposable
         }
     }
 
-    public async Task RetryAsync(CancellationToken ct)
+    public async Task RetryAsync(CancellationToken ct, (Guid SessionId,long Generation)? expectedContext = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        var dispatchContext = expectedContext ?? _context();
         Attempt pending;
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            if (_disposed || dispatchContext != _context()) return;
             if (State != SpeechState.RetryPending || _pending is null) throw new InvalidOperationException("没有可重试的录音。");
             pending = _pending; State = SpeechState.Recognizing; Error = null; StateChanged?.Invoke();
         }
@@ -68,7 +72,7 @@ public sealed class SpeechCoordinator : IAsyncDisposable
         _processing = ProcessAsync(pending, ct);
         await _processing.ConfigureAwait(false);
     }
-    public Task DiscardAsync() => CancelAsync();
+    public Task DiscardAsync((Guid SessionId,long Generation)? expectedContext = null) => CancelAsync(expectedContext ?? _context());
 
     private async Task ProcessAsync(Attempt attempt, CancellationToken ct)
     {
@@ -129,11 +133,12 @@ public sealed class SpeechCoordinator : IAsyncDisposable
         }
         finally { _gate.Release(); }
     }
-    public async Task CancelAsync()
+    public async Task CancelAsync((Guid SessionId,long Generation)? expectedContext = null)
     {
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (expectedContext is { } expected && expected != _context()) return;
             ++_epoch; _operation?.Cancel(); Detach();
             await _recording.CancelAsync().ConfigureAwait(false);
             _pending = null; State = SpeechState.Idle; Error = null; StateChanged?.Invoke();

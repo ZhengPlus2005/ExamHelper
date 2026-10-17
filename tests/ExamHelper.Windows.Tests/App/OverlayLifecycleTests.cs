@@ -69,6 +69,47 @@ public class OverlayLifecycleTests
             Assert.True(rig.Protection.Sets > first); Assert.True(rig.Host.CurrentWindow!.Protection.Success);
         });
     }
+    [Theory]
+    [InlineData(480,360)]
+    [InlineData(640,720)]
+    public async Task ManyImagesKeepActionsVisibleAndLastImageReachable(double width,double height)
+    {
+        await StaTest.RunAsync(() =>
+        {
+            using var rig = new Rig(); rig.Start("语音草稿");
+            for(int i = 0;i < 40;i++) rig.Coordinator.ExecuteAsync(AppCommand.CaptureToDraft,default).GetAwaiter().GetResult();
+            rig.Host.OpenAsync(default).GetAwaiter().GetResult(); rig.Host.Show(); StaTest.Pump();
+            var window = rig.Host.CurrentWindow!; window.Width = width; window.Height = height; window.UpdateLayout(); StaTest.Pump();
+            foreach(var name in new[] { "SendButton","ClearButton" })
+            {
+                var button = Assert.IsType<System.Windows.Controls.Button>(window.FindName(name));
+                var bounds = button.TransformToAncestor(window).TransformBounds(new System.Windows.Rect(button.RenderSize));
+                Assert.InRange(bounds.Bottom,1,window.ActualHeight);
+            }
+            var strip = Descendants(window).OfType<ExamHelper.App.Controls.ThumbnailStrip>().Single();
+            var scroller = Descendants(strip).OfType<System.Windows.Controls.ScrollViewer>().First();
+            Assert.True(scroller.ScrollableHeight > 0);
+            scroller.ScrollToEnd();
+            var content = Assert.IsType<System.Windows.Controls.ScrollViewer>(window.FindName("AnswerScroll"));
+            content.ScrollToEnd(); window.UpdateLayout(); StaTest.Pump();
+            var items = Assert.IsType<System.Windows.Controls.ItemsControl>(strip.FindName("Items"));
+            var last = Assert.IsAssignableFrom<System.Windows.FrameworkElement>(items.ItemContainerGenerator.ContainerFromIndex(39));
+            var lastBounds = last.TransformToAncestor(window).TransformBounds(new System.Windows.Rect(last.RenderSize));
+            Assert.InRange(lastBounds.Top,0,window.ActualHeight);
+            Assert.InRange(lastBounds.Bottom,1,window.ActualHeight);
+            var bar = Assert.IsType<System.Windows.Controls.Primitives.ScrollBar>(scroller.Template.FindName("PART_VerticalScrollBar",scroller));
+            var track = Assert.IsType<System.Windows.Controls.Primitives.Track>(bar.Template.FindName("PART_Track",bar));
+            Assert.NotNull(ExamHelper.App.Controls.DwellBehavior.GetCommand(track.Thumb));
+        });
+    }
+    private static IEnumerable<System.Windows.DependencyObject> Descendants(System.Windows.DependencyObject root)
+    {
+        for(int i = 0;i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root,i); yield return child;
+            foreach(var descendant in Descendants(child)) yield return descendant;
+        }
+    }
     private sealed class Rig : IDisposable
     {
         public DeferredAiClient Ai { get; } = new(); public InMemorySessionStore Store { get; } = new();

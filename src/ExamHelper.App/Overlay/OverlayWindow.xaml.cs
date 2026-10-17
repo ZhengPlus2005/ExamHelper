@@ -38,6 +38,9 @@ public partial class OverlayWindow : Window
         _interaction = new(this);
         _ = new WindowManipulationBehavior(this,MoveHandle,ResizeHandle,_interaction);
         _ = new HoverScrollBehavior(AnswerScroll,_interaction);
+        _ = new HoverScrollBehavior(DraftImages.ScrollViewer,_interaction);
+        _ = new HoverScrollBehavior(DraftScroll,_interaction);
+        _ = new HoverScrollBehavior(StatusScroll,_interaction);
         _interaction.ActiveChanged += active =>
         {
             if(_hotkeys?.SetManipulationEscape(active) == false && active) { _interaction.End(); _viewModel.ReportError("Esc 已被占用，本次移动操作已取消。"); }

@@ -14,19 +14,21 @@
     <Button x:Name="NewButton" Content="新对话"/><Button x:Name="StopButton" Content="停止回答"/><Button x:Name="FoldButton" Content="折叠／展开"/>
     <Button x:Name="HomeButton" Content="返回主页" beh:DwellBehavior.Delay="2"/><Button x:Name="ExitButton" Content="退出" beh:DwellBehavior.Delay="2"/>
    </WrapPanel>
-   <Grid x:Name="Body" Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <Grid x:Name="Body" Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <ScrollViewer x:Name="AnswerScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#30101827" Padding="10" Margin="0,0,0,8" Focusable="False">
-     <ItemsControl ItemsSource="{Binding Messages}"><ItemsControl.ItemTemplate><DataTemplate><beh:AnswerView Title="{Binding Title}" Text="{Binding Text}" IsFinal="{Binding IsFinal}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+     <StackPanel>
+      <ItemsControl ItemsSource="{Binding Messages}"><ItemsControl.ItemTemplate><DataTemplate><beh:AnswerView Title="{Binding Title}" Text="{Binding Text}" IsFinal="{Binding IsFinal}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+      <beh:ThumbnailStrip x:Name="DraftImages" ItemsSource="{Binding Thumbnails}"/>
+      <StackPanel><TextBlock Text="语音草稿（只读）" Foreground="#B8CDE8" FontSize="11"/><ScrollViewer x:Name="DraftScroll" MaxHeight="82" MinHeight="35" VerticalScrollBarVisibility="Auto" Background="#30101827" Padding="8" Margin="0,5" Focusable="False"><TextBlock x:Name="DraftPreview" Text="{Binding DraftText}" Foreground="White" TextWrapping="Wrap" Focusable="False"/></ScrollViewer></StackPanel>
+     </StackPanel>
     </ScrollViewer>
-    <beh:ThumbnailStrip Grid.Row="1" ItemsSource="{Binding Thumbnails}"/>
-    <StackPanel Grid.Row="2"><TextBlock Text="语音草稿（只读）" Foreground="#B8CDE8" FontSize="11"/><ScrollViewer MaxHeight="82" MinHeight="35" VerticalScrollBarVisibility="Auto" Background="#30101827" Padding="8" Margin="0,5" Focusable="False"><TextBlock x:Name="DraftPreview" Text="{Binding DraftText}" Foreground="White" TextWrapping="Wrap" Focusable="False"/></ScrollViewer></StackPanel>
-    <WrapPanel Grid.Row="3"><Button x:Name="ClearButton" Content="清空输入"/><Button x:Name="SendButton" Content="发送"/>
+    <WrapPanel Grid.Row="1"><Button x:Name="ClearButton" Content="清空输入"/><Button x:Name="SendButton" Content="发送"/>
      <Button x:Name="UndoButton" Content="撤销本次语音" Visibility="{Binding CanUndo,Converter={StaticResource BoolVisibility}}" MouseEnter="UndoEnter" MouseLeave="UndoLeave"/>
      <Button x:Name="RetrySpeechButton" Content="重试识别" Visibility="{Binding HasSpeechFailure,Converter={StaticResource BoolVisibility}}"/><Button x:Name="DiscardSpeechButton" Content="丢弃录音" Visibility="{Binding HasSpeechFailure,Converter={StaticResource BoolVisibility}}"/>
      <Button x:Name="RetryRequestButton" Content="重试回答" Visibility="{Binding HasRequestFailure,Converter={StaticResource BoolVisibility}}"/><Button x:Name="DiscardRequestButton" Content="丢弃失败请求" Visibility="{Binding HasRequestFailure,Converter={StaticResource BoolVisibility}}"/>
     </WrapPanel>
    </Grid>
-   <TextBlock Grid.Row="3" Text="{Binding Status}" Foreground="#D2E1F5" TextWrapping="Wrap" FontSize="11" Margin="2,5"/>
+   <ScrollViewer x:Name="StatusScroll" Grid.Row="3" MaxHeight="40" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"><TextBlock Text="{Binding Status}" Foreground="#D2E1F5" TextWrapping="Wrap" FontSize="11" Margin="2,5"/></ScrollViewer>
    <Border x:Name="ResizeHandle" Grid.Row="4" Width="24" Height="24" Background="#FF526581" HorizontalAlignment="Right"><TextBlock Text="◢" Foreground="White" HorizontalAlignment="Center"/></Border>
   </Grid>
  </Border>

@@ -89,7 +89,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
     {
         if(command == AppCommand.ReturnHome) { await ReturnHomeAsync(ct).ConfigureAwait(false); return; }
         if(command == AppCommand.Exit) { await ExitAsync(ct).ConfigureAwait(false); return; }
-        CaptureWork? capture = null; bool speech = false; bool ui = false;
+        CaptureWork? capture = null; (Guid SessionId,long Generation)? speech = null; bool ui = false;
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -102,7 +102,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
             {
                 case AppCommand.CaptureAndSend: case AppCommand.CaptureToDraft:
                     _captureCancellation?.Dispose(); _captureCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
-                    capture = new(_state.Id,_state.Generation,++_captureEpoch,command == AppCommand.CaptureAndSend,_settings(),_captureCancellation.Token);
+                    capture = new(_state.Id,_state.Generation,++_captureEpoch,command == AppCommand.CaptureAndSend,_settings(),_captureCancellation.Token,ct);
                     _state = _state with { CaptureInProgress = true,DirectCaptureInProgress = capture.Direct }; Publish(); break;
                 case AppCommand.Send:
                     await StartRequestLockedAsync(NewRequest(_draft.Snapshot(),_settings(),false),false,ct).ConfigureAwait(false); break;
@@ -123,7 +123,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
                 case AppCommand.NewConversation:
                     await SaveLockedAsync(ct).ConfigureAwait(false); await StartFreshLockedAsync(ct).ConfigureAwait(false); break;
                 case AppCommand.ToggleRecording: case AppCommand.RetrySpeech: case AppCommand.DiscardSpeech:
-                    _undo.Invalidate(); speech = true;
+                    _undo.Invalidate(); speech = (_state.Id,_state.SpeechGeneration);
                     _state = _state with { SpeechState = command == AppCommand.ToggleRecording && _speech.State == SpeechState.Idle ? SpeechState.Recording :
                         command == AppCommand.DiscardSpeech ? SpeechState.Idle : SpeechState.Recognizing };
                     Publish(); break;
@@ -134,13 +134,13 @@ public sealed class SessionCoordinator : IAsyncDisposable
         }
         finally { _gate.Release(); }
         if(capture is not null) await CompleteCaptureAsync(capture).ConfigureAwait(false);
-        if(speech)
+        if(speech is { } speechContext)
         {
             try
             {
-                if(command == AppCommand.ToggleRecording) await _speech.ToggleAsync(ct).ConfigureAwait(false);
-                else if(command == AppCommand.RetrySpeech) await _speech.RetryAsync(ct).ConfigureAwait(false);
-                else await _speech.DiscardAsync().ConfigureAwait(false);
+                if(command == AppCommand.ToggleRecording) await _speech.ToggleAsync(ct,speechContext).ConfigureAwait(false);
+                else if(command == AppCommand.RetrySpeech) await _speech.RetryAsync(ct,speechContext).ConfigureAwait(false);
+                else await _speech.DiscardAsync(speechContext).ConfigureAwait(false);
             }
             finally { await SynchronizeSpeechAsync().ConfigureAwait(false); }
         }
@@ -289,8 +289,9 @@ public sealed class SessionCoordinator : IAsyncDisposable
             try
             {
                 if(!CaptureCurrent(work)) return;
+                work.Token.ThrowIfCancellationRequested();
                 _state = _state with { CaptureInProgress = false,DirectCaptureInProgress = false };
-                if(work.Direct) await StartRequestLockedAsync(NewRequest(new("",[saved],_draft.Snapshot().Revision),work.Settings,true),false,work.Token).ConfigureAwait(false);
+                if(work.Direct) await StartRequestLockedAsync(NewRequest(new("",[saved],_draft.Snapshot().Revision),work.Settings,true),false,work.RequestToken).ConfigureAwait(false);
                 else { _draft.AppendImage(saved); Publish(); await SaveLockedAsync(CancellationToken.None).ConfigureAwait(false); }
             }
             finally { _gate.Release(); }
@@ -379,5 +380,5 @@ public sealed class SessionCoordinator : IAsyncDisposable
         await _speech.DisposeAsync().ConfigureAwait(false); await _recording.DisposeAsync().ConfigureAwait(false);
         _requestCancellation?.Dispose(); _captureCancellation?.Dispose(); _lifetime.Dispose();
     }
-    private sealed record CaptureWork(Guid SessionId,long Generation,long Epoch,bool Direct,AppSettings Settings,CancellationToken Token);
+    private sealed record CaptureWork(Guid SessionId,long Generation,long Epoch,bool Direct,AppSettings Settings,CancellationToken Token,CancellationToken RequestToken);
 }
