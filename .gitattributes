@@ -1,0 +1,2 @@
+# Preserve upstream license text without rewriting its whitespace.
+packaging/licenses/* -whitespace

@@ -322,12 +322,14 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** `Test.ps1 -Configuration Release`；`Publish.ps1 -Version 0.1.0` 输出 `artifacts/publish/win-x64/`；`Build-Installer.ps1 -Version 0.1.0 -IsccPath <path>` 输出 `artifacts/installers/ExamHelper-Setup-0.1.0-x64.exe`，脚本失败返回非零，不创建伪安装器。
 
-- [ ] 编写脚本并验证工具缺失时返回明确非零与安装说明；每次构建记录 SDK、锁定包、版本及 git SHA。准备 Inno Setup 6 官方编译器，开发机安装器工具路径可显式指定，不强制用户管理员安装。
-- [ ] 发布 `dotnet publish src/ExamHelper.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:PublishTrimmed=false -o artifacts/publish/win-x64`，先运行发布目录 EXE 验证 SQLite 原生库及资源齐全；不能只复制入口 exe。
-- [ ] 设置 `PrivilegesRequired=lowest`、asInvoker、安装到 `{localappdata}\Programs\ExamHelper`、开始菜单快捷方式；`ArchitecturesAllowed=x64os`，版本与产品类型检查只接受 Windows 11 工作站（build ≥22000），拒绝 Windows 10／ARM／Windows Server；App 启动同样检查。不能只依赖 `MinVersion=10.0`，Windows 11 同样使用 10.0 内核版本。
-- [ ] 用 `Build-Installer.ps1` 构建，生成 SHA-256 校验文件；安装包排除实验工具、临时录音、开发配置与凭据。整理第三方许可，未复制的 OpenCluely 代码不加入依赖。
+- [x] 编写脚本并验证工具缺失时返回明确非零与安装说明；每次构建记录 SDK、锁定包、版本及 git SHA。准备 Inno Setup 6 官方编译器，开发机安装器工具路径可显式指定，不强制用户管理员安装。
+- [x] 发布 `dotnet publish src/ExamHelper.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:PublishTrimmed=false -o artifacts/publish/win-x64`，先运行发布目录 EXE 验证 SQLite 原生库及资源齐全；不能只复制入口 exe。
+- [x] 设置 `PrivilegesRequired=lowest`、asInvoker、安装到 `{localappdata}\Programs\ExamHelper`、开始菜单快捷方式；`ArchitecturesAllowed=x64os`，版本与产品类型检查只接受 Windows 11 工作站（build ≥22000），拒绝 Windows 10／ARM／Windows Server；App 启动同样检查。不能只依赖 `MinVersion=10.0`，Windows 11 同样使用 10.0 内核版本。
+- [x] 用 `Build-Installer.ps1` 构建，生成 SHA-256 校验文件；安装包排除实验工具、临时录音、开发配置与凭据。整理第三方许可，未复制的 OpenCluely 代码不加入依赖。
 - [ ] 在未装 .NET 的 Windows 11 x64 标准用户环境实测安装／启动／升级／卸载、无 UAC 提权、历史与设置持久化。卸载默认保留用户数据，并在说明中提供手动清理路径，不默认删除历史。
-- [ ] 提交：`git commit -m "build: package a self-contained per-user Windows installer"`。
+- [x] 提交：`git commit -m "build: package a self-contained per-user Windows installer"`。
+
+当前代码／构建已完成；本机普通用户安装、同版升级、卸载及自包含资源自检通过。宿主已有 SDK，干净无运行时环境尚未验证，保留上述条目。此环境项与任务 18 的兼容性记录一并完成，不能提前宣称全部发布验收通过。
 
 ### Task 18：兼容性证据、最终回归与交付
 

@@ -1,4 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><OutputType>WinExe</OutputType></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><OutputType>WinExe</OutputType><ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup>
   <ItemGroup><ProjectReference Include="../ExamHelper.Windows/ExamHelper.Windows.csproj" /></ItemGroup>
 <ItemGroup><Resource Include="Assets/service-test.png" /></ItemGroup></Project>
