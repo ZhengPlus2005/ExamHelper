@@ -193,11 +193,11 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** `SpeechInsertionUndo.Append(Guid operationId, string transcript)`、`PointerEnter()`、`PointerLeave()`、`TryUndo() -> bool`、`Invalidate()`；使用同一 DraftBuffer 和 TimeProvider，暴露剩余时间与 CanUndo。
 
-- [ ] 编写 `UndoOnlyLatestInsertionKeepsEarlierTextAndImages`、`ExpiresAt3000ms`、`HoverPausesExpiry`、`NewRecognitionReplacesUndoTarget`、`ClearInvalidatesUndo`；例如“原文”＋识别“结果”撤销后断言等于“原文”，图片 Id 不变。
-- [ ] 运行 `dotnet test tests/ExamHelper.Core.Tests --filter SpeechInsertionUndoTests`，确认红灯。
-- [ ] 实现语音增量追踪；追加分隔符只在原文末尾无换行且有内容时使用 `Environment.NewLine`，该分隔符随本次一起撤销。只允许撤销最近一次识别增量；新录音／发送／清空等生命周期使入口失效。
-- [ ] 重新运行测试，补测连续识别、清空后的过期撤销及中文 UTF-16 代理对边界，不能拆坏字符或把新文字一起回滚。
-- [ ] 提交：`git commit -m "feat: undo only the latest speech insertion"`。
+- [x] 编写 `UndoOnlyLatestInsertionKeepsEarlierTextAndImages`、`ExpiresAt3000ms`、`HoverPausesExpiry`、`NewRecognitionReplacesUndoTarget`、`ClearInvalidatesUndo`；例如“原文”＋识别“结果”撤销后断言等于“原文”，图片 Id 不变。
+- [x] 运行 `dotnet test tests/ExamHelper.Core.Tests --filter SpeechInsertionUndoTests`，确认红灯。
+- [x] 实现语音增量追踪；追加分隔符只在原文末尾无换行且有内容时使用 `Environment.NewLine`，该分隔符随本次一起撤销。只允许撤销最近一次识别增量；新录音／发送／清空等生命周期使入口失效。
+- [x] 重新运行测试，补测连续识别、清空后的过期撤销及中文 UTF-16 代理对边界，不能拆坏字符或把新文字一起回滚。
+- [x] 提交：`git commit -m "feat: undo only the latest speech insertion"`。
 
 ### Task 8：单屏全屏截图与图片仓库
 
