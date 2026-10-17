@@ -1,15 +1,13 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Interop;
+using System.Runtime.InteropServices;
+using ExamHelper.App.Controls;
 using ExamHelper.Core.Settings;
 using ExamHelper.Windows.Native;
-
 namespace ExamHelper.InteractionLab;
-
 internal static class NativeVerification
 {
-    public static Dictionary<string, string> Diagnostics { get; } = [];
     public static IReadOnlyDictionary<string, bool> Run(Window reference, MainWindow overlay)
     {
         var target = new WindowInteropHelper(reference).Handle;
@@ -27,18 +25,12 @@ internal static class NativeVerification
         results["TemporaryEscapeRegisters"] = first.SetManipulationEscape(true);
         results["TemporaryEscapeReleases"] = first.SetManipulationEscape(false);
         overlay.Show();
-        Diagnostics.Clear(); Diagnostics["ReferenceActivateReturned"] = reference.Activate().ToString();
-        var before = InputLanguageService.Read(target);
-        var lease = new FocusLease();
-        var begin = lease.Begin(hwnd);
-        Diagnostics["FocusBeginError"] = begin.Error ?? "none";
-        results["ActualFocusLeaseBegins"] = begin.Success;
-        results["EnglishLayoutSelected"] = (InputLanguageService.Read(hwnd).Layout.ToInt64() & 0xFFFF) == 0x409;
-        results["EditorCompositionDisabled"] = !InputMethod.GetIsInputMethodEnabled((TextBox)overlay.FindName("Editor"));
-        var end = lease.End();
-        Diagnostics["FocusEndError"] = end.Error ?? "none";
-        results["ActualFocusLeaseRestores"] = begin.Success && end.Success;
-        results["OriginalLayoutRestored"] = begin.Success && InputLanguageService.Read(target).Layout == before.Layout;
+        var preview = (TextBlock)overlay.FindName("DraftPreview");
+        results["DraftPreviewCannotReceiveKeyboardFocus"] = !preview.Focusable && !preview.IsKeyboardFocusWithin;
+        results["DraftPreviewHasNoFocusDwellCommand"] = DwellBehavior.GetCommand(preview) is null;
+        results["MouseActivationDeclined"] = SendMessage(hwnd, 0x0021, 0, 0) == 3;
         return results;
     }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern nint SendMessage(nint hwnd, uint message, nint wParam, nint lParam);
 }

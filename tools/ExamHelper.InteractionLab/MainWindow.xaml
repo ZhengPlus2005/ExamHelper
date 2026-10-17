@@ -16,9 +16,9 @@
       </WrapPanel>
       <ScrollViewer x:Name="AnswerScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" Background="#33101420" Padding="10" Margin="0,0,0,8"><TextBlock x:Name="AnswerText" Foreground="White" FontSize="15" TextWrapping="Wrap"/></ScrollViewer>
       <StackPanel x:Name="EditPanel" Grid.Row="3">
-        <TextBlock Text="悬停输入框一秒获得焦点；仅英文键入。下方文字用于模拟语音。" Foreground="#C3D1E5" TextWrapping="Wrap" FontSize="11"/>
-        <TextBox x:Name="Editor" Height="76" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,6"/>
-        <WrapPanel><Button x:Name="InsertChinese" Content="模拟语音追加中文"/><Button x:Name="CancelButton" Content="取消输入"/><Button x:Name="ClearButton" Content="清空输入"/></WrapPanel>
+        <TextBlock Text="语音草稿预览（只读）。本验证版仅模拟识别结果，尚未接入麦克风。" Foreground="#C3D1E5" TextWrapping="Wrap" FontSize="11"/>
+        <ScrollViewer Height="76" VerticalScrollBarVisibility="Auto" Margin="0,6" Padding="8" Background="#33101420" Focusable="False"><TextBlock x:Name="DraftPreview" Foreground="White" TextWrapping="Wrap" Focusable="False" /></ScrollViewer>
+        <WrapPanel><Button x:Name="InsertChinese" Content="模拟语音追加中文"/><Button x:Name="ClearButton" Content="清空输入"/></WrapPanel>
       </StackPanel>
       <StackPanel Grid.Row="4"><TextBlock x:Name="ProtectionStatus" Foreground="#A7F3D0" FontSize="11" TextWrapping="Wrap"/><TextBlock x:Name="Status" Foreground="#D5E4FA" FontSize="11" TextWrapping="Wrap"/></StackPanel>
       <Border x:Name="ResizeHandle" Grid.Row="5" Width="24" Height="24" Background="#FF526581" HorizontalAlignment="Right"><TextBlock Text="◢" Foreground="White" HorizontalAlignment="Center"/></Border>

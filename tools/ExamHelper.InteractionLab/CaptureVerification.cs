@@ -11,7 +11,7 @@ namespace ExamHelper.InteractionLab;
 // Integration fixture captures only its own reference surface; never uploads pixels.
 internal static class CaptureVerification
 {
-    public static async Task RunAsync(string directory, bool waitForReference = false)
+    public static async Task RunAsync(string directory)
     {
         Directory.CreateDirectory(directory);
         File.WriteAllText(Path.Combine(directory, "capture-result.json"), "{\"Passed\":false,\"Status\":\"Running\"}");
@@ -43,20 +43,11 @@ internal static class CaptureVerification
         var b = new byte[a.Length];
         before.CopyPixels(a, before.PixelWidth * 4, 0); after.CopyPixels(b, after.PixelWidth * 4, 0);
         int differences = 0; for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) differences++;
-        if (waitForReference)
-        {
-            overlay.Hide();
-            reference.Content = new System.Windows.Controls.TextBlock { Text = "ExamHelper 原生验证参考窗：激活此窗口后继续焦点验证。", Foreground = Brushes.White, FontSize = 20, Margin = new Thickness(30) };
-            var deadline = DateTime.UtcNow.AddSeconds(45);
-            while (GetForegroundWindow() != new WindowInteropHelper(reference).Handle && DateTime.UtcNow < deadline) await Task.Delay(50);
-            if (GetForegroundWindow() != new WindowInteropHelper(reference).Handle) throw new InvalidOperationException("Reference activation precondition not met; focus test inconclusive.");
-            overlay.Show();
-        }
         var nativeChecks = NativeVerification.Run(reference, overlay);
         File.WriteAllText(Path.Combine(directory, "capture-result.json"), JsonSerializer.Serialize(new {
             OS = Environment.OSVersion.VersionString, Protection = overlay.Protection,
             CaptureBackend = "GDI BitBlt SRCCOPY; own reference surface only", before.PixelWidth, before.PixelHeight,
-            Differences = differences, CapturePassed = differences == 0, Passed = differences == 0 && nativeChecks.All(c => c.Value), NativeChecks = nativeChecks, NativeDiagnostics = NativeVerification.Diagnostics, Dpi = scale.PixelsPerInchX
+            Differences = differences, CapturePassed = differences == 0, Passed = differences == 0 && nativeChecks.All(c => c.Value), NativeChecks = nativeChecks, Dpi = scale.PixelsPerInchX
         }, new JsonSerializerOptions { WriteIndented = true }));
         overlay.Close(); reference.Close();
         if (differences != 0) throw new InvalidOperationException($"Capture contains {differences} changed bytes; inspect artifacts.");
@@ -79,7 +70,6 @@ internal static class CaptureVerification
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image)); using var stream = File.Create(path); encoder.Save(stream);
     }
     [DllImport("user32.dll")] private static extern nint GetDC(nint hwnd);
-    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hwnd);
     [DllImport("user32.dll")] private static extern int ReleaseDC(nint hwnd, nint dc);
     [DllImport("gdi32.dll")] private static extern nint CreateCompatibleDC(nint dc);

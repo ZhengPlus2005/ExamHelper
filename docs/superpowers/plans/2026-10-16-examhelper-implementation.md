@@ -22,7 +22,7 @@
 - AI 图片测试和语音测试均通过才能进入；对应连接配置变化使该项测试失效；保护初始化失败禁止进入。
 - 当前对话保留上下文；“开始考试”始终新建；“继续此对话”显式恢复；新对话禁用条件按设计执行。
 - 返回主页清空草稿；退出保存草稿；隐藏不停止任务且快捷键仍有效；设置只从主页进入。
-- 英文编辑、删除、换行可用；聚焦输入框切英文，退出恢复；Ctrl＋Enter 发送，Enter 换行。
+- 2026-10-17 用户调整：辅助模式文字只经语音识别输入，草稿只读且不可聚焦；删除取消输入、输入法切换及恢复，发送按钮与全局发送快捷键保留。
 - 默认中文；选择／判断先答案后简短理由；简答直接作答；编程代码块，默认 C++ 且可设置。
 - 只渲染纯文本与标注语言的代码块，不做其他 Markdown／公式／Mermaid 渲染。
 - 历史完整保存截图，删除记录清理关联图片；密钥按 Windows 当前用户加密；录音不存入历史。
@@ -33,7 +33,7 @@
 1. 鼠标不动而缩略图／按钮位置改变：不能链式触发；任务 2 的 `LayoutChangeRequiresPointerReentry` 固定行为。
 2. 清空／返回主页后识别或流式片段晚到：不能重建草稿、跨会话写入；任务 10、14 的过期结果测试覆盖。
 3. 失败时已有新草稿、重试后又失败：保留两份内容且只出现一个用户消息；任务 14 的失败恢复测试覆盖。
-4. 100%／150%／200% DPI、鼠标离开小窗、目标窗口关闭：坐标与焦点恢复不能损坏编辑；任务 3、4 实测覆盖。
+4. 100%／150%／200% DPI、鼠标离开小窗、草稿预览鼠标操作：坐标正确，辅助窗口不抢答题界面键盘焦点；任务 3、4 实测覆盖。
 5. 图片删除中断、磁盘满或强制结束：不得误删仍引用的图片或声称保存成功；任务 13 的故障注入覆盖。
 
 ## 执行约定与当前环境
@@ -54,7 +54,7 @@
 | `src/ExamHelper.Core/` | `net10.0`，按 Interaction、Drafts、Sessions、Settings、Audio、Ai 分目录；不依赖 WPF／Win32 |
 | `src/ExamHelper.Windows/` | `net10.0-windows`，Native、Capture、Audio、Providers、Persistence、Settings 实现 |
 | `src/ExamHelper.App/` | `net10.0-windows`＋UseWPF，App、Home、Settings、Overlay、Controls、Composition |
-| `tests/ExamHelper.Core.Tests/` | 时间可控的状态、增量编辑、命令及会话测试 |
+| `tests/ExamHelper.Core.Tests/` | 时间可控的状态、语音增量、命令及会话测试 |
 | `tests/ExamHelper.Windows.Tests/` | 假 HTTP、临时 SQLite、原生边界和 STA 集成测试，不自动调用付费服务 |
 | `tests/ExamHelper.TestSupport/` | 手动时钟、假服务、分块 HTTP、临时目录与 STA 运行辅助 |
 | `tools/ExamHelper.InteractionLab/` | 单独的开发验证程序，验证窗口机制；不随安装器分发、不绕过产品进入条件 |
@@ -67,7 +67,7 @@
 
 交互活跃期间每 16ms 采样全局鼠标位置；窗口隐藏时不运行悬停计时，若已进入移动／缩放／拖动先结束交互。仅在有任务或拖动时运行必要的采样，空闲 UI 使用事件驱动。所有超时测试使用可注入 `TimeProvider`，不依赖真实睡眠。
 
-默认全局快捷键：Ctrl＋Alt＋F1 截图直发、F2 截图入草稿、F3 录音切换、F4 发送、F5 取消输入、F6 清空输入、F7 新对话、F8 停止回答、F9 隐藏／显示、F10 折叠／展开、F11 返回主页、F12 退出；其中 F2～F12 同样带 Ctrl＋Alt。语音撤销 Ctrl＋Alt＋Z。Esc 仅在有移动／缩放／滚动操作时临时注册为结束交互；结束后立即注销。全部可在设置修改，系统冲突需提示并修正，不能静默占用或宣称绑定成功。
+默认全局快捷键：Ctrl＋Alt＋F1 截图直发、F2 截图入草稿、F3 录音切换、F4 发送、F5 不绑定、F6 清空输入、F7 新对话、F8 停止回答、F9 隐藏／显示、F10 折叠／展开、F11 返回主页、F12 退出；其中 F2～F12 的有效绑定同样带 Ctrl＋Alt。语音撤销 Ctrl＋Alt＋Z。Esc 仅在有移动／缩放／滚动操作时临时注册为结束交互；结束后立即注销。全部可在设置修改，系统冲突需提示并修正，不能静默占用或宣称绑定成功。
 
 录音编码为 16kHz、单声道、16bit PCM WAV；无有效样本则不上传。AI 请求首包／空闲超时各 60 秒，单次总上限 10 分钟；ASR 请求上限 90 秒。超时均作为可手动重试的失败，停止操作立即取消本地等待，不能保证服务端已取消计费。无新增计费提醒弹窗。
 
@@ -76,7 +76,7 @@
 | 定义文件 | 固定接口或类型 |
 | --- | --- |
 | `Core/Interaction/InteractionTypes.cs` | `PointerSample(double X, double Y, long Timestamp)`；`InteractionMode { Idle, Dwell, Moving, Resizing, Scrolling }`；时间戳使用 TimeProvider 单调计时 |
-| `Core/Drafts/DraftTypes.cs` | `ImageRef(Guid Id, string RelativePath, int Width, int Height)`；`DraftSnapshot(string Text, IReadOnlyList<ImageRef> Images, long Revision)`；`TextEdit(int Offset, int RemovedLength, string InsertedText)` |
+| `Core/Drafts/DraftTypes.cs` | `ImageRef(Guid Id, string RelativePath, int Width, int Height)`；`DraftSnapshot(string Text, IReadOnlyList<ImageRef> Images, long Revision)`；文字仅由内部语音追加更新，不暴露键盘编辑接口 |
 | `Core/Sessions/SessionTypes.cs` | `SessionSnapshot` 包含 Id、Generation、消息、Draft、PendingRequest、SpeechState、AnswerState；`RequestSnapshot` 包含 RequestId、SessionId、Generation、Text、Images、Prompt、Status；实现为不可变 record |
 | `Core/Sessions/SessionTypes.cs` | `MessageSnapshot` 包含 Id、RequestId、Role、Text、Images、Status、CreatedAt；`MessageStatus { Pending, Complete, Failed, Stopped }`；`AnswerState { Idle, Generating }`；`SpeechState { Idle, Recording, Recognizing, RetryPending }` |
 | `Core/Interaction/AppCommand.cs`、`Core/Sessions/CommandPolicy.cs` | AppCommand 在任务 2 创建，包含所有按钮和快捷键命令、隐藏／折叠及重试／丢弃；任务 6 创建 `bool CanExecute(AppCommand command, SessionSnapshot state)` |
@@ -91,7 +91,7 @@ UI／Windows 命名空间一律 `ExamHelper.<Project>.<Feature>`，表中 Core�
 
 ## 阶段 A：Windows 交互与技术关卡
 
-当前进度：任务 1～5 的实现已提交，Release 构建成功，30 项自动测试通过。受控底图 GDI 对比和原生快捷键检查通过；最终自包含版后台焦点检查被 Windows 拒绝激活，阶段关卡仍开放。真实鼠标手势、外部答题程序／输入法、系统截图工具和其他 DPI 仍待实测；详细证据和可运行程序位置见 `docs/verification/windows-interaction.md`。以下复合步骤包含未完成的实测，故未将整个任务提前标记完成。
+当前进度：任务 1～5 已提供可运行验证程序。2026-10-17 按用户要求取消全部键盘文字输入与取消输入功能，Release 25 项自动测试通过，受控底图 GDI 对比及 9 项原生检查通过。真实鼠标手势、外部答题程序上的不抢焦点体验、系统截图工具和其他 DPI 仍待实测；详细证据见 docs/verification/windows-interaction.md。以下复合步骤包含未完成实测，不提前标记整个阶段完成。
 
 ### Task 1：可构建的受保护窗口验证程序
 
@@ -147,17 +147,18 @@ public void TriggersOnceAt1000ms()
 - [ ] 运行针对测试；在 100%／150%／200% DPI 验证离窗拖动、横向偏离、停稳、慢移、底部跟随；Esc 临时注册由任务 5 接入后补测，记录当前已测项。
 - [ ] 提交：`git commit -m "feat: add hover window manipulation and reading scroll"`。
 
-### Task 4：英文编辑、焦点保存与恢复
+### Task 4：语音专用草稿与不激活窗口（2026-10-17 修订）
 
-**Files:** 创建 `Windows/Native/{FocusLease.cs,InputLanguageService.cs}`；`App/Controls/HoverTextInputBehavior.cs`；`tests/ExamHelper.Windows.Tests/Native/FocusLeaseTests.cs`；修改实验窗和 `windows-interaction.md`。
+原英文编辑及焦点恢复路径已由用户明确取消，不再作为验收门槛。移除 HoverTextInputBehavior、FocusLease、InputLanguageService、InputStateRestorer 及其专用测试；保留修改历史以供追溯。
 
-**Interfaces:** `FocusLease.Begin(nint overlayHwnd) -> FocusResult` 保存前台 HWND／线程及输入状态；`End() -> FocusResult` 恢复；`InputLanguageService.EnterEnglish(nint hwnd) -> InputState`、`Restore(nint hwnd, InputState state)`。InputState 保存 HKL 与可获取的 IME 状态，不仅存布尔值。
+**Files:** 创建 `App/Controls/NonActivatingWindowBehavior.cs`；修改实验窗口及默认快捷键；创建 `tests/ExamHelper.Windows.Tests/Native/VoiceOnlyDraftTests.cs`；同步规格和验证报告。
 
-- [ ] 编写假原生调用测试 `ClosedTargetDoesNotReceiveInput`、`LeaveEditorRestoresOnce`，断言无效 HWND 不执行 SetForegroundWindow，重复 End 不重复切换状态。
-- [ ] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter FocusLeaseTests` 确认红灯。
-- [ ] 实现 WM_MOUSEACTIVATE／窗口激活策略：非编辑 hover 不激活，编辑入口显式聚焦；WPF InputMethod 对该编辑区禁用组合输入，再验证英文布局切换。恢复原线程状态失败时显示状态，不用 SendInput 向未知窗口敲键。
-- [ ] 重新运行测试；用普通浏览器、记事本与实际中文输入法验证悬停聚焦、英文数字标点、中文识别文本注入与删除、换行、取消输入、目标关闭和候选窗。若实际 IME 仍弹候选，不宣称已排除，先解决或反馈设计约束。
-- [ ] 提交：`git commit -m "feat: manage overlay focus and English input state"`。
+**Interfaces:** `NonActivatingWindowBehavior(Window window)` 实现 IDisposable，显示窗口不激活，WM_MOUSEACTIVATE 返回 MA_NOACTIVATE。草稿通过不可聚焦的 TextBlock 展示，文字只通过语音结果追加。主页和设置不使用此行为。
+
+- [x] 先写回归，验证只读草稿、无悬停聚焦、无取消按钮、F5 不绑定且 F9／F12 保持原快捷键；旧实现两项失败，确认红灯。
+- [x] 移除旧路径并运行 VoiceOnlyDraftTests，验证模拟语音能追加，清空按钮能清除；实际麦克风和 ASR 在任务 9、10 实现。
+- [x] 验证不激活窗口消息处理，重新执行受控捕获和快捷键集成检查。
+- [x] 更新自包含验证 EXE；真实悬停、移动／缩放／滚动仍保持原验证要求，不因取消编辑而自动标为完成。
 
 ### Task 5：快捷键注册、冲突与交互关卡
 
@@ -169,7 +170,7 @@ public void TriggersOnceAt1000ms()
 - [ ] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter HotkeyRegistryTests`，确认红灯。
 - [ ] 用 RegisterHotKey／WM_HOTKEY、MOD_NOREPEAT 实现；预检测内部重复，记录系统返回失败，注册部分失败则回滚并展示具体冲突键。辅助模式隐藏时维持注册，退出模式注销。
 - [ ] 运行针对测试；实验窗验证 Esc 结束拖动、隐藏后快捷键可用、抢占冲突可见、退出后别的应用可用这些键。
-- [ ] 完成阶段 A 关卡：窗口透明与文字清晰、截图排除、免点击移动／缩放／滚动、非编辑不抢焦点、英文输入和恢复均有真实结果。任何关键项失败先诊断，不进入业务集成；这是技术验证关卡，不额外等待形式化用户批准。
+- [ ] 完成阶段 A 关卡：窗口透明与文字清晰、截图排除、免点击移动／缩放／滚动、不抢焦点、草稿只读且不可聚焦均有真实结果。任何关键项失败先诊断，不进入业务集成；这是技术验证关卡，不额外等待形式化用户批准。
 - [ ] 提交：`git commit -m "feat: register scoped hotkeys and verify native interaction gate"`。
 
 ## 阶段 B：草稿、截图与语音
@@ -178,11 +179,11 @@ public void TriggersOnceAt1000ms()
 
 **Files:** 创建 `Core/Drafts/{DraftTypes.cs,DraftBuffer.cs}`、`Core/Sessions/{SessionTypes.cs,CommandPolicy.cs}`、`Core/Audio/AudioContracts.cs`、`Core/Ai/AiContracts.cs`、`Core/Settings/{SettingsTypes.cs,ISecretStore.cs}`、`Core/Common/ServiceFailure.cs`；创建 `tests/ExamHelper.Core.Tests/Drafts/DraftBufferTests.cs`、`Sessions/CommandPolicyTests.cs`。
 
-**Interfaces:** 按共享契约建立不可变快照；`DraftBuffer.Snapshot()`、`Apply(TextEdit edit)`、`AppendImage(ImageRef image)`、`RemoveImage(Guid id)`、`Clear()`；每次修改递增 Revision。`CommandPolicy.CanExecute` 不读取 UI 控件。
+**Interfaces:** 按共享契约建立不可变快照；`DraftBuffer.Snapshot()`、`AppendText(string transcript)`、`AppendImage(ImageRef image)`、`RemoveImage(Guid id)`、`Clear()`；每次修改递增 Revision。`CommandPolicy.CanExecute` 不读取 UI 控件。
 
 - [ ] 编写 `PreservesImageOrder`、`ClearRemovesTextAndImagesOnly`；命令组合测试断言草稿非空禁用直发、AI 回答时可加图不可发送、有录音／识别／待重试录音时不可新对话或发送、隐藏不改变任务资格。
 - [ ] 运行 `dotnet test tests/ExamHelper.Core.Tests --filter "FullyQualifiedName~DraftBufferTests|FullyQualifiedName~CommandPolicyTests"`，确认红灯。
-- [ ] 实现模型和统一判断。HasDraft 对文字使用 `Length > 0`，包含空白也算草稿；无字无图的发送禁用。存在待重试 AI 请求时禁用新发送、直发、新对话，但保留编辑和明确的重试／丢弃入口。
+- [ ] 实现模型和统一判断。HasDraft 对文字使用 `Length > 0`，包含空白也算草稿；无字无图的发送禁用。存在待重试 AI 请求时禁用新发送、直发、新对话，但保留追加语音／截图和明确的重试／丢弃入口。
 - [ ] 再运行针对测试，断言禁用原因可供 UI 展示；暂不实现外部请求或持久化。
 - [ ] 提交：`git commit -m "feat: model drafts and command availability"`。
 
@@ -190,12 +191,12 @@ public void TriggersOnceAt1000ms()
 
 **Files:** 创建 `Core/Drafts/SpeechInsertionUndo.cs`、`tests/ExamHelper.Core.Tests/Drafts/SpeechInsertionUndoTests.cs`；修改 `DraftBuffer.cs` 加入操作标识、范围追踪和 edit 通知。
 
-**Interfaces:** `SpeechInsertionUndo.Append(Guid operationId, string transcript)`、`OnEdit(TextEdit edit)`、`PointerEnter()`、`PointerLeave()`、`TryUndo() -> bool`、`Invalidate()`；使用同一 DraftBuffer 和 TimeProvider，暴露剩余时间与 CanUndo。
+**Interfaces:** `SpeechInsertionUndo.Append(Guid operationId, string transcript)`、`PointerEnter()`、`PointerLeave()`、`TryUndo() -> bool`、`Invalidate()`；使用同一 DraftBuffer 和 TimeProvider，暴露剩余时间与 CanUndo。
 
-- [ ] 编写 `UndoOnlyLatestInsertionKeepsEarlierTextAndImages`、`ExpiresAt3000ms`、`HoverPausesExpiry`、`EditBeforeRangeMovesRange`、`EditInsideRangeInvalidates`；例如“原文”＋识别“结果”撤销后断言等于“原文”，图片 Id 不变。
+- [ ] 编写 `UndoOnlyLatestInsertionKeepsEarlierTextAndImages`、`ExpiresAt3000ms`、`HoverPausesExpiry`、`NewRecognitionReplacesUndoTarget`、`ClearInvalidatesUndo`；例如“原文”＋识别“结果”撤销后断言等于“原文”，图片 Id 不变。
 - [ ] 运行 `dotnet test tests/ExamHelper.Core.Tests --filter SpeechInsertionUndoTests`，确认红灯。
-- [ ] 实现范围编辑追踪；追加分隔符只在原文末尾无换行且有内容时使用 `Environment.NewLine`，该分隔符随本次一起撤销。范围末尾追加手动文字保留，范围内改动使入口失效；新录音／发送／清空等生命周期使入口失效。
-- [ ] 重新运行测试，补测手动 Ctrl＋Z、全选替换及中文 UTF-16 代理对边界，不能拆坏字符或把新文字一起回滚。
+- [ ] 实现语音增量追踪；追加分隔符只在原文末尾无换行且有内容时使用 `Environment.NewLine`，该分隔符随本次一起撤销。只允许撤销最近一次识别增量；新录音／发送／清空等生命周期使入口失效。
+- [ ] 重新运行测试，补测连续识别、清空后的过期撤销及中文 UTF-16 代理对边界，不能拆坏字符或把新文字一起回滚。
 - [ ] 提交：`git commit -m "feat: undo only the latest speech insertion"`。
 
 ### Task 8：单屏全屏截图与图片仓库
@@ -271,7 +272,7 @@ public void TriggersOnceAt1000ms()
 - [ ] 编写 `RoundTripsTextImagesDraftAndPartialAnswer`、`DeleteConversationKeepsOtherReferences`、`InterruptedImageDeleteIsRecoverable`、`DiskFullDoesNotReportSaved`；启动恢复测试断言崩溃前 Generating 改成 Failed，TempAudio 被清除但历史图片保留。
 - [ ] 运行 `dotnet test tests/ExamHelper.Windows.Tests --filter "FullyQualifiedName~Persistence"`，确认红灯。
 - [ ] 建立 schema v1：Sessions、Messages、Requests、Images、ImageLinks、Drafts、SchemaVersion；外键／事务启用，JSON 保存不可变参数快照。原图先临时写再原子改名，DB 成功引用后才可清理。删除先事务移除引用，再清理文件；失败记录下次重试，不删除仍有引用者。
-- [ ] 保存失败保留内存状态并显示错误，返回／退出不显示保存成功；流式回答每 500ms 或结束时持久化一次，用户输入编辑节流自动保存。启动恢复中断请求、清理失效临时录音、对账孤图；删除操作只允许用户数据根目录下已确认文件，不递归删除任意计算路径。
+- [ ] 保存失败保留内存状态并显示错误，返回／退出不显示保存成功；流式回答每 500ms 或结束时持久化一次，语音追加及截图变更后自动保存。启动恢复中断请求、清理失效临时录音、对账孤图；删除操作只允许用户数据根目录下已确认文件，不递归删除任意计算路径。
 - [ ] 运行测试，模拟数据库只读、磁盘写失败、进程在文件写入与事务中间中断。历史标题从首条文字截取，纯截图对话用时间标题；不额外调用 AI 生成标题。
 - [ ] 提交：`git commit -m "feat: save conversations drafts and image references reliably"`。
 
@@ -284,7 +285,7 @@ public void TriggersOnceAt1000ms()
 - [ ] 编写 `FailureRestoresEmptyDraft`、`FailureKeepsNewDraftAndPendingRequest`、`RetryTwiceKeepsOneUserMessage`、`LateChunkAfterNewSessionIsIgnored`、`ReturnClearsButExitRestoresDraft`、`ClearCancelsSpeechAndDiscardsLateResult`，断言请求快照不可变、恢复图像顺序不变、上下文无重复请求。
 - [ ] 运行 Core 的 SessionCoordinatorTests／RequestRecoveryTests，确认红灯。
 - [ ] 实现操作串行入口与会话代次，网络流不占住整个命令锁；发送前原子冻结快照、写入单个用户消息、腾空草稿，然后异步接收回答。每个命令进入时重新检查 CanExecute，防止按钮和快捷键同时发送。
-- [ ] 失败空草稿恢复时关联同一 RequestId，提供重试／丢弃；已恢复内容若被编辑，先解决失败请求后才能作为新请求发送，不能把原快照与修改后的草稿混作同一次重试。非空草稿使用独立 pending 卡片。停止回答保留部分答案且允许继续追问；中途失败必须先重试或丢弃。丢弃后历史仍显示失败状态，上下文排除未完成的失败尝试。
+- [ ] 失败空草稿恢复时关联同一 RequestId，提供重试／丢弃；已恢复草稿若被追加语音／截图或清空，先解决失败请求后才能作为新请求发送，不能把原快照与修改后的草稿混作同一次重试。非空草稿使用独立 pending 卡片。停止回答保留部分答案且允许继续追问；中途失败必须先重试或丢弃。丢弃后历史仍显示失败状态，上下文排除未完成的失败尝试。
 - [ ] 返回主页先废弃代次并取消任务，再清理草稿和录音、保存历史；退出保存含 pending 的快照；隐藏不取消任务。所有线程回调先核对 session／generation／operation。用延迟假服务跑上述测试，再运行全部 Core 测试。
 - [ ] 提交：`git commit -m "feat: orchestrate sessions and preserve recoverable failures"`。
 
@@ -310,9 +311,9 @@ public void TriggersOnceAt1000ms()
 
 - [ ] 编写 `IncompleteFenceDoesNotLoseText`、`PlainMarkdownStaysLiteral`、`HideKeepsRequestsAndHotkeys`、`ReturnClearsDraftAndUnregisters`、`ExitSavesDraft`、`RecreatedHandleMustReapplyProtection`；验证同一 hover 结束不能因内容重排再触发。
 - [ ] 运行相关 Core／Windows 测试确认红灯，WPF 测试用 STA 调度器辅助，不在普通测试线程直接 new Window。
-- [ ] 组合此前交互：顶部截图直发／截图入草稿／录音／新对话／停止／折叠／主页／退出；无设置入口。下方回答、缩略图、可编辑草稿、取消输入／清空输入／发送；撤销语音及各失败重试按钮按状态出现。信息多时布局换行但不覆盖命中区域。
+- [ ] 组合此前交互：顶部截图直发／截图入草稿／录音／新对话／停止／折叠／主页／退出；无设置入口。下方回答、缩略图、只读语音草稿、清空输入／发送；撤销语音及各失败重试按钮按状态出现。信息多时布局换行但不覆盖命中区域。
 - [ ] 流式回答以原始文本为真源解析 fence，允许未闭合代码块，等宽代码标注语言；代码过长优先换行，避免只有无法操作的横向滚动。回答列表增量更新、节流刷新，不每个 token 重建整个窗口。所有 tooltip／错误提示在同一保护 HWND 内，不弹普通 Toast 承载问题或答案。
-- [ ] 实现捕获保护先于展示、关闭不是隐藏、隐藏／折叠时结束编辑与操作锁、退出恢复输入状态；截图／录音／删除不抢焦点。全局注册失败保持主页展示并列出冲突供修改。运行测试并按规格全流程手测：图文发送、三秒撤销、链式误删防护、长回答往返阅读、隐藏后台任务、返回与退出恢复。
+- [ ] 实现捕获保护先于展示、关闭不是隐藏、隐藏／折叠时结束操作锁，不操作输入法或恢复焦点；截图／录音／删除不抢焦点。全局注册失败保持主页展示并列出冲突供修改。运行测试并按规格全流程手测：图文发送、三秒撤销、链式误删防护、长回答往返阅读、隐藏后台任务、返回与退出恢复。
 - [ ] 提交：`git commit -m "feat: assemble the protected hover assistant window"`。
 
 ### Task 17：自包含发布与当前用户 EXE 安装包
@@ -335,7 +336,7 @@ public void TriggersOnceAt1000ms()
 **Interfaces:** 无新产品 API；交付输出为安装器、SHA-256、说明与真实验证记录，发现缺陷回到所属任务修复并重跑受影响检查。
 
 - [ ] 运行 `dotnet restore ExamHelper.slnx --locked-mode`、`dotnet build ExamHelper.slnx -c Release --no-restore`、`dotnet test ExamHelper.slnx -c Release --no-build`。预期所有适用测试通过且发现测试数大于零；记录实际结果，不把 Skip 记为通过。
-- [ ] 执行规格第 13 节全部验收场景；追加断网／401／429、录音设备断开、写盘失败、强制结束恢复、关闭原焦点窗口、连续快捷键与悬停竞争。确认失败请求不覆盖新草稿、无额外自动请求、退出无音频残留。
+- [ ] 执行规格第 13 节全部验收场景；追加断网／401／429、录音设备断开、写盘失败、强制结束恢复、答题窗口正常输入期间操作辅助小窗、连续快捷键与悬停竞争。确认失败请求不覆盖新草稿、无额外自动请求、退出无音频残留。
 - [ ] 在系统截图工具、截图工具录屏、Xbox Game Bar、Chrome、OBS、腾讯会议逐项实测。Chrome 覆盖整屏／窗口／标签页的适用来源；OBS 记录捕获后端；腾讯会议检查接收端。用无敏感内容的验证窗进行测试，记录工具版本、Windows 构建、模式、结果及证据路径。
 - [ ] 若某工具不可用或某模式不适用，准确写“未验证”或“不适用”及原因；用户要求的适用路径未验证或失败时，明确作为交付限制，不能把完成安装包写成全部验收通过。修复必要缺陷后重跑相应路径。
 - [ ] 按 executing-plans／所选执行方式完成最终代码审查、verification-before-completion 和分支收尾流程；无用户授权不自行合并、推送或发布安装器到外部平台。提供本地可检查结果。
@@ -352,7 +353,7 @@ public void TriggersOnceAt1000ms()
 | 1 | `dotnet test tests/ExamHelper.Windows.Tests --filter WindowProtectionTests` |
 | 2 | `dotnet test tests/ExamHelper.Core.Tests --filter DwellControllerTests` |
 | 3 | `dotnet test tests/ExamHelper.Core.Tests --filter ManipulationTests` |
-| 4 | `dotnet test tests/ExamHelper.Windows.Tests --filter FocusLeaseTests` |
+| 4 | `dotnet test tests/ExamHelper.Windows.Tests --filter VoiceOnlyDraftTests` |
 | 5 | `dotnet test tests/ExamHelper.Windows.Tests --filter HotkeyRegistryTests` |
 | 6 | `dotnet test tests/ExamHelper.Core.Tests --filter "FullyQualifiedName~DraftBufferTests\|FullyQualifiedName~CommandPolicyTests"` |
 | 7 | `dotnet test tests/ExamHelper.Core.Tests --filter SpeechInsertionUndoTests` |
@@ -377,7 +378,7 @@ public void TriggersOnceAt1000ms()
 | 1 平台、技术与范围 | 1、11、16、17 |
 | 2 窗口、进入条件、生命周期 | 1、5、12、14～16 |
 | 3 悬停、移动、缩放、滚动 | 2、3、5、16 |
-| 4 编辑、焦点、输入法 | 4、5、16 |
+| 4 语音专用草稿与不激活窗口 | 4、5、16 |
 | 5 截图、图片、发送 | 6、8、11、14、16 |
 | 6 录音、识别、撤销 | 7、9、10、16 |
 | 7 AI、上下文、题型、流式 | 11、14、16 |
@@ -392,7 +393,7 @@ public void TriggersOnceAt1000ms()
 
 ## 自审与执行交接
 
-本计划自审需确认：共享契约在所属任务有定义；依赖任务先于使用；所有状态限制进入同一命令入口；语音与请求失败恢复不覆盖新编辑；测试／保护接口成功没有冒充真实兼容通过；默认参数和固定文案与规格一致。未完成条目保留勾选框，实际实施中更新，不提前标为完成。
+本计划自审需确认：共享契约在所属任务有定义；依赖任务先于使用；所有状态限制进入同一命令入口；语音与请求失败恢复不覆盖新增草稿；测试／保护接口成功没有冒充真实兼容通过；默认参数和固定文案与规格一致。未完成条目保留勾选框，实际实施中更新，不提前标为完成。
 
 建议在当前会话由主代理按顺序执行，原因是 Windows 交互和会话状态接口相互依赖，连续调试更容易保留实测上下文。也可选择逐任务子代理实现与独立审查；仅在用户选定这种方式后使用相应流程。计划经用户审核并选定执行方式后才开始任务 1。
 
