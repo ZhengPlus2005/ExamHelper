@@ -91,7 +91,7 @@ UI／Windows 命名空间一律 `ExamHelper.<Project>.<Feature>`，表中 Core�
 
 ## 阶段 A：Windows 交互与技术关卡
 
-当前进度：任务 1～5 已提供可运行验证程序。2026-10-17 按用户要求取消全部键盘文字输入与取消输入功能，Release 26 项自动测试通过，补齐滚动控件卸载／重新加载回归。前一版独立运行时受控 GDI 对比及 9 项原生检查通过；新版本捕获仍通过，但旧实例正在占用快捷键，原生检查为 7／9，须关闭旧实例后复测。真实鼠标手势、外部答题程序上的不抢焦点体验、系统截图工具和其他 DPI 仍待实测；详细证据见 docs/verification/windows-interaction.md。以下复合步骤包含未完成实测，不提前标记整个阶段完成。
+当前进度（2026-10-17）：用户明确报告真实手势、不抢焦点、Windows 截图／录屏和 Chrome 屏幕共享均通过，并决定阶段 A 验收通过。阶段 A 已关闭，进入阶段 B。OBS、腾讯会议、其他 DPI 和未细分后端保留未实测记录，最终任务 18 再核对；不得扩大用户报告的工具范围。任务 6 实现及针对测试已通过。
 
 ### Task 1：可构建的受保护窗口验证程序
 
@@ -181,11 +181,11 @@ public void TriggersOnceAt1000ms()
 
 **Interfaces:** 按共享契约建立不可变快照；`DraftBuffer.Snapshot()`、`AppendText(string transcript)`、`AppendImage(ImageRef image)`、`RemoveImage(Guid id)`、`Clear()`；每次修改递增 Revision。`CommandPolicy.CanExecute` 不读取 UI 控件。
 
-- [ ] 编写 `PreservesImageOrder`、`ClearRemovesTextAndImagesOnly`；命令组合测试断言草稿非空禁用直发、AI 回答时可加图不可发送、有录音／识别／待重试录音时不可新对话或发送、隐藏不改变任务资格。
-- [ ] 运行 `dotnet test tests/ExamHelper.Core.Tests --filter "FullyQualifiedName~DraftBufferTests|FullyQualifiedName~CommandPolicyTests"`，确认红灯。
-- [ ] 实现模型和统一判断。HasDraft 对文字使用 `Length > 0`，包含空白也算草稿；无字无图的发送禁用。存在待重试 AI 请求时禁用新发送、直发、新对话，但保留追加语音／截图和明确的重试／丢弃入口。
-- [ ] 再运行针对测试，断言禁用原因可供 UI 展示；暂不实现外部请求或持久化。
-- [ ] 提交：`git commit -m "feat: model drafts and command availability"`。
+- [x] 编写 `PreservesImageOrder`、`ClearRemovesTextAndImagesOnly`；命令组合测试断言草稿非空禁用直发、AI 回答时可加图不可发送、有录音／识别／待重试录音时不可新对话或发送、隐藏不改变任务资格。
+- [x] 运行 `dotnet test tests/ExamHelper.Core.Tests --filter "FullyQualifiedName~DraftBufferTests|FullyQualifiedName~CommandPolicyTests"`，确认红灯。
+- [x] 实现模型和统一判断。HasDraft 对文字使用 `Length > 0`，包含空白也算草稿；无字无图的发送禁用。存在待重试 AI 请求时禁用新发送、直发、新对话，但保留追加语音／截图和明确的重试／丢弃入口。
+- [x] 再运行针对测试，断言禁用原因可供 UI 展示；暂不实现外部请求或持久化。
+- [x] 提交：`git commit -m "feat: model drafts and command availability"`。
 
 ### Task 7：三秒语音增量撤销
 
