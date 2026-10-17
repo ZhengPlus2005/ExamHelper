@@ -1,40 +1,83 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Media;
 using System.Windows.Data;
 using ExamHelper.Core.Interaction;
 namespace ExamHelper.App.Controls;
+
 public sealed class HoverScrollBehavior
 {
     private readonly ViewportState _viewport = new();
+    private readonly ScrollViewer _viewer;
+    private readonly WindowInteractionSession _session;
+    private Thumb? _thumb;
+    private bool _ownsScroll;
+
     public HoverScrollBehavior(ScrollViewer viewer, WindowInteractionSession session)
     {
-        viewer.ScrollChanged += (_, e) =>
+        _viewer = viewer;
+        _session = session;
+        viewer.Loaded += OnLoaded;
+        viewer.Unloaded += OnUnloaded;
+        if (viewer.IsLoaded) Attach();
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs args) => Attach();
+    private void OnUnloaded(object sender, RoutedEventArgs args) => Detach();
+
+    private void Attach()
+    {
+        if (_thumb is not null) return;
+        _viewer.ApplyTemplate();
+        if (_viewer.Template.FindName("PART_VerticalScrollBar", _viewer) is not ScrollBar bar) return;
+        bar.Width = 24;
+        bar.ApplyTemplate();
+        if (bar.Template.FindName("PART_Track", bar) is not Track track || track.Thumb is not Thumb thumb) return;
+
+        // Aero2 normally disables the track when the pointer leaves the bar.
+        track.SetBinding(UIElement.IsEnabledProperty,
+            new Binding(nameof(UIElement.IsEnabled)) { Source = bar, Mode = BindingMode.OneWay });
+        _thumb = thumb;
+        thumb.MinHeight = 24;
+        thumb.Opacity = 0.65;
+        _viewer.ScrollChanged += OnScrollChanged;
+        _session.ActiveChanged += OnActiveChanged;
+        DwellBehavior.SetCommand(thumb, new DelegateCommand(() =>
         {
-            if (e.ExtentHeightChange != 0) { if (_viewport.FollowOutput) viewer.ScrollToEnd(); }
-            else _viewport.Observe(viewer.VerticalOffset, viewer.ExtentHeight, viewer.ViewportHeight);
-        };
-        viewer.Loaded += (_, _) =>
+            if (_session.IsActive) return;
+            var travel = track.ActualHeight - thumb.ActualHeight;
+            if (travel <= 0 || _viewer.ScrollableHeight <= 0) return;
+            var offset = _viewer.VerticalOffset;
+            var ratio = _viewer.ScrollableHeight / travel;
+            _session.Start(InteractionMode.Scrolling, d =>
+                _viewer.ScrollToVerticalOffset(Math.Clamp(offset + d.DeltaY * ratio, 0, _viewer.ScrollableHeight)));
+            _ownsScroll = _session.Mode == InteractionMode.Scrolling;
+        }));
+    }
+
+    private void OnScrollChanged(object sender, ScrollChangedEventArgs args)
+    {
+        if (args.ExtentHeightChange != 0)
         {
-            viewer.ApplyTemplate();
-            var bar = viewer.Template.FindName("PART_VerticalScrollBar", viewer) as ScrollBar;
-            if (bar is null) return;
-            bar.Width = 24; bar.ApplyTemplate();
-            var track = bar.Template.FindName("PART_Track", bar) as Track;
-            if (track?.Thumb is not Thumb thumb) return;
-            // Aero2 binds Track.IsEnabled to ScrollBar.IsMouseOver. That would
-            // disable the thumb while the pointer is horizontally outside it.
-            track.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(UIElement.IsEnabled)) { Source = bar, Mode = BindingMode.OneWay });
-            thumb.MinHeight = 24;
-            session.ActiveChanged += active => thumb.Opacity = active && session.Mode == InteractionMode.Scrolling ? 1 : 0.65;
-            DwellBehavior.SetCommand(thumb, new DelegateCommand(() =>
-            {
-                var travel = track.ActualHeight - thumb.ActualHeight;
-                if (travel <= 0 || viewer.ScrollableHeight <= 0) return;
-                var offset = viewer.VerticalOffset; var ratio = viewer.ScrollableHeight / travel;
-                session.Start(InteractionMode.Scrolling, d => viewer.ScrollToVerticalOffset(Math.Clamp(offset + d.DeltaY * ratio, 0, viewer.ScrollableHeight)));
-            }));
-        };
+            if (_viewport.FollowOutput) _viewer.ScrollToEnd();
+        }
+        else _viewport.Observe(_viewer.VerticalOffset, _viewer.ExtentHeight, _viewer.ViewportHeight);
+    }
+
+    private void OnActiveChanged(bool active)
+    {
+        if (!active) _ownsScroll = false;
+        if (_thumb is not null)
+            _thumb.Opacity = active && _session.Mode == InteractionMode.Scrolling ? 1 : 0.65;
+    }
+
+    private void Detach()
+    {
+        _viewer.ScrollChanged -= OnScrollChanged;
+        _session.ActiveChanged -= OnActiveChanged;
+        if (_thumb is not null) _thumb.ClearValue(DwellBehavior.CommandProperty);
+        _thumb = null;
+        if (_ownsScroll) _session.End();
+        _ownsScroll = false;
     }
 }

@@ -11,3 +11,5 @@ Windows 11 x64 WPF 项目，按已认可的设计和计划开发。当前阶段�
 本轮自包含验证程序位于 `D:\Code\ExamHelper\artifacts\windows-core\ExamHelper.InteractionLab.exe`，双击即可运行。Ctrl+Alt+F9 隐藏／显示，Ctrl+Alt+F12 退出。验证窗口中的截图、录音等命令仅演示触发，不发送网络请求。
 
 阶段 A 的测试结果与尚未完成的实测项见 [Windows 验证记录](docs/verification/windows-interaction.md)。辅助模式已取消键盘文字输入，草稿仅显示语音结果。真实鼠标手势、外部答题程序上的不抢焦点体验和其他捕获路径未全部验收，暂未进入业务阶段。
+
+最新滚动控件修订版：D:\Code\ExamHelper\artifacts\windows-core-20261017-2\ExamHelper.InteractionLab.exe。不要同时运行两个验证实例，否则默认快捷键注册会报告冲突。Release 自动测试 26 项通过；阶段 A 仍待手工验收。
