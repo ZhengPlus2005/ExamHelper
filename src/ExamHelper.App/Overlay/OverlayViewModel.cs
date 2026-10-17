@@ -101,7 +101,7 @@ public sealed class OverlayViewModel : ObservableObject,IDisposable
         if(_localError is not null) Status = _localError;
         else if(_coordinator.Error is not null) Status = _coordinator.Error;
         else if(state.SpeechState == SpeechState.Recognizing) Status = "识别结果将追加到草稿，不自动发送。";
-        else if(state.CaptureInProgress) Status = "正在截取单屏全屏……";
+        else if(state.CaptureInProgress) Status = "正在截取辅助窗口所在屏幕……";
         else if(state.AnswerState == AnswerState.Generating) Status = "AI 正在回答，可继续准备下一份草稿。";
         else Status = state.Draft.HasContent ? "草稿可发送；悬停缩略图一秒可删除该图。" : "通过截图或麦克风准备问题。";
     }

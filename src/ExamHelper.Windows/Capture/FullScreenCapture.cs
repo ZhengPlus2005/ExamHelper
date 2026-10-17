@@ -1,3 +1,4 @@
+using ExamHelper.Windows.Native;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -13,23 +14,37 @@ public interface IScreenCaptureBackend
 {
     IReadOnlyList<PhysicalDisplay> GetDisplays();
     CapturedImage Capture(PhysicalDisplay display);
+    PhysicalDisplay GetWindowDisplay(nint owner)
+    {
+        var displays = GetDisplays();
+        if(displays.Count == 1) return displays[0];
+        throw new ServiceFailure(FailureCategory.InvalidPayload,"截图后端无法定位辅助窗口所属屏幕。");
+    }
 }
-public sealed class FullScreenCapture(IScreenCaptureBackend? backend = null) : IScreenCapture
+public sealed class FullScreenCapture(IScreenCaptureBackend? backend = null,Func<nint>? windowHandle = null) : IScreenCapture
 {
     private readonly IScreenCaptureBackend _backend = backend ?? new GdiScreenCaptureBackend();
-    public Task<CapturedImage> CaptureAsync(CancellationToken ct) => Task.Run(() =>
+    public Task<CapturedImage> CaptureAsync(CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested();
-        var displays = _backend.GetDisplays();
-        if (displays.Count != 1 || displays[0].Width <= 0 || displays[0].Height <= 0)
-            throw new ServiceFailure(FailureCategory.InvalidPayload, "仅支持一个有效显示器，请检查显示设置。");
-        var display = displays[0];
-        var image = _backend.Capture(display);
-        ct.ThrowIfCancellationRequested();
-        if (image.Width != display.Width || image.Height != display.Height || image.PngBytes.Length == 0)
-            throw new ServiceFailure(FailureCategory.InvalidPayload, "截图尺寸与显示器物理像素不符。");
-        return image;
-    }, ct);
+        var owner = windowHandle?.Invoke() ?? 0;
+        return Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            PhysicalDisplay display;
+            if(owner != 0) display = _backend.GetWindowDisplay(owner);
+            else
+            {
+                var displays = _backend.GetDisplays();
+                if(displays.Count != 1) throw new ServiceFailure(FailureCategory.InvalidPayload,"多屏截图需要定位辅助窗口，请先进入辅助模式。");
+                display = displays[0];
+            }
+            if(display.Width <= 0 || display.Height <= 0) throw new ServiceFailure(FailureCategory.InvalidPayload,"显示器尺寸无效。");
+            var image = _backend.Capture(display); ct.ThrowIfCancellationRequested();
+            if(image.Width != display.Width || image.Height != display.Height || image.PngBytes.Length == 0)
+                throw new ServiceFailure(FailureCategory.InvalidPayload,"截图尺寸与显示器物理像素不符。");
+            return image;
+        },ct);
+    }
 }
 public sealed class GdiScreenCaptureBackend : IScreenCaptureBackend
 {
@@ -42,6 +57,11 @@ public sealed class GdiScreenCaptureBackend : IScreenCaptureBackend
         };
         if (!EnumDisplayMonitors(0, 0, callback, 0)) throw Failure("读取显示器失败。");
         return displays;
+    }
+    public PhysicalDisplay GetWindowDisplay(nint owner)
+    {
+        var bounds = MonitorGeometry.ForWindow(owner).Bounds;
+        return new(bounds.X,bounds.Y,bounds.Width,bounds.Height);
     }
     public CapturedImage Capture(PhysicalDisplay display)
     {

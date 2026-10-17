@@ -33,6 +33,25 @@ public class FullScreenCaptureTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new FullScreenCapture(backend).CaptureAsync(cancel.Token));
         Assert.Equal(0, backend.Calls);
     }
+    [Fact]
+    public async Task MultipleDisplaysFollowOwnerWindowAndKeepPhysicalDimensions()
+    {
+        var backend = new WindowBackend(); nint owner = 2;
+        var capture = new FullScreenCapture(backend,() => owner);
+        var result = await capture.CaptureAsync(default);
+        Assert.Equal(new PhysicalDisplay(-2560,-200,2560,1440),backend.Requested);
+        Assert.Equal(2560,result.Width); Assert.Equal(1440,result.Height);
+        owner = 1; result = await capture.CaptureAsync(default);
+        Assert.Equal(new PhysicalDisplay(0,0,1920,1080),backend.Requested);
+        Assert.Equal(1920,result.Width); Assert.Equal(2,backend.OwnerReads);
+    }
+    private sealed class WindowBackend : IScreenCaptureBackend
+    {
+        public PhysicalDisplay? Requested; public int OwnerReads;
+        public IReadOnlyList<PhysicalDisplay> GetDisplays() => [new(0,0,1920,1080),new(-2560,-200,2560,1440)];
+        public PhysicalDisplay GetWindowDisplay(nint owner) { OwnerReads++; return GetDisplays()[owner == 2 ? 1 : 0]; }
+        public CapturedImage Capture(PhysicalDisplay display) { Requested = display; return new([1],display.Width,display.Height); }
+    }
     private sealed class Backend(int count) : IScreenCaptureBackend
     {
         public int Calls; public bool WrongSize; public PhysicalDisplay? Requested;

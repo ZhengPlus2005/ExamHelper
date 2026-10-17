@@ -51,7 +51,7 @@ public sealed class AppComposition : IAsyncDisposable
             catch(Exception error) { warnings.Add(ObservableMessage(error)); }
             result._microphone = new(AppDataPaths.TempAudio);
             result.Coordinator = new(new ChatCompletionsClient(result._http,result.Secrets,result.Images),
-                new AliyunAsrClient(result._http,result.Secrets),result._microphone,new FullScreenCapture(),result.Images,
+                new AliyunAsrClient(result._http,result.Secrets),result._microphone,new FullScreenCapture(windowHandle: () => (result.Overlay as OverlayHost)?.CurrentWindow?.NativeHandle ?? 0),result.Images,
                 () => result.CurrentSettings,result.Sessions,TimeProvider.System);
             result.Overlay = overlayFactory?.Invoke(result) ?? new OverlayHost(result.Coordinator,result.Images,() => result.CurrentSettings,result.SaveUiAsync,
                 () => result.Home.ReturnedAsync(CancellationToken.None),async () => { await result.DisposeAsync(); Application.Current.Shutdown(); },

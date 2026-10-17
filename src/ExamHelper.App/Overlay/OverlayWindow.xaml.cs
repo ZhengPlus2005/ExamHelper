@@ -21,6 +21,7 @@ public partial class OverlayWindow : Window
     private HwndSource? _source;
     private bool _allowClose,_collapsed;
     private double _expandedHeight;
+    public nint NativeHandle { get; private set; }
     public ProtectionResult Protection { get; private set; }
     public string? InitializationError { get; private set; }
     public OverlayWindow(OverlayViewModel viewModel,AppSettings settings,IWindowProtectionApi? protection = null,IHotkeyApi? hotkeys = null)
@@ -35,7 +36,7 @@ public partial class OverlayWindow : Window
         Top = Math.Clamp(settings.Ui.Top ?? area.Top + 24,area.Top,Math.Max(area.Top,area.Bottom - Height));
         _expandedHeight = Height;
         Surface.Background = new SolidColorBrush(Color.FromArgb((byte)Math.Round(settings.Ui.Opacity * 255),24,32,45));
-        _interaction = new(this);
+        _interaction = new(this,physicalPointer: true);
         _ = new WindowManipulationBehavior(this,MoveHandle,ResizeHandle,_interaction);
         _ = new MouseWheelScrollBehavior(this);
         HintItems.ItemsSource = settings.Hotkeys.Bindings.Select(b => CommandNames.Get(b.Command) + "  " + HotkeyEditor.Format(b)).ToArray();
@@ -45,6 +46,14 @@ public partial class OverlayWindow : Window
             if(_hotkeys?.SetManipulationEscape(active) == false && active) { _interaction.End(); _viewModel.ReportError("Esc 已被占用，本次移动操作已取消。"); }
         };
         SourceInitialized += OnSourceInitialized; new WindowInteropHelper(this).EnsureHandle();
+        if(settings.Ui.Placement is { } placement)
+        {
+            var work = MonitorGeometry.ForPlacement(placement).WorkArea;
+            var dpi = VisualTreeHelper.GetDpi(this);
+            MinWidth = Math.Min(480,work.Width / dpi.DpiScaleX); MinHeight = Math.Min(360,work.Height / dpi.DpiScaleY);
+            MonitorGeometry.SetBounds(NativeHandle,ScreenPlacement.Clamp(placement,work));
+            _expandedHeight = Height;
+        }
         Bind(DirectButton,AppCommand.CaptureAndSend); Bind(CaptureButton,AppCommand.CaptureToDraft); Bind(RecordButton,AppCommand.ToggleRecording);
         Bind(NewButton,AppCommand.NewConversation); Bind(StopButton,AppCommand.StopAnswer); Bind(FoldButton,AppCommand.ToggleCollapse);
         Bind(HomeButton,AppCommand.ReturnHome); Bind(HideButton,AppCommand.HideOverlay); Bind(ClearButton,AppCommand.ClearInput); Bind(SendButton,AppCommand.Send);
@@ -61,7 +70,7 @@ public partial class OverlayWindow : Window
     private void Bind(Button button,AppCommand command) { button.Command = _viewModel.Command(command); DwellBehavior.SetCommand(button,button.Command); }
     private void OnSourceInitialized(object? sender,EventArgs args)
     {
-        var hwnd = new WindowInteropHelper(this).Handle;
+        var hwnd = new WindowInteropHelper(this).Handle; NativeHandle = hwnd;
         Protection = _protection.ApplyAndVerify(hwnd);
         if(!Protection.Success) { InitializationError = $"捕获保护初始化失败（{Protection.ErrorCode}）。"; return; }
         if(_source is { IsDisposed: false }) _source.RemoveHook(Hook);
@@ -78,12 +87,18 @@ public partial class OverlayWindow : Window
     {
         Protection = _protection.ApplyAndVerify(new WindowInteropHelper(this).EnsureHandle()); return Protection;
     }
-    public UiSettings CaptureGeometry() => _settings.Ui with { Left = Left,Top = Top,Width = Width,Height = _collapsed ? _expandedHeight : Height };
+    public UiSettings CaptureGeometry()
+    {
+        var bounds = MonitorGeometry.WindowBounds(NativeHandle);
+        if(_collapsed) bounds = bounds with { Height = (int)Math.Round(_expandedHeight * VisualTreeHelper.GetDpi(this).DpiScaleY) };
+        return _settings.Ui with { Left = Left,Top = Top,Width = Width,Height = _collapsed ? _expandedHeight : Height,Placement = bounds };
+    }
     public void ToggleCollapse()
     {
         _interaction.End(); HintsPanel.Visibility = Visibility.Collapsed;
-        if(!_collapsed) { _expandedHeight = Height; _collapsed = true; Body.Visibility = Visibility.Collapsed; MinHeight = Math.Min(180,SystemParameters.WorkArea.Height); Height = Math.Min(240,SystemParameters.WorkArea.Height); }
-        else { _collapsed = false; Body.Visibility = Visibility.Visible; MinHeight = Math.Min(360,SystemParameters.WorkArea.Height); Height = Math.Min(_expandedHeight,SystemParameters.WorkArea.Height); }
+        var workHeight = MonitorGeometry.ForWindow(NativeHandle).WorkArea.Height / VisualTreeHelper.GetDpi(this).DpiScaleY;
+        if(!_collapsed) { _expandedHeight = Height; _collapsed = true; Body.Visibility = Visibility.Collapsed; MinHeight = Math.Min(180,workHeight); Height = Math.Min(240,workHeight); }
+        else { _collapsed = false; Body.Visibility = Visibility.Visible; MinHeight = Math.Min(360,workHeight); Height = Math.Min(_expandedHeight,workHeight); }
         DwellBehavior.InvalidateWindow(this);
     }
     public bool HideWithRecovery()

@@ -13,16 +13,19 @@ public sealed class WindowInteractionSession : IDisposable
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private Action<ManipulationUpdate>? _apply;
     public event Action<bool>? ActiveChanged;
+    public bool UsesPhysicalPointer { get; }
     public bool IsActive => _controller.Mode != InteractionMode.Idle;
     public InteractionMode Mode => _controller.Mode;
-    public WindowInteractionSession(Window window)
+    public WindowInteractionSession(Window window,bool physicalPointer = false)
     {
-        _window = window; _timer.Tick += Tick;
+        _window = window; UsesPhysicalPointer = physicalPointer; _timer.Tick += Tick;
         window.Closed += Closed; window.IsVisibleChanged += VisibilityChanged;
     }
     private PointerSample Read()
     {
-        var dpi = VisualTreeHelper.GetDpi(_window); return CoordinateTransform.ToDip(PointerSampler.Read(), dpi.DpiScaleX, dpi.DpiScaleY);
+        var pointer = PointerSampler.Read();
+        if(UsesPhysicalPointer) return pointer;
+        var dpi = VisualTreeHelper.GetDpi(_window); return CoordinateTransform.ToDip(pointer,dpi.DpiScaleX,dpi.DpiScaleY);
     }
     public void Start(InteractionMode mode, Action<ManipulationUpdate> apply)
     {

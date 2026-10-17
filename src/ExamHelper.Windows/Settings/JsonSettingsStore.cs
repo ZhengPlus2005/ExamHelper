@@ -44,6 +44,8 @@ public sealed class JsonSettingsStore(string path) : ISettingsStore
                 if(string.IsNullOrWhiteSpace(profile.Settings.Model)) throw new ArgumentException("AI 模型名称不能为空。");
             }
         }
+        if(settings.FormatVersion is < 1 or > 2 || settings.Ui.Placement is { } placement && (placement.Width <= 0 || placement.Height <= 0))
+            throw new ArgumentException("设置格式或窗口物理尺寸无效。");
         ProviderEndpoint.ChatCompletions(settings.Ai.BaseUri); ProviderEndpoint.ChatCompletions(settings.Asr.BaseUri);
         if(!ProviderEndpoint.IsBeijingAsr(settings.Asr.BaseUri)) throw new ArgumentException("语音地址必须位于阿里云北京地域。");
         if(string.IsNullOrWhiteSpace(settings.Ai.Model) || string.IsNullOrWhiteSpace(settings.Asr.Model) || string.IsNullOrWhiteSpace(settings.DefaultCodeLanguage))

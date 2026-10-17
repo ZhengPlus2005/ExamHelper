@@ -17,8 +17,10 @@ public sealed record AsrSettings
     public string SecretFingerprint { get; init; } = "";
     public string DeviceId { get; init; } = "";
 }
+public sealed record PhysicalWindowPlacement(int X,int Y,int Width,int Height);
 public sealed record UiSettings
 {
+    public PhysicalWindowPlacement? Placement { get; init; }
     public double Opacity { get; init; } = 0.85;
     public double Width { get; init; } = 640;
     public double Height { get; init; } = 720;
