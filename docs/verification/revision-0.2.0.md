@@ -31,4 +31,4 @@ Release 锁定依赖恢复、完整构建及回归结果以 final-validation.log
 
 Inno6.7.3 最终脚本 /O- 语法编译通过。快捷方式归属探针位于 tools/InstallerVerification/ShortcutOwnershipProbe.iss，以 /DVerificationOutput=<隔离测试目录> 编译，再 /VERYSILENT /SUPPRESSMSGBOXES /NORESTART 运行；InitializeSetup 主动停止实际安装，进程非零退出是预期，成功以 shortcut-probe/result.json 的 Passed=true 为准。测试使用独立注册表项 Software\ExamHelper\TestOnly\ShortcutOwnershipProbe02，不操作真实桌面链接。
 
-最终发布、自检、安装／升级／卸载及安装器 SHA-256 的交付证据另存 D:\Code\ExamHelper\artifacts。安装完成页复选框的人手点击与布局需由实际安装验收；不将脚本编译、静默安装或隔离探针冒充该项 UI 验收。OBS、腾讯会议、设备拔除、全部音频驱动、干净无 .NET 环境未新增实测。云服务未读取用户凭据或执行付费调用，本轮采用假 HTTP 回归；用户已反馈实际 API 功能正常。
+已在无已有安装记录（HKCU/HKLM、32/64位视图均检查）的普通权限账户下，将0.1.0安装到独立D盘测试目录，再升级0.2.0、运行已安装程序的离线自检、卸载；四个退出码均0，桌面未新增链接，应用文件已删除，未读取用户配置或历史。最终发布、自检、安装／升级／卸载及安装器 SHA-256 的交付证据另存 D:\Code\ExamHelper\artifacts。安装完成页复选框的人手点击与布局需由实际安装验收；不将脚本编译、静默安装或隔离探针冒充该项 UI 验收。OBS、腾讯会议、设备拔除、全部音频驱动、干净无 .NET 环境未新增实测。云服务未读取用户凭据或执行付费调用，本轮采用假 HTTP 回归；用户已反馈实际 API 功能正常。

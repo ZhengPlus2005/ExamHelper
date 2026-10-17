@@ -62,5 +62,5 @@
 **Files:** Assets/app-icon.svg/png/ico；窗口icon及csproj；packaging/ExamHelper.iss；scripts/Generate-AppIcon.ps1；说明／验证记录。
 - [x] 生成／检查矢量与多尺寸图标，添加完成页可选快捷方式及自身卸载项。
 - [x] locked restore、Release build/test；独立全分支审查，必要问题一轮RED→GREEN。
-- [ ] 提交最终代码／说明后从干净提交发布0.2.0，生成安装器／校验、自检；不覆盖0.1.0。
-- [ ] 记录无法实测的硬件／安装向导路径，不冒充全部通过，交付。
+- [x] 提交最终代码／说明后从干净提交发布0.2.0，生成安装器／校验、自检；不覆盖0.1.0。
+- [x] 记录无法实测的硬件／安装向导路径，不冒充全部通过，交付。
