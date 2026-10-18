@@ -21,10 +21,11 @@ public class EntryEligibilityTests
         return Verification.RecordAsrSuccess(Verification.RecordAiSuccess(settings,Verification.AiFingerprint(settings)),Verification.AsrFingerprint(settings));
     }
     [Fact]
-    public async Task UnverifiedCannotStartOrContinue()
+    public async Task UnverifiedCannotStartAuxiliaryButCanOpenHistoryAtHome()
     {
-        await using var rig = new Rig(new()); await rig.Home.StartAsync(default); await rig.Home.ContinueAsync(Guid.NewGuid(),default);
-        Assert.True(rig.Home.HomeVisible); Assert.Equal(0,rig.Host.OpenCalls); Assert.Empty(await rig.Store.ListAsync(default));
+        await using var rig = new Rig(new()); await rig.Home.StartAsync(default);
+        var saved = new SessionSnapshot { Draft = new("home",[],1) }; await rig.Store.SaveAsync(saved,default); await rig.Home.SelectAsync(saved.Id,default);
+        Assert.True(rig.Home.HomeVisible); Assert.Equal(0,rig.Host.OpenCalls); Assert.Equal(saved.Id,rig.Home.SelectedConversationId);
     }
     [Fact]
     public async Task ProtectionFailureKeepsHomeVisibleAndDoesNotCreateEmptyHistory()
@@ -44,11 +45,11 @@ public class EntryEligibilityTests
         Assert.Null(await rig.Store.LoadAsync(session.Id,default));
     }
     [Fact]
-    public async Task ShowFailureWhenContinuingPreservesSavedDraftAndReturnsToHomeMode()
+    public async Task ShowFailureOnNewAuxiliaryPreservesHomeDraftAndReturnsToHomeMode()
     {
         await using var rig = new Rig(Verified()); rig.Host.ThrowOnShow = true;
         var session = new SessionSnapshot { IsAuxiliaryMode = false,Draft = new("必须保留的退出草稿",[],2) };
-        await rig.Store.SaveAsync(session,default); await rig.Home.ContinueAsync(session.Id,default);
+        await rig.Store.SaveAsync(session,default); await rig.Home.SelectAsync(session.Id,default); await rig.Home.StartAsync(default);
         Assert.True(rig.Home.HomeVisible); Assert.False(rig.Coordinator.State.IsAuxiliaryMode);
         Assert.Equal("必须保留的退出草稿",(await rig.Store.LoadAsync(session.Id,default))!.Draft.Text);
     }
@@ -72,14 +73,15 @@ public class EntryEligibilityTests
     private sealed class Rig : IAsyncDisposable
     {
         public InMemorySessionStore Store { get; } = new(); public Host Host { get; } = new();
-        public SessionCoordinator Coordinator { get; } public HomeViewModel Home { get; }
+        public ConversationWorkspace Workspace { get; }
+        public SessionCoordinator Coordinator => Workspace.Selected!; public HomeViewModel Home { get; }
         public Rig(AppSettings settings)
         {
             var services = new StubServices();
-            Coordinator = new(services,services,services,services,services,() => settings,Store,new ManualTimeProvider());
-            Home = new(Coordinator,Store,services,() => Task.FromResult(settings),Verification,Host,() => Task.CompletedTask);
+            Workspace = new(Store,() => new SessionCoordinator(services,services,new StubServices(),services,services,() => settings,Store,new ManualTimeProvider()));
+            Home = new(Workspace,Store,services,() => Task.FromResult(settings),Verification,Host,() => Task.CompletedTask);
         }
-        public ValueTask DisposeAsync() => Coordinator.DisposeAsync();
+        public ValueTask DisposeAsync() => Workspace.DisposeAsync();
     }
     private sealed class Host : IOverlayHost
     {

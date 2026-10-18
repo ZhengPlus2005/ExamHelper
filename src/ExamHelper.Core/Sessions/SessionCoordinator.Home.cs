@@ -3,10 +3,12 @@ using ExamHelper.Core.Settings;
 namespace ExamHelper.Core.Sessions;
 public sealed partial class SessionCoordinator
 {
-    public async Task UpdateDraftTextAsync(string text,CancellationToken ct)
+    public async Task UpdateDraftTextAsync(string text,CancellationToken ct,string? expectedText = null)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try { ObjectDisposedException.ThrowIf(_disposed,this); if(_draft.Snapshot().Text == text) return; _undo.Invalidate(); _draft.ReplaceText(text); Publish(); ScheduleDraftSave(); }
+        try { ObjectDisposedException.ThrowIf(_disposed,this); var current=_draft.Snapshot().Text;
+            if(expectedText is not null && current != expectedText && current.StartsWith(expectedText,StringComparison.Ordinal)) text += current[expectedText.Length..];
+            if(current == text) return; _undo.Invalidate(); _draft.ReplaceText(text); Publish(); ScheduleDraftSave(); }
         finally { _gate.Release(); }
     }
     public async Task AppendImagesAsync(IReadOnlyList<ImageRef> images,CancellationToken ct)

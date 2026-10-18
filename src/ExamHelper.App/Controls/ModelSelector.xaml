@@ -1,0 +1,7 @@
+<UserControl x:Class="ExamHelper.App.Controls.ModelSelector" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Focusable="False">
+ <StackPanel><Grid x:Name="OrdinaryControls" Margin="0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="130"/></Grid.ColumnDefinitions>
+  <StackPanel><TextBlock Text="配置" FontSize="11"/><ComboBox x:Name="Profiles" DisplayMemberPath="Name" SelectionChanged="ProfileChanged" MinHeight="28"/></StackPanel>
+  <StackPanel Grid.Column="2"><TextBlock Text="模型" FontSize="11"/><ComboBox x:Name="Models" DisplayMemberPath="Name" SelectionChanged="ModelChanged" MinHeight="28"/></StackPanel>
+  <StackPanel Grid.Column="4"><TextBlock Text="思考" FontSize="11"/><ComboBox x:Name="Thinking" SelectionChanged="ThinkingChanged" MinHeight="28"/></StackPanel>
+ </Grid><TextBlock x:Name="Unavailable" Foreground="#A04420" TextWrapping="Wrap" Visibility="Collapsed" FontSize="11"/></StackPanel>
+</UserControl>

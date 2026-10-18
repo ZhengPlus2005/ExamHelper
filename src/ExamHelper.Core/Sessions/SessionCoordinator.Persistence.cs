@@ -18,7 +18,7 @@ public sealed partial class SessionCoordinator
             if(_disposed || !_draftNeedsSave) return;
             var remaining = TimeSpan.FromMilliseconds(500) - _clock.GetElapsedTime(_draftEditedAt);
             if(remaining > TimeSpan.Zero) { _draftSaveTimer?.Change(remaining,Timeout.InfiniteTimeSpan); return; }
-            await TrySaveLockedAsync().ConfigureAwait(false);
+            await TrySaveLockedAsync().ConfigureAwait(false); StateChanged?.Invoke(_state);
         }
         finally { _gate.Release(); }
     }

@@ -6,6 +6,8 @@ using ExamHelper.App.Home;
 using ExamHelper.App.Overlay;
 using ExamHelper.App.Settings;
 using ExamHelper.Core.Audio;
+using ExamHelper.Core.Drafts;
+using ExamHelper.Windows.Images;
 using ExamHelper.Core.Common;
 using ExamHelper.Core.Settings;
 using ExamHelper.Core.Sessions;
@@ -23,13 +25,28 @@ public sealed class AppComposition : IAsyncDisposable
     public AppSettings CurrentSettings => _settings;
     public JsonSettingsStore SettingsStore { get; } = new(AppDataPaths.Settings);
     public UserSecretStore Secrets { get; } = new(AppDataPaths.Secrets);
-    public SqliteSessionStore Sessions { get; } = new(AppDataPaths.Database);
-    public FileImageStore Images { get; } = new(AppDataPaths.Images);
+    public SqliteSessionStore Sessions { get; }
+    public FileImageStore Images { get; }
+    public ImageImportService ImageImporter { get; }
+    public ImageReferenceRegistry ImageReferences { get; } = new();
+    public AiGenerationGate GenerationGate { get; } = new();
+    private AiGenerationGate CaptureAudioGate { get; } = new();
+    public ConversationWorkspace Workspace { get; private set; } = null!;
     public ServiceVerification Verification { get; private set; } = null!;
-    public SessionCoordinator Coordinator { get; private set; } = null!;
+    public SessionCoordinator Coordinator => Workspace.Selected ?? throw new InvalidOperationException("尚未选择对话。");
     public IOverlayHost Overlay { get; private set; } = null!;
     public HomeViewModel Home { get; private set; } = null!;
-    private MicrophoneRecorder _microphone = null!;
+    private readonly List<MicrophoneRecorder> _microphones = [];
+    private AppComposition()
+    {
+        Sessions=new(AppDataPaths.Database,ImageReferences); Images=new(AppDataPaths.Images,ImageReferences); ImageImporter=new(Images);
+    }
+    private SessionCoordinator CreateCoordinator()
+    {
+        var microphone=new MicrophoneRecorder(AppDataPaths.TempAudio); _microphones.Add(microphone);
+        return new(new ChatCompletionsClient(_http,Secrets,Images),new AliyunAsrClient(_http,Secrets),new ExclusiveMicrophoneRecorder(microphone,CaptureAudioGate),
+            new FullScreenCapture(windowHandle: () => (Overlay as OverlayHost)?.CurrentWindow?.NativeHandle ?? 0),Images,() => CurrentSettings,Sessions,TimeProvider.System,GenerationGate,Verification);
+    }
     private ImageReferenceCleaner _cleaner = null!;
     public static async Task<AppComposition> CreateAsync(Func<AppComposition,IOverlayHost>? overlayFactory = null)
     {
@@ -41,7 +58,7 @@ public sealed class AppComposition : IAsyncDisposable
             result.Verification = new(Convert.FromBase64String(key));
             try { result._settings = await result.SettingsStore.LoadAsync(CancellationToken.None); } catch(ServiceFailure error) { warnings.Add(error.Message); }
             try { result._settings = await result.ReadSettingsForEntryAsync(); } catch(ServiceFailure error) { warnings.Add(error.Message); }
-            result._cleaner = new(result.Sessions,result.Images);
+            result._cleaner = new(result.Sessions,result.Images,result.ImageReferences,() => result.Workspace?.LiveImageIds() ?? new HashSet<Guid>());
             try
             {
                 await result.Sessions.RecoverInterruptedAsync(CancellationToken.None);
@@ -49,15 +66,13 @@ public sealed class AppComposition : IAsyncDisposable
                 await result._cleaner.ReconcileAsync(CancellationToken.None);
             }
             catch(Exception error) { warnings.Add(ObservableMessage(error)); }
-            result._microphone = new(AppDataPaths.TempAudio);
-            result.Coordinator = new(new ChatCompletionsClient(result._http,result.Secrets,result.Images),
-                new AliyunAsrClient(result._http,result.Secrets),result._microphone,new FullScreenCapture(windowHandle: () => (result.Overlay as OverlayHost)?.CurrentWindow?.NativeHandle ?? 0),result.Images,
-                () => result.CurrentSettings,result.Sessions,TimeProvider.System);
+            result.Workspace=new(result.Sessions,result.CreateCoordinator);
+            await result.Workspace.NewAsync(false,CancellationToken.None);
             result.Overlay = overlayFactory?.Invoke(result) ?? new OverlayHost(result.Coordinator,result.Images,() => result.CurrentSettings,result.SaveUiAsync,
                 () => result.Home.ReturnedAsync(CancellationToken.None),async () => { await result.DisposeAsync(); Application.Current.Shutdown(); },
                 report: message => result.Home.Status = message);
-            result.Home = new(result.Coordinator,result.Sessions,result.Images,result.ReadSettingsForEntryAsync,result.Verification,result.Overlay,
-                () => result._cleaner.ReconcileAsync(CancellationToken.None));
+            result.Home = new(result.Workspace,result.Sessions,result.Images,() => Task.FromResult(result.CurrentSettings),result.Verification,result.Overlay,
+                () => result._cleaner.ReconcileAsync(CancellationToken.None),result.ReadSettingsForEntryAsync);
             result.Home.Status = string.Join(Environment.NewLine,warnings);
             return result;
         }
@@ -84,10 +99,10 @@ public sealed class AppComposition : IAsyncDisposable
         try { ai = await Secrets.GetAsync(_settings.Ai.SecretId,CancellationToken.None) ?? ""; } catch(ServiceFailure error) { warning += error.Message; }
         try { asr = await Secrets.GetAsync(_settings.Asr.SecretId,CancellationToken.None) ?? ""; } catch(ServiceFailure error) { warning += error.Message; }
         var microphone = new MicrophoneRecorder(AppDataPaths.TempAudio);
-        var recording = new RecordingController(microphone,TimeProvider.System);
+        var recording = new RecordingController(new ExclusiveMicrophoneRecorder(microphone,CaptureAudioGate),TimeProvider.System);
         var resource = Application.GetResourceStream(new Uri("pack://application:,,,/ExamHelper.App;component/Assets/service-test.png"));
         using var marker = new MemoryStream(); using(resource.Stream) await resource.Stream.CopyToAsync(marker);
-        var runner = new ServiceTestRunner(_http,Secrets,Verification,marker.ToArray());
+        var runner = new ServiceTestRunner(_http,Secrets,Verification,marker.ToArray(),GenerationGate);
         var dispatcher = Application.Current.Dispatcher;
         var viewModel = new SettingsViewModel(_settings,ai,asr,SettingsStore,Secrets,Verification,runner,recording,
             saved => _settings = saved,action => dispatcher.BeginInvoke(action),profileKeys) { ReadLevel = () => microphone.PeakLevel,ProbeHotkeys = HotkeyConflictProbe.Check };
@@ -101,8 +116,8 @@ public sealed class AppComposition : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         Overlay?.Close();
-        if(Coordinator is not null) await Coordinator.DisposeAsync();
-        if(_microphone is not null) await _microphone.DisposeAsync();
+        if(Workspace is not null) await Workspace.DisposeAsync();
+        foreach(var microphone in _microphones) await microphone.DisposeAsync();
         _http.Dispose();
     }
     private static string ObservableMessage(Exception error) => error is ServiceFailure ? error.Message : "部分本地恢复未完成，请检查存储后重试。";

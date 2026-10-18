@@ -24,7 +24,7 @@ public class ProductWindowTests
             var stub = new StubServices(); var verification = new ServiceVerification(new byte[32]);
             var settings = new AppSettings(); var sessions = new InMemorySessionStore();
             var coordinator = new SessionCoordinator(stub,stub,stub,stub,stub,() => settings,sessions,new ManualTimeProvider());
-            var home = new HomeViewModel(coordinator,sessions,stub,() => Task.FromResult(settings),verification,new Host(),() => Task.CompletedTask);
+            var home = new HomeViewModel(new ConversationWorkspace(sessions,() => coordinator),sessions,stub,() => Task.FromResult(settings),verification,new Host(),() => Task.CompletedTask);
             using var http = new HttpClient(new FakeHttpHandler((_,_) => throw new InvalidOperationException("UI smoke must not call services")));
             var secrets = new InMemorySecretStore();
             var recording = new RecordingController(stub,new ManualTimeProvider());

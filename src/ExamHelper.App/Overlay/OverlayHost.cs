@@ -7,7 +7,7 @@ using ExamHelper.Windows.Native;
 namespace ExamHelper.App.Overlay;
 public sealed class OverlayHost : IOverlayHost
 {
-    private readonly SessionCoordinator _coordinator;
+    private SessionCoordinator _coordinator;
     private readonly IImageStore _images;
     private readonly Func<AppSettings> _settings;
     private readonly Func<UiSettings,Task> _saveUi;
@@ -22,7 +22,12 @@ public sealed class OverlayHost : IOverlayHost
     {
         _coordinator = coordinator; _images = images; _settings = settings; _saveUi = saveUi; _home = home; _exit = exit;
         _protection = protection; _hotkeys = hotkeys; _report = report ?? (_ => { });
-        coordinator.UiCommandRequested += command => _dispatcher.BeginInvoke(() => _ = HandleUiAsync(command));
+        coordinator.UiCommandRequested += OnUiCommand;
+    }
+    private void OnUiCommand(AppCommand command) => _dispatcher.BeginInvoke(() => _ = HandleUiAsync(command));
+    public void Bind(SessionCoordinator coordinator)
+    {
+        Close(); _coordinator.UiCommandRequested -= OnUiCommand; _coordinator = coordinator; _coordinator.UiCommandRequested += OnUiCommand;
     }
     public Task<ProtectionResult> OpenAsync(CancellationToken ct)
     {
