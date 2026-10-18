@@ -11,6 +11,7 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e); ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        ExamHelper.Windows.Native.ApplicationIdentity.Apply();
         if(e.Args.Length == 2 && e.Args[0] == "--self-test")
         {
             Shutdown(await Common.StartupDiagnostics.RunAsync(e.Args[1])); return;
