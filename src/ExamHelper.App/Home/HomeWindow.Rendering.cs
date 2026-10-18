@@ -51,7 +51,6 @@ public partial class HomeWindow
     }
     private void SyncInput(bool newSession)
     {
-        HomeDraftInput.IsEnabled=_viewModel.SelectedConversationId is not null;
         if(_viewModel.SelectedConversationId is not { } id) { _syncInput=true; try { HomeDraftInput.Clear(); } finally { _syncInput=false; } return; }
         if(!newSession && _inputBehavior.IsComposing) return;
         if(!newSession && DraftController.HasPendingEdits(id)) return;

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+using System.Collections.Immutable;
 using ExamHelper.App.Common;
 using ExamHelper.App.Overlay;
 using ExamHelper.Core.Drafts;
@@ -26,7 +26,7 @@ public sealed class HomeViewModel : ObservableObject
     public IReadOnlyList<ConversationMessageViewModel> Messages { get; private set; } = [];
     public IReadOnlyList<ImageRef> DraftImages => Snapshot?.Draft.Images.ToArray() ?? [];
     public string DraftText => Snapshot?.Draft.Text ?? "";
-    public bool CanSend => Workspace.Selected?.CanExecute(AppCommand.Send) == true;
+    public bool CanSend => !IsBusy && Workspace.Selected?.CanExecute(AppCommand.Send) == true;
     public bool CanStop => Workspace.GeneratingSessionId is not null;
     public bool CanUndoSpeech => Snapshot?.SpeechUndoAvailable == true;
     public bool HasFailedSpeech => Snapshot?.SpeechState == SpeechState.RetryPending;
@@ -34,7 +34,13 @@ public sealed class HomeViewModel : ObservableObject
     public long ViewRevision { get; private set; }
     public bool HistoryNeedsRefresh { get; private set; }
     public HistoryCollection History { get; } = [];
-    public bool IsBusy { get => _busy; private set => Set(ref _busy,value); }
+    public bool IsBusy { get => _busy; private set { if(Set(ref _busy,value)) { Notify(nameof(CanEditHistory)); Notify(nameof(CanEditDraft)); Notify(nameof(CanSend)); Notify(nameof(CanDeleteSelected)); } } }
+    public bool CanEditHistory=>!IsBusy;
+    public bool CanEditDraft=>CanEditHistory && SelectedConversationId is not null;
+    public HistorySelectionController HistorySelection { get; }
+    public bool CanDeleteSelected=>!IsBusy && HistorySelection.IsBatchMode && HistorySelection.SelectedCount>0;
+    private bool _cleanupFailed;
+    public bool HasImageCleanupFailure { get => _cleanupFailed; private set => Set(ref _cleanupFailed,value); }
     public bool HomeVisible { get => _visible; private set { if(Set(ref _visible,value)) VisibilityChanged?.Invoke(value); } }
     public string Status { get => _status; set => Set(ref _status,value); }
     public bool AreServicesVerified { get => _ready; private set => Set(ref _ready,value); }
@@ -43,6 +49,7 @@ public sealed class HomeViewModel : ObservableObject
     public HomeViewModel(ConversationWorkspace workspace,ISessionStore sessions,IImageStore images,Func<Task<AppSettings>> getSettings,
         ServiceVerification verification,IOverlayHost overlay,Func<Task> reconcile,Func<Task<AppSettings>>? entrySettings = null)
     {
+        HistorySelection=new(History); HistorySelection.PropertyChanged+=(_,_)=>Notify(nameof(CanDeleteSelected));
         Workspace = workspace; _sessions = sessions; _images = images; _getSettings = getSettings; _entrySettings = entrySettings ?? getSettings;
         _verification = verification; _overlay = overlay; _reconcile = reconcile;
         Workspace.Changed += () => Dispatch(UpdateSelection); UpdateSelection();
@@ -115,16 +122,44 @@ public sealed class HomeViewModel : ObservableObject
     public Task<byte[]> ReadImageAsync(ImageRef image,CancellationToken ct) => _images.ReadAsync(image,ct);
     public async Task RenameAsync(string title,CancellationToken ct)
     { if(Workspace.Selected is { } selected) { await selected.RenameAsync(title,ct); await RefreshAsync(ct); } }
+    public async Task RenameAsync(Guid id,string title,CancellationToken ct)
+    { await Workspace.RenameAsync(id,title,ct); await RefreshAsync(ct); UpdateSelection(); }
     public async Task DeleteAsync(Guid id,Func<Task<bool>> confirm,CancellationToken ct)
+    { await DeleteManyAsync([id],_=>confirm(),ct); }
+    public async Task<BatchDeleteResult> DeleteManyAsync(IReadOnlyCollection<Guid> ids,Func<int,Task<bool>> confirm,CancellationToken ct)
     {
-        if(IsBusy || !HomeVisible || !await confirm()) return; IsBusy = true;
+        var targets=ids.Distinct().ToArray(); if(IsBusy || !HomeVisible || targets.Length==0) return BatchDeleteResult.Empty;
+        IsBusy=true; var result=BatchDeleteResult.Empty;
         try
         {
-            await Workspace.DeleteAsync(id,ct); await _reconcile(); Status = "对话及不再被引用的图片已删除。";
-            await RefreshAsync(ct); UpdateSelection();
+            if(!await confirm(targets.Length)) return result;
+            var current=Workspace.Selected?.State.Id; result=await Workspace.DeleteManyAsync(targets,ct);
+            if(current is { } id && result.DeletedIds.Contains(id) && Workspace.Selected is null)
+            {
+                var remaining=await _sessions.ListAsync(CancellationToken.None);
+                if(remaining.Count>0) await Workspace.OpenAsync(remaining[0].Id,CancellationToken.None); else await Workspace.NewAsync(false,CancellationToken.None);
+            }
+            Status=$"已删除 {result.DeletedIds.Length} 条对话。";
+            if(result.Failures.Count>0) Status+=" 未删除："+string.Join("；",result.Failures.Select(p=>$"{History.FirstOrDefault(i=>i.Id==p.Key)?.Title ?? p.Key.ToString()}：{p.Value}"));
+            if(result.CleanupFailures.Count>0) Status+=" 记录已删除，但部分资源释放失败："+string.Join("；",result.CleanupFailures.Values);
+            if(result.DeletedIds.Length>0)
+            {
+                try { await _reconcile(); HasImageCleanupFailure=false; }
+                catch(Exception error) { HasImageCleanupFailure=true; Status+=" 图片清理未完成："+Explain(error); }
+            }
+            await RefreshAsync(CancellationToken.None); UpdateSelection();
+            if(HistorySelection.IsBatchMode) foreach(var failed in result.Failures.Keys) HistorySelection.SetChecked(failed,true);
+            return result;
         }
-        catch(Exception error) { Status = Explain(error); }
-        finally { IsBusy = false; }
+        catch(Exception error) { Status=Explain(error); await RefreshAsync(CancellationToken.None); UpdateSelection(); return result; }
+        finally { IsBusy=false; }
+    }
+    public async Task RetryImageCleanupAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested(); if(IsBusy) return; IsBusy=true;
+        try { await _reconcile(); HasImageCleanupFailure=false; Status="图片清理已完成。"; }
+        catch(Exception error) { HasImageCleanupFailure=true; Status="图片清理未完成："+Explain(error); }
+        finally { IsBusy=false; }
     }
     public async Task ReturnedAsync(CancellationToken ct)
     { try { await _overlay.SaveGeometryAsync(); } catch(Exception e) { Status=Explain(e); } await Workspace.ReturnHomeAsync(ct); _overlay.Close(); HomeVisible = true; await RefreshAsync(ct); UpdateSelection(); }

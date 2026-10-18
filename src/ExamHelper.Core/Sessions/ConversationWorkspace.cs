@@ -1,4 +1,5 @@
 using ExamHelper.Core.Drafts;
+using System.Collections.Immutable;
 namespace ExamHelper.Core.Sessions;
 public sealed class ConversationWorkspace(ISessionStore store,Func<SessionCoordinator> factory) : IAsyncDisposable
 {
@@ -101,30 +102,71 @@ public sealed class ConversationWorkspace(ISessionStore store,Func<SessionCoordi
         }
         finally { _navigation.Release(); }
     }
-    public async Task DeleteAsync(Guid id,CancellationToken ct)
+    public async Task RenameAsync(Guid id,string title,CancellationToken ct)
     {
+        if(string.IsNullOrWhiteSpace(title)) throw new ArgumentException("标题不能为空。");
         await _navigation.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             ObjectDisposedException.ThrowIf(_closed,this);
-            var runtime=Find(id); var deleted=false;
-            try
+            if(Find(id) is { } runtime) await runtime.RenameAsync(title,ct).ConfigureAwait(false);
+            else
             {
-                async Task Delete(CancellationToken token) { await store.DeleteAsync(id,token).ConfigureAwait(false); deleted=true; }
-                if(runtime is not null) await runtime.DeleteStoredAsync(Delete,ct).ConfigureAwait(false); else await Delete(ct).ConfigureAwait(false);
+                var snapshot=await store.LoadAsync(id,ct).ConfigureAwait(false) ?? throw new InvalidOperationException("历史对话不存在。");
+                await store.SaveAsync(snapshot with { CustomTitle=title.Trim() },ct).ConfigureAwait(false);
             }
-            finally
-            {
-                if(deleted)
-                {
-                    if(runtime is not null) runtime.StateChanged-=SessionChanged;
-                    lock(_sessions) _sessions.Remove(id);
-                    if(Selected?.State.Id==id) Selected=null; if(AuxiliarySessionId==id) AuxiliarySessionId=null;
-                    Changed?.Invoke();
-                }
-            }
+            Changed?.Invoke();
         }
         finally { _navigation.Release(); }
+    }
+    public async Task DeleteAsync(Guid id,CancellationToken ct)
+    {
+        await _navigation.WaitAsync(ct).ConfigureAwait(false);
+        try { ObjectDisposedException.ThrowIf(_closed,this); await DeleteLockedAsync(id,ct).ConfigureAwait(false); }
+        finally { _navigation.Release(); }
+    }
+    public async Task<BatchDeleteResult> DeleteManyAsync(IReadOnlyCollection<Guid> ids,CancellationToken ct)
+    {
+        var targets=ids.Distinct().ToArray(); var deleted=ImmutableArray.CreateBuilder<Guid>();
+        var failures=ImmutableDictionary.CreateBuilder<Guid,string>(); var cleanup=ImmutableDictionary.CreateBuilder<Guid,string>();
+        await _navigation.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_closed,this);
+            for(var i=0;i<targets.Length;i++)
+            {
+                if(ct.IsCancellationRequested)
+                { for(;i<targets.Length;i++) failures[targets[i]]="已取消，尚未删除。"; break; }
+                var id=targets[i]; var persisted=false;
+                try { await DeleteLockedAsync(id,ct,()=>persisted=true).ConfigureAwait(false); deleted.Add(id); }
+                catch(Exception error)
+                {
+                    if(persisted) { deleted.Add(id); cleanup[id]=error.Message; }
+                    else failures[id]=error is OperationCanceledException ? "已取消，尚未删除。" : error.Message;
+                }
+            }
+            return new(deleted.ToImmutable(),failures.ToImmutable()) { CleanupFailures=cleanup.ToImmutable() };
+        }
+        finally { _navigation.Release(); }
+    }
+    private async Task DeleteLockedAsync(Guid id,CancellationToken ct,Action? onDeleted=null)
+    {
+        var runtime=Find(id); var deleted=false;
+        try
+        {
+            async Task Delete(CancellationToken token) { await store.DeleteAsync(id,token).ConfigureAwait(false); deleted=true; onDeleted?.Invoke(); }
+            if(runtime is not null) await runtime.DeleteStoredAsync(Delete,ct).ConfigureAwait(false); else await Delete(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            if(deleted)
+            {
+                if(runtime is not null) runtime.StateChanged-=SessionChanged;
+                lock(_sessions) _sessions.Remove(id);
+                if(Selected?.State.Id==id) Selected=null; if(AuxiliarySessionId==id) AuxiliarySessionId=null;
+                Changed?.Invoke();
+            }
+        }
     }
     public IReadOnlySet<Guid> LiveImageIds() => Sessions.SelectMany(s => s.State.Draft.Images.Concat(s.State.Messages.SelectMany(m => m.Images)).Concat(s.State.Requests.SelectMany(r => r.Images))).Select(i => i.Id).ToHashSet();
     public async ValueTask DisposeAsync()

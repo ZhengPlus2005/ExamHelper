@@ -63,24 +63,8 @@ public partial class HomeWindow : Window
     { if(!_syncInput && DraftController is not null && _viewModel.Workspace.Selected is not null) await RunAsync(() => DraftController.UpdateTextAsync(HomeDraftInput.Text,CancellationToken.None)); }
     private async void SelectionChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(_syncSelection || HistoryList.SelectedItem is not HistoryItemViewModel session || session.Id==_viewModel.SelectedConversationId) return;
-        _selection?.Cancel(); _selection?.Dispose(); _selection=new(); var token=_selection.Token;
-        await RunAsync(async () => { await DraftController.FlushAsync(token); await _viewModel.SelectAsync(session.Id,token); if(!token.IsCancellationRequested) Render(true); });
-    }
-    private async void DeleteClick(object sender,RoutedEventArgs e)
-    {
-        if(HistoryList.SelectedItem is not HistoryItemViewModel session) return;
-        await _viewModel.DeleteAsync(session.Id,() => Task.FromResult(MessageBox.Show(this,"删除此对话及其不再被引用的图片？","删除历史",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes),CancellationToken.None); Render(true);
-    }
-    private async void RenameClick(object sender,RoutedEventArgs e)
-    {
-        if(_viewModel.Snapshot is null) return;
-        var input=new TextBox { Text=_viewModel.ConversationTitleText,Margin=new Thickness(14),MinWidth=330,Padding=new Thickness(8) };
-        var save=new Button { Content="保存标题",IsDefault=true,Margin=new Thickness(14,0,14,14),Padding=new Thickness(12,7,12,7) };
-        var panel=new StackPanel(); panel.Children.Add(input); panel.Children.Add(save);
-        var dialog=new Window { Title="修改标题",Content=panel,SizeToContent=SizeToContent.WidthAndHeight,ResizeMode=ResizeMode.NoResize,Owner=this,WindowStartupLocation=WindowStartupLocation.CenterOwner };
-        save.Click+=(_,_) => { if(!string.IsNullOrWhiteSpace(input.Text)) dialog.DialogResult=true; }; dialog.Loaded+=(_,_) => { input.Focus(); input.SelectAll(); };
-        if(dialog.ShowDialog()==true) await RunAsync(() => _viewModel.RenameAsync(input.Text,CancellationToken.None));
+        if(_syncSelection || _viewModel.IsBusy || HistoryList.SelectedItem is not HistoryItemViewModel item) return;
+        await OpenHistoryAsync(item.Id);
     }
     private async void ExportClick(object sender,RoutedEventArgs e)
     {
