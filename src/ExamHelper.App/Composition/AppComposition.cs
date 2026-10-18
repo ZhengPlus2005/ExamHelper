@@ -26,7 +26,7 @@ public sealed class AppComposition : IAsyncDisposable
     public AppLifecycle? Lifecycle { get; private set; }
     public AppSettings CurrentSettings => _settings.Current;
     public JsonSettingsStore SettingsStore { get; } = new(AppDataPaths.Settings);
-    public UserSecretStore Secrets { get; } = new(AppDataPaths.Secrets);
+    public ISecretStore Secrets { get; } = new SynchronizedSecretStore(new UserSecretStore(AppDataPaths.Secrets));
     public SqliteSessionStore Sessions { get; }
     public FileImageStore Images { get; }
     public ImageImportService ImageImporter { get; }

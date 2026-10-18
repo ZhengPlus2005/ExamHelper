@@ -10,6 +10,7 @@ using ExamHelper.Core.Settings;
 namespace ExamHelper.Windows.Providers;
 public sealed class ChatCompletionsClient(HttpClient http,ISecretStore secrets,IImageStore images,TimeSpan? idleTimeout = null,TimeSpan? totalTimeout = null) : IAiClient
 {
+    public Task<IDisposable?> AcquirePreparationAsync(CancellationToken ct) => secrets.AcquireReadLeaseAsync(ct);
     public async Task<IAiClient> PrepareAsync(AiSettings settings,CancellationToken ct)
     {
         var key = await secrets.GetAsync(settings.SecretId,ct).ConfigureAwait(false);

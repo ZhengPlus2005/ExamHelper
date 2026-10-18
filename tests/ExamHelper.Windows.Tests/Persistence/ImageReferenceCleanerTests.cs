@@ -46,6 +46,30 @@ public class ImageReferenceCleanerTests
         }
         finally { Directory.Delete(root,true); }
     }
+    [Fact] public async Task ANewImageCommittedAfterTheSweepSnapshotRemainsReadable()
+    {
+        var root=NewRoot();
+        try
+        {
+            var pending=new ImageReferenceRegistry(); var store=new SqliteSessionStore(Path.Combine(root,"history.db"),pending); var files=new FileImageStore(Path.Combine(root,"Images"),pending);
+            var delayed=new DelayedDelete(files); var cleaner=new ImageReferenceCleaner(store,delayed,pending);
+            var sweep=cleaner.ReconcileAsync(default); await delayed.Started.Task;
+            var image=await files.AddAsync(new([1,2,3],20,10),default);
+            var session=new SessionSnapshot { Draft=new("B",[image],1) }; await store.SaveAsync(session,default);
+            delayed.Release.TrySetResult(); await sweep;
+            Assert.Equal(new byte[] {1,2,3},await files.ReadAsync(image,default));
+            await store.DeleteAsync(session.Id,default); await new ImageReferenceCleaner(store,files,pending).ReconcileAsync(default);
+            Assert.False(File.Exists(Path.Combine(root,"Images",image.RelativePath)));
+        }
+        finally { Directory.Delete(root,true); }
+    }
+    private sealed class DelayedDelete(IImageStore inner) : IImageStore
+    {
+        public TaskCompletionSource Started { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously); public TaskCompletionSource Release { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<ImageRef> AddAsync(CapturedImage image,CancellationToken ct)=>inner.AddAsync(image,ct);
+        public Task<byte[]> ReadAsync(ImageRef image,CancellationToken ct)=>inner.ReadAsync(image,ct);
+        public async Task DeleteUnreferencedAsync(IReadOnlySet<Guid> ids,CancellationToken ct) { Started.TrySetResult(); await Release.Task.WaitAsync(ct); await inner.DeleteUnreferencedAsync(ids,ct); }
+    }
     private static string NewRoot() { var path = Path.Combine(Path.GetTempPath(),"ExamHelper-clean-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path); return path; }
     private sealed class FailingImages : IImageStore
     {

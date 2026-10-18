@@ -6,6 +6,7 @@ public enum ModelSelectorPart { Profile,Model,Thinking }
 public partial class ModelSelector
 {
     private bool _auxiliary,_hoverSuspended;
+    private AiServiceProfile? _browsingProfile;
     public bool AuxiliaryInteraction
     {
         get => _auxiliary;
@@ -31,13 +32,14 @@ public partial class ModelSelector
     public void SetHoverSuspended(bool suspended) { _hoverSuspended=suspended; if(suspended) CloseHoverMenu(); }
     public void CloseHoverMenu()
     {
-        if(!IsMenuOpen) return; MenuBorder.Visibility=Visibility.Collapsed; MenuItems.Children.Clear();
+        _browsingProfile=null; if(!IsMenuOpen) return; MenuBorder.Visibility=Visibility.Collapsed; MenuItems.Children.Clear();
         if(Window.GetWindow(this) is { } window) DwellBehavior.InvalidateWindow(window);
     }
-    public void OpenHoverMenu(ModelSelectorPart part)
+    public void OpenHoverMenu(ModelSelectorPart part,AiServiceProfile? browsingProfile = null)
     {
-        if(!AuxiliaryInteraction || _hoverSuspended) return; MenuItems.Children.Clear();
-        var choices=part switch { ModelSelectorPart.Profile => ProfileChoices.Cast<object>(),ModelSelectorPart.Model => ModelChoices.Cast<object>(),_ => ThinkingChoices.Cast<object>() };
+        if(!AuxiliaryInteraction || _hoverSuspended) return; MenuItems.Children.Clear(); _browsingProfile=browsingProfile;
+        if(browsingProfile is not null) MenuItems.Children.Add(new TextBlock { Text=browsingProfile.Name+"：默认模型未通过图片测试，请选择已验证模型。",Foreground=System.Windows.Media.Brushes.White,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(6) });
+        var choices=part switch { ModelSelectorPart.Profile => ProfileChoices.Cast<object>(),ModelSelectorPart.Model => browsingProfile is null ? ModelChoices.Cast<object>() : browsingProfile.Models!.Value.Where(m => Qualified(browsingProfile,m)).Cast<object>(),_ => ThinkingChoices.Cast<object>() };
         foreach(var item in choices)
         {
             var label=item switch { AiServiceProfile p => p.Name,AiModelProfile m => m.Name,ThinkingChoice thinking => thinking.ToString(),_ => "" };
@@ -50,9 +52,15 @@ public partial class ModelSelector
     }
     private void Choose(object item)
     {
+        if(item is AiServiceProfile candidate && RequireImageVerified && candidate.Models?.FirstOrDefault(m => m.Id==candidate.DefaultModelId) is { } defaultModel && !Qualified(candidate,defaultModel))
+        {
+            CloseHoverMenu(); OpenHoverMenu(ModelSelectorPart.Model,candidate);
+            if(Window.GetWindow(this) is { } window) DwellBehavior.InvalidateWindow(window);
+            return;
+        }
         try
         {
-            var profile=_settings?.AiProfiles?.FirstOrDefault(p => p.Id==_selection?.ProfileId);
+            var profile=_browsingProfile ?? _settings?.AiProfiles?.FirstOrDefault(p => p.Id==_selection?.ProfileId);
             var model=profile?.Models?.FirstOrDefault(m => m.Id==_selection?.ModelId);
             var choice=item switch { AiServiceProfile p => ModelCatalog.Default(p),AiModelProfile m when profile is not null => ModelCatalog.Select(profile,m),ThinkingChoice t when profile is not null && model is not null => ModelCatalog.Select(profile,model,t),_ => null };
             if(choice is not null) Request(choice);

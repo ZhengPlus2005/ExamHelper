@@ -8,6 +8,7 @@ public sealed record AiMessage(MessageRole Role, string Text, ImmutableArray<Ima
 public sealed record AiRequest(Guid RequestId, ImmutableArray<AiMessage> Messages);
 public interface IAiClient
 {
+    Task<IDisposable?> AcquirePreparationAsync(CancellationToken ct) { ct.ThrowIfCancellationRequested(); return Task.FromResult<IDisposable?>(null); }
     Task<IAiClient> PrepareAsync(AiSettings settings,CancellationToken ct) { ct.ThrowIfCancellationRequested(); return Task.FromResult<IAiClient>(this); }
     IAsyncEnumerable<AiChunk> StreamAsync(AiRequest request, AiSettings settings, CancellationToken ct);
 }

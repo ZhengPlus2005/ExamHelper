@@ -51,6 +51,25 @@ public class ConversationWorkspaceTests
         var exit=workspace.ExitAsync(default); var prematurelyCompleted=exit.IsCompleted; store.Release.TrySetResult(); await opening; await exit;
         Assert.False(prematurelyCompleted); Assert.Equal("B",(await store.Inner.LoadAsync(snapshot.Id,default))!.Draft.Text);
     }
+    [Fact] public async Task FailedHistoryDeletionKeepsTheRuntimeEditableAndRetryable()
+    {
+        var store=new DeleteFailingStore();var stub=new StubServices();
+        await using var workspace=new ConversationWorkspace(store,()=>new SessionCoordinator(stub,stub,new StubServices(),stub,stub,()=>new(),store,new ManualTimeProvider()));
+        var a=await workspace.NewAsync(false,default);await a.UpdateDraftTextAsync("keep",default);
+        await Assert.ThrowsAsync<IOException>(()=>workspace.DeleteAsync(a.State.Id,default));
+        Assert.Same(a,workspace.Selected);Assert.Same(a,workspace.Find(a.State.Id));
+        await a.UpdateDraftTextAsync("edited after failure",default);await a.FlushAsync(default);
+        var b=await workspace.NewAsync(false,default);await workspace.OpenAsync(a.State.Id,default);Assert.Equal("edited after failure",workspace.Selected!.State.Draft.Text);
+        store.Fail=false;await workspace.DeleteAsync(a.State.Id,default);Assert.Null(await store.LoadAsync(a.State.Id,default));
+        await Assert.ThrowsAsync<ObjectDisposedException>(()=>a.FlushAsync(default));await workspace.OpenAsync(b.State.Id,default);
+    }
+    private sealed class DeleteFailingStore : ISessionStore
+    {
+        private readonly InMemorySessionStore _inner=new();public bool Fail=true;
+        public Task SaveAsync(SessionSnapshot s,CancellationToken ct)=>_inner.SaveAsync(s,ct);public Task<SessionSnapshot?> LoadAsync(Guid id,CancellationToken ct)=>_inner.LoadAsync(id,ct);
+        public Task<IReadOnlyList<SessionSummary>> ListAsync(CancellationToken ct)=>_inner.ListAsync(ct);
+        public Task DeleteAsync(Guid id,CancellationToken ct)=>Fail ? Task.FromException(new IOException("delete failed")) : _inner.DeleteAsync(id,ct);
+    }
     private sealed class LoadingStore : ISessionStore
     {
         public InMemorySessionStore Inner { get; }=new(); public Guid DelayedId; public TaskCompletionSource Started { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously); public TaskCompletionSource Release { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);

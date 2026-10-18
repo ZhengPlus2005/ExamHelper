@@ -54,6 +54,24 @@ public class OverlayRevision03Tests
             Assert.DoesNotContain(Nodes(selector).OfType<ComboBox>(),c => c.IsVisible);
         });
     }
+    [Fact] public async Task AQualifiedNonDefaultModelCanBeExplicitlyChosenWithoutSelectingAnUnverifiedDefault()
+    {
+        await StaTest.RunAsync(() =>
+        {
+            var proof=new ServiceVerification(new byte[32]);var a=new AiModelProfile { Name="a" };var blocked=new AiModelProfile { Name="blocked" };var allowed=new AiModelProfile { Name="allowed" };
+            var endpoint=new AiSettings { SecretFingerprint="digest" };a=a with { VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=a.Name } }) };allowed=allowed with { VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=allowed.Name } }) };
+            var pa=new AiServiceProfile { Name="A",Settings=endpoint,Models=[a],DefaultModelId=a.Id };var pb=new AiServiceProfile { Name="B",Settings=endpoint,Models=[blocked,allowed],DefaultModelId=blocked.Id };
+            var settings=AiProfileCatalog.Normalize(new() { AiProfiles=[pa,pb],ActiveAiProfileId=pa.Id });var selector=new ModelSelector { AuxiliaryInteraction=true };ModelSelection? request=null;
+            selector.SelectionRequested+=choice=>request=choice;selector.Configure(settings,ModelCatalog.Select(pa,a),true,proof);
+            var window=new Window { Content=selector,Width=480,Height=360 };try {
+                window.Show();StaTest.Pump();selector.OpenHoverMenu(ModelSelectorPart.Profile);StaTest.Pump();
+                var b=Nodes(selector).OfType<Button>().Single(x=>x.Tag is AiServiceProfile p && p.Id==pb.Id);DwellBehavior.GetCommand(b)!.Execute(null);StaTest.Pump();
+                Assert.Null(request);Assert.True(selector.IsMenuOpen);
+                var model=Nodes(selector).OfType<Button>().Single(x=>x.Tag is AiModelProfile m && m.Id==allowed.Id);Assert.DoesNotContain(Nodes(selector).OfType<Button>(),x=>x.Tag is AiModelProfile m && m.Id==blocked.Id);
+                DwellBehavior.GetCommand(model)!.Execute(null);Assert.Equal(pb.Id,request!.ProfileId);Assert.Equal(allowed.Id,request.ModelId);Assert.False(selector.IsMenuOpen);
+            } finally { window.Close(); }
+        });
+    }
     [Fact] public async Task NewAuxiliaryConversationUsesANewWorkspaceRuntime()
     {
         await StaTest.RunAsync(() =>

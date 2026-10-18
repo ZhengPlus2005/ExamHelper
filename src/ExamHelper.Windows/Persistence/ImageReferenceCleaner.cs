@@ -5,6 +5,7 @@ public sealed class ImageReferenceCleaner(ISessionStore sessions,IImageStore ima
 {
     public async Task ReconcileAsync(CancellationToken ct)
     {
+        using var sweep=pending?.BeginReconciliation();
         var live = new HashSet<Guid>();
         foreach(var summary in await sessions.ListAsync(ct).ConfigureAwait(false))
         {

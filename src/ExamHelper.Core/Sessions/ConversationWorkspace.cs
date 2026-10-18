@@ -107,14 +107,22 @@ public sealed class ConversationWorkspace(ISessionStore store,Func<SessionCoordi
         try
         {
             ObjectDisposedException.ThrowIf(_closed,this);
-            if(Find(id) is { } runtime)
+            var runtime=Find(id); var deleted=false;
+            try
             {
-                await runtime.StopAndSaveAsync(ct).ConfigureAwait(false); runtime.StateChanged -= SessionChanged;
-                await runtime.DisposeAsync().ConfigureAwait(false); lock(_sessions) _sessions.Remove(id);
+                async Task Delete(CancellationToken token) { await store.DeleteAsync(id,token).ConfigureAwait(false); deleted=true; }
+                if(runtime is not null) await runtime.DeleteStoredAsync(Delete,ct).ConfigureAwait(false); else await Delete(ct).ConfigureAwait(false);
             }
-            await store.DeleteAsync(id,ct).ConfigureAwait(false);
-            if(Selected?.State.Id == id) Selected = null; if(AuxiliarySessionId == id) AuxiliarySessionId = null;
-            Changed?.Invoke();
+            finally
+            {
+                if(deleted)
+                {
+                    if(runtime is not null) runtime.StateChanged-=SessionChanged;
+                    lock(_sessions) _sessions.Remove(id);
+                    if(Selected?.State.Id==id) Selected=null; if(AuxiliarySessionId==id) AuxiliarySessionId=null;
+                    Changed?.Invoke();
+                }
+            }
         }
         finally { _navigation.Release(); }
     }

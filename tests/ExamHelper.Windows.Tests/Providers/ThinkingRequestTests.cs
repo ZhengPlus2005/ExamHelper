@@ -66,5 +66,26 @@ public class ThinkingRequestTests
         var result = await runner.TestTextAsync(new(),"test-key",default);
         Assert.False(result.Passed); Assert.Equal(0,handler.Calls); Assert.True(gate.IsBusy);
     }
+    [Theory] [InlineData(false)] [InlineData(true)]
+    public async Task OldCredentialCannotBeRetiredWhileItsRequestIsStillPreparing(bool deleteProfile)
+    {
+        var raw=new DelayedSecrets();ISecretStore secrets=new ExamHelper.Core.Settings.SynchronizedSecretStore(raw);
+        await secrets.SetAsync("ai","old-key",default);await secrets.SetAsync("replacement","new-key",default);
+        using var http=new HttpClient(new FakeHttpHandler((request,_) => { Assert.Equal("old-key",request.Headers.Authorization?.Parameter);return Task.FromResult(Reply()); }));
+        await using var rig=new ConversationWorkspaceRig();rig.ClientOverride=new ChatCompletionsClient(http,secrets,new StubServices());
+        var runtime=await rig.Workspace.NewAsync(false,default);await runtime.UpdateDraftTextAsync("question",default);
+        var sending=runtime.ExecuteAsync(ExamHelper.Core.Interaction.AppCommand.Send,default);await raw.Started.Task;
+        rig.Settings=deleteProfile ? new AppSettings { AiProfiles=[] } : rig.Settings with { Ai=rig.Settings.Ai with { SecretId="replacement",Model="new-model" } };
+        var cleanup=secrets.SetAsync("ai","",default);var completedBeforePreparation=cleanup.IsCompleted;raw.Release.TrySetResult();
+        await sending;await cleanup;await runtime.WaitForIdleAsync(default);
+        Assert.False(completedBeforePreparation);Assert.Equal("answer",runtime.State.Messages[^1].Text);Assert.Equal("",await raw.GetAsync("ai",default));
+    }
+    private sealed class DelayedSecrets : ISecretStore
+    {
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string,string> _values=new();private bool _delayed;
+        public TaskCompletionSource Started { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);public TaskCompletionSource Release { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task SetAsync(string id,string secret,CancellationToken ct) { _values[id]=secret;return Task.CompletedTask; }
+        public async Task<string?> GetAsync(string id,CancellationToken ct) { if(id=="ai" && !_delayed) { _delayed=true;Started.TrySetResult();await Release.Task.WaitAsync(ct); }return _values.GetValueOrDefault(id); }
+    }
     private static HttpResponseMessage Reply(string prefix = "") => new(HttpStatusCode.OK) { Content = new StringContent(prefix+"data: {\"choices\":[{\"delta\":{\"content\":\"answer\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",Encoding.UTF8,"text/event-stream") };
 }

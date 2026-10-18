@@ -193,8 +193,12 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
     private async Task StartRequestLockedAsync(RequestSnapshot request,bool retry,CancellationToken ct)
     {
         var lease = _generationGate.TryAcquire(_state.Id) ?? throw new InvalidOperationException("已有回答或测试正在进行。");
-        AiSettings aiSettings; IAiClient prepared; var snapshot = _settings();
-        try { aiSettings = ResolveAi(snapshot); prepared = await _ai.PrepareAsync(aiSettings,ct).ConfigureAwait(false); }
+        AiSettings aiSettings; IAiClient prepared; AppSettings snapshot;
+        try
+        {
+            using var preparation=await _ai.AcquirePreparationAsync(ct).ConfigureAwait(false);
+            snapshot=_settings(); aiSettings=ResolveAi(snapshot); prepared=await _ai.PrepareAsync(aiSettings,ct).ConfigureAwait(false);
+        }
         catch { lease.Dispose(); throw; }
         _generationLease = lease; _undo.Invalidate();
         if(!retry || _state.PendingRequest?.RestoredDraftRevision == _draft.Snapshot().Revision) _draft.Clear();
@@ -402,18 +406,31 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
         finally { _gate.Release(); }
     }
     private static string SafeError(Exception error) => error is ServiceFailure ? error.Message : "操作未完成，内容已保留，请检查配置、设备或本地存储。";
+    internal async Task DeleteStoredAsync(Func<CancellationToken,Task> delete,CancellationToken ct)
+    {
+        await StopAndSaveAsync(ct).ConfigureAwait(false);
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try { ObjectDisposedException.ThrowIf(_disposed,this); await delete(ct).ConfigureAwait(false); DisposeLocked(); }
+        finally { _gate.Release(); }
+        await DisposeResourcesAsync().ConfigureAwait(false);
+    }
+    private void DisposeLocked()
+    {
+        _disposed=true; _generationGate.Changed-=GlobalGenerationChanged; _lifetime.Cancel(); StopAnswerLocked(); CancelCaptureLocked();
+        _state=_state with { IsAuxiliaryMode=false }; _draftSaveTimer?.Dispose(); _undo.Dispose();
+        _speech.TranscriptReady-=OnTranscript; _speech.StateChanged-=OnSpeechStateChanged;
+    }
+    private async ValueTask DisposeResourcesAsync()
+    {
+        await _speech.DisposeAsync().ConfigureAwait(false); await _recording.DisposeAsync().ConfigureAwait(false);
+        _requestCancellation?.Dispose(); _captureCancellation?.Dispose(); _lifetime.Dispose();
+    }
     public async ValueTask DisposeAsync()
     {
         await _gate.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            if(_disposed) return; _disposed = true; _generationGate.Changed -= GlobalGenerationChanged; _lifetime.Cancel(); StopAnswerLocked(); CancelCaptureLocked();
-            _state = _state with { IsAuxiliaryMode = false }; _draftSaveTimer?.Dispose(); _undo.Dispose();
-            _speech.TranscriptReady -= OnTranscript; _speech.StateChanged -= OnSpeechStateChanged;
-        }
+        try { if(_disposed) return; DisposeLocked(); }
         finally { _gate.Release(); }
-        await _speech.DisposeAsync().ConfigureAwait(false); await _recording.DisposeAsync().ConfigureAwait(false);
-        _requestCancellation?.Dispose(); _captureCancellation?.Dispose(); _lifetime.Dispose();
+        await DisposeResourcesAsync().ConfigureAwait(false);
     }
     private sealed record CaptureWork(Guid SessionId,long Generation,long Epoch,bool Direct,AppSettings Settings,CancellationToken Token,CancellationToken RequestToken);
 }
