@@ -7,6 +7,7 @@ public enum SpeechState { Idle, Recording, Recognizing, RetryPending }
 public enum MessageRole { System, User, Assistant }
 public sealed record MessageSnapshot
 {
+    public ResponseTiming? Timing { get; init; }
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid RequestId { get; init; }
     public string? ReasoningContent { get; init; }
@@ -18,6 +19,7 @@ public sealed record MessageSnapshot
 }
 public sealed record RequestSnapshot
 {
+    public int Attempt { get; init; } = 1;
     public Guid RequestId { get; init; } = Guid.NewGuid();
     public Guid SessionId { get; init; }
     public long Generation { get; init; }

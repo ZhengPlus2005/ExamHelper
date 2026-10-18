@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text;
+using System.Globalization;
+using ExamHelper.Core.Common;
 using ExamHelper.Core.Drafts;
 using ExamHelper.Core.Sessions;
 namespace ExamHelper.Core.Export;
@@ -16,7 +18,9 @@ public sealed class HtmlConversationExporter(IImageStore images,IMarkdownHtmlRen
         {
             ct.ThrowIfCancellationRequested();
             var status=message.Status switch { MessageStatus.Pending => "部分回答",MessageStatus.Failed => "失败",MessageStatus.Stopped => "已停止",_ => "" };
-            output.Append("<article class=\"").Append(message.Role==MessageRole.User ? "user" : "assistant").Append("\"><header><b>").Append(message.Role==MessageRole.User ? "我" : "AI").Append("</b> <time datetime=\"").Append(message.CreatedAt.ToString("O")).Append("\">").Append(message.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss zzz")).Append("</time> ").Append(status).Append("</header>");
+            output.Append("<article class=\"").Append(message.Role==MessageRole.User ? "user" : "assistant").Append("\"><header><b>").Append(message.Role==MessageRole.User ? "我" : "AI").Append("</b> <time datetime=\"").Append(message.CreatedAt.ToString("O")).Append("\">").Append(DisplayTime.Format(message.CreatedAt,"yyyy-MM-dd HH:mm:ss zzz")).Append("</time> ").Append(status);
+            if(message.Timing is { } timing) output.Append(" <span class=\"timing\">").Append(timing.IsRunning ? "已用 " + Math.Floor(timing.Elapsed.TotalSeconds).ToString(CultureInfo.InvariantCulture) + " 秒" : "用时 " + timing.Elapsed.TotalSeconds.ToString("F1",CultureInfo.InvariantCulture) + " 秒").Append("</span>");
+            output.Append("</header>");
             foreach(var image in message.Images) output.Append("<img class=\"attachment\" alt=\"对话图片\" src=\"data:image/png;base64,").Append(Convert.ToBase64String(bytes[image.Id])).Append("\">");
             if(message.Role==MessageRole.Assistant) output.Append("<div class=\"markdown\">").Append(markdown.Render(message.Text)).Append("</div>");
             else output.Append("<div class=\"plain\">").Append(WebUtility.HtmlEncode(message.Text)).Append("</div>");

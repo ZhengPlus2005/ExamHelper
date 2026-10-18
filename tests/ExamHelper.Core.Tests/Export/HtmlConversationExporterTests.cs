@@ -20,6 +20,7 @@ public class HtmlConversationExporterTests
         Assert.InRange(html.IndexOf("data:image/png;base64,Aw==",StringComparison.Ordinal),first,second);
         Assert.Contains("标题 &lt;safe&gt;",html); Assert.Contains("10:11:12",html); Assert.Contains("<h1",html); Assert.Contains("<strong>A</strong>",html); Assert.Contains("<pre",html); Assert.Contains("int value = 42;",html);
         Assert.DoesNotContain("DRAFT_SECRET",html); Assert.DoesNotContain("PRIVATE_REASONING",html); Assert.DoesNotContain("PRIVATE_CONFIGURATION",html); Assert.DoesNotContain("PRIVATE_SYSTEM_POLICY",html); Assert.DoesNotContain(draft.Id,images.Reads);
+        Assert.DoesNotContain("用时 ",html); Assert.DoesNotContain("已用 ",html);
         Assert.Equal("DRAFT_SECRET",state.Draft.Text); Assert.Equal("PRIVATE_REASONING",state.Messages[1].ReasoningContent);
     }
     [Fact] public void HtmlAndRemoteImagesAreInertAndDangerousLinksNeverBecomeHref()
@@ -32,6 +33,17 @@ public class HtmlConversationExporterTests
     {
         var state=new SessionSnapshot { Messages=[new() { Role=MessageRole.User,Images=[new(Guid.NewGuid(),"missing.png",1,1)] }] };
         await Assert.ThrowsAnyAsync<Exception>(() => new HtmlConversationExporter(new Images(),new MarkdownHtmlRenderer()).BuildAsync(state,default));
+    }
+    [Theory]
+    [InlineData(true,"已用 12 秒")]
+    [InlineData(false,"用时 12.4 秒")]
+    public async Task TimingIsFrozenMetadataAndDisplayTimeUsesUtc8(bool running,string expected)
+    {
+        var id=Guid.NewGuid(); var t=DateTimeOffset.Parse("2026-10-18T00:00:00Z");
+        var state=new SessionSnapshot { Messages=[new() { RequestId=id,Role=MessageRole.Assistant,Text="answer",CreatedAt=t,Timing=new(id,1,t,TimeSpan.FromSeconds(12.4),running) }] };
+        var html=await new HtmlConversationExporter(new Images(),new MarkdownHtmlRenderer()).BuildAsync(state,default);
+        Assert.Contains(expected,html); Assert.Contains("2026-10-18 08:00:00 +08:00",html); Assert.DoesNotContain("<script",html,StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("answer",state.Messages[0].Text);
     }
     private sealed class Images : IImageStore
     {

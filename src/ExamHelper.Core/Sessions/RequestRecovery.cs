@@ -18,7 +18,7 @@ public static class RequestRecovery
             AnswerState = AnswerState.Idle,SpeechState = SpeechState.Idle,
             PendingRequest = active is null ? null : active with { Status = MessageStatus.Failed },
             Requests = session.Requests.Select(r => r.Status == MessageStatus.Pending ? r with { Status = MessageStatus.Failed } : r).ToImmutableArray(),
-            Messages = session.Messages.Select(m => m.Status == MessageStatus.Pending ? m with { Status = MessageStatus.Failed } : m).ToImmutableArray()
+            Messages = session.Messages.Select(m => m with { Status=m.Status==MessageStatus.Pending ? MessageStatus.Failed : m.Status,Timing=m.Timing is { IsRunning:true } timing ? timing with { IsRunning=false } : m.Timing }).ToImmutableArray()
         };
     }
 }

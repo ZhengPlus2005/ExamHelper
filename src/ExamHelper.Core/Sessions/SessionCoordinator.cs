@@ -208,6 +208,8 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
     private async Task StartRequestLockedAsync(RequestSnapshot request,bool retry,CancellationToken ct)
     {
         var lease = _generationGate.TryAcquire(_state.Id) ?? throw new InvalidOperationException("已有回答或测试正在进行。");
+        request=request with { Attempt=retry ? checked(request.Attempt+1) : 1 };
+        var timing=new ResponseTimer(_clock,request.RequestId,request.Attempt);
         AiSettings aiSettings; IAiClient prepared; AppSettings snapshot;
         try
         {
@@ -215,13 +217,13 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
             snapshot=_settings(); aiSettings=ResolveAi(snapshot); prepared=await _ai.PrepareAsync(aiSettings,ct).ConfigureAwait(false);
         }
         catch { lease.Dispose(); throw; }
-        _generationLease = lease; _undo.Invalidate();
+        _generationLease = lease; _responseTimer=timing; _undo.Invalidate();
         if(!retry || _state.PendingRequest?.RestoredDraftRevision == _draft.Snapshot().Revision) _draft.Clear();
         var messages = _state.Messages;
         if(!retry)
             messages = messages.Add(new() { RequestId = request.RequestId,Role = MessageRole.User,Text = ContextBuilder.RequestText(request),Images = request.Images,CreatedAt = _clock.GetUtcNow() })
-                .Add(new() { RequestId = request.RequestId,Role = MessageRole.Assistant,CreatedAt = _clock.GetUtcNow() });
-        else messages = messages.Select(m => m.RequestId == request.RequestId ? m with { Text = m.Role == MessageRole.Assistant ? "" : m.Text,ReasoningContent = m.Role == MessageRole.Assistant ? null : m.ReasoningContent,Status = MessageStatus.Pending } : m).ToImmutableArray();
+                .Add(new() { RequestId = request.RequestId,Role = MessageRole.Assistant,CreatedAt = _clock.GetUtcNow(),Timing=timing.Snapshot() });
+        else messages = messages.Select(m => m.RequestId == request.RequestId ? m with { Text = m.Role == MessageRole.Assistant ? "" : m.Text,ReasoningContent = m.Role == MessageRole.Assistant ? null : m.ReasoningContent,Timing=m.Role==MessageRole.Assistant ? timing.Snapshot() : m.Timing,Status = MessageStatus.Pending } : m).ToImmutableArray();
         _state = _state with { Messages = messages,FirstSentAt = _state.FirstSentAt ?? _clock.GetUtcNow(),Requests = _state.Requests.Where(r => r.RequestId != request.RequestId).Append(request).ToImmutableArray(),PendingRequest = null,AnswerState = AnswerState.Generating };
         _active = request; Publish();
         try { await SaveLockedAsync(ct).ConfigureAwait(false); }
@@ -276,9 +278,10 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
     }
     private bool Current(RequestSnapshot request,long epoch) => !_disposed &&
         request.SessionId == _state.Id && request.Generation == _state.Generation && epoch == _requestEpoch &&
-        _active?.RequestId == request.RequestId && _state.AnswerState == AnswerState.Generating;
+        _active?.RequestId == request.RequestId && _active.Attempt==request.Attempt && _state.AnswerState == AnswerState.Generating;
     private void FinishLocked(RequestSnapshot request,MessageStatus status)
     {
+        FinishTimingLocked(request);
         _state = _state with
         {
             Messages = _state.Messages.Select(m => m.RequestId == request.RequestId ? m with { Status = m.Role == MessageRole.User ? MessageStatus.Complete : status } : m).ToImmutableArray(),
@@ -289,6 +292,7 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
     }
     private void ApplyFailureLocked(RequestSnapshot request)
     {
+        FinishTimingLocked(request);
         _state = _state with
         {
             Messages = _state.Messages.Select(m => m.RequestId == request.RequestId ? m with { Status = MessageStatus.Failed } : m).ToImmutableArray(),
@@ -321,7 +325,11 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
                 if(!CaptureCurrent(work)) return;
                 work.Token.ThrowIfCancellationRequested();
                 _state = _state with { CaptureInProgress = false,DirectCaptureInProgress = false };
-                if(work.Direct) await StartRequestLockedAsync(NewRequest(new("",[saved],_draft.Snapshot().Revision),work.Settings,true),false,work.RequestToken).ConfigureAwait(false);
+                if(work.Direct)
+                {
+                    _draft.AppendImage(saved);
+                    await StartRequestLockedAsync(NewRequest(_draft.Snapshot(),work.Settings,true),false,work.RequestToken).ConfigureAwait(false);
+                }
                 else { _draft.AppendImage(saved); Publish(); await SaveLockedAsync(CancellationToken.None).ConfigureAwait(false); }
             }
             finally { _gate.Release(); }
@@ -392,7 +400,7 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
     }
     private async Task SaveLockedAsync(CancellationToken ct)
     {
-        try { await _store.SaveAsync(_state,ct).ConfigureAwait(false); DraftSaved(); }
+        try { await _store.SaveAsync(SnapshotForPresentation(),ct).ConfigureAwait(false); DraftSaved(); }
         catch(Exception error)
         {
             Error = SafeError(error); StateChanged?.Invoke(_state); throw;

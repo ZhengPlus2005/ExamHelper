@@ -1,11 +1,12 @@
 namespace ExamHelper.TestSupport;
 public sealed class ManualTimeProvider : TimeProvider
 {
-    private long _ticks;
+    private long _ticks,_utcOffsetTicks;
     private readonly List<ManualTimer> _timers = [];
     public override long TimestampFrequency => TimeSpan.TicksPerSecond;
     public override long GetTimestamp() => _ticks;
-    public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(_ticks);
+    public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(checked(_ticks+_utcOffsetTicks));
+    public void JumpUtc(TimeSpan delta) => _utcOffsetTicks=checked(_utcOffsetTicks+delta.Ticks);
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
         var timer = new ManualTimer(this, callback, state);
