@@ -128,7 +128,7 @@ public sealed class HomeViewModel : ObservableObject
         finally { IsBusy = false; }
     }
     public async Task ReturnedAsync(CancellationToken ct)
-    { await Workspace.ReturnHomeAsync(ct); _overlay.Close(); HomeVisible = true; await RefreshAsync(ct); UpdateSelection(); }
+    { try { await _overlay.SaveGeometryAsync(); } catch(Exception e) { Status=Explain(e); } await Workspace.ReturnHomeAsync(ct); _overlay.Close(); HomeVisible = true; await RefreshAsync(ct); UpdateSelection(); }
     public void ShowHome() { HomeVisible = true; VisibilityChanged?.Invoke(true); }
     public void HideHome() => HomeVisible = false;
 }

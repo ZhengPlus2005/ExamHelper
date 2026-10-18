@@ -9,6 +9,13 @@ public partial class SettingsWindow : Window
     private readonly Func<Task<SettingsCloseChoice>> _confirmClose;
     private readonly DispatcherTimer _meter = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly DispatcherTimer _promptSave = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private TaskCompletionSource<bool>? _closeResult;
+    public Task<bool> TryCloseAsync()
+    {
+        if(_allowClose) return Task.FromResult(true);
+        if(_closeResult is { Task.IsCompleted: false }) return _closeResult.Task;
+        _closeResult=new(TaskCreationOptions.RunContinuationsAsynchronously); if(!_closing) Close(); return _closeResult.Task;
+    }
     private bool _loaded,_allowClose,_closing,_syncingAiKey;
     public SettingsWindow(SettingsViewModel viewModel,Func<Task<SettingsCloseChoice>>? confirmClose = null)
     {
@@ -48,10 +55,10 @@ public partial class SettingsWindow : Window
         try
         {
             if(await _viewModel.RequestCloseAsync(_confirmClose,CancellationToken.None))
-            { _allowClose = true; _ = Dispatcher.BeginInvoke(Close); }
-            else if(pendingPrompt) _promptSave.Start();
+            { _allowClose = true; _closeResult?.TrySetResult(true); _ = Dispatcher.BeginInvoke(Close); }
+            else { _closeResult?.TrySetResult(false); if(pendingPrompt) _promptSave.Start(); }
         }
-        catch(Exception error) { _viewModel.Status = Common.ObservableObject.Explain(error); }
+        catch(Exception error) { _closeResult?.TrySetResult(false); _viewModel.Status = Common.ObservableObject.Explain(error); }
         finally { _closing = false; }
     }
     private async void FetchModelsClick(object sender,RoutedEventArgs args) => await _viewModel.FetchModelsAsync(CancellationToken.None);

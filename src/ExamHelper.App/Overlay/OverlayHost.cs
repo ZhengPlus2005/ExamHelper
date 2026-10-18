@@ -59,6 +59,7 @@ public sealed class OverlayHost : IOverlayHost
             await runtime.AbortEntryAsync(CancellationToken.None); Close(); await _home(); throw;
         }
     }
+    public Task SaveGeometryAsync() => CurrentWindow is { } window ? _saveUi(window.CaptureGeometry()) : Task.CompletedTask;
     public void Show()
     {
         var window = CurrentWindow ?? throw new InvalidOperationException("辅助窗口尚未初始化。");

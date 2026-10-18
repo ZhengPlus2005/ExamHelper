@@ -12,17 +12,20 @@ using ExamHelper.Windows.Images;
 namespace ExamHelper.App.Home;
 public partial class HomeWindow : Window
 {
+    private ExamHelper.App.Lifecycle.AppLifecycle? _lifecycle;
     private readonly HomeViewModel _viewModel;
     private readonly Func<Task<SettingsViewModel>> _settings;
     private readonly Func<Task> _shutdown;
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromMilliseconds(75) };
+    private SettingsWindow? _settingsWindow;
     private CancellationTokenSource? _selection;
     private bool _closing,_closePending,_syncSelection,_syncInput;
     private readonly HomeInputBehavior _inputBehavior;
     private DateTime _lastHistoryRefresh;
     public HomeDraftController DraftController { get; }
     public HomeWindow(AppComposition services) : this(services.Home,services.CreateSettingsViewModelAsync,
-        async () => { await services.Workspace.ExitAsync(CancellationToken.None); await services.DisposeAsync(); },services.ImageImporter) { }
+        async () => { await services.Workspace.ExitAsync(CancellationToken.None); await services.DisposeAsync(); },services.ImageImporter)
+    { AttachLifecycle(services.StartLifecycle(new ExamHelper.App.Lifecycle.TrayIconService(),() => _settingsWindow?.TryCloseAsync() ?? Task.FromResult(true),() => DraftController.DrainAllAsync(CancellationToken.None))); }
     public HomeWindow(HomeViewModel viewModel,Func<Task<SettingsViewModel>> settings,Func<Task> shutdown,IImageImporter? importer = null)
     {
         _viewModel=viewModel; _settings=settings; _shutdown=shutdown;
@@ -38,6 +41,11 @@ public partial class HomeWindow : Window
         Closing += OnClosing;
         Closed += (_,_) => { _refresh.Stop(); _selection?.Cancel(); viewModel.VisibilityChanged-=VisibilityChanged; };
     }
+    public void AttachLifecycle(ExamHelper.App.Lifecycle.AppLifecycle lifecycle)
+    {
+        _lifecycle=lifecycle; lifecycle.ExitingChanged+=ExitingChanged; Closed+=(_,_) => lifecycle.ExitingChanged-=ExitingChanged;
+    }
+    private void ExitingChanged(bool exiting) { if(Dispatcher.CheckAccess()) MainRoot.IsEnabled=!exiting; else Dispatcher.BeginInvoke(() => MainRoot.IsEnabled=!exiting); }
     private void VisibilityChanged(bool visible) => Dispatcher.BeginInvoke(() => { if(visible) { Show(); if(WindowState==WindowState.Minimized) WindowState=WindowState.Normal; Activate(); Render(true); } else Hide(); });
     private async Task RunAsync(Func<Task> action) { try { await action(); } catch(OperationCanceledException) { } catch(Exception error) { _viewModel.Status=Common.ObservableObject.Explain(error); } }
     private async void StartClick(object sender,RoutedEventArgs e) => await RunAsync(async () => { await DraftController.FlushAsync(CancellationToken.None); await _viewModel.StartAsync(CancellationToken.None); });
@@ -74,8 +82,16 @@ public partial class HomeWindow : Window
         save.Click+=(_,_) => { if(!string.IsNullOrWhiteSpace(input.Text)) dialog.DialogResult=true; }; dialog.Loaded+=(_,_) => { input.Focus(); input.SelectAll(); };
         if(dialog.ShowDialog()==true) await RunAsync(() => _viewModel.RenameAsync(input.Text,CancellationToken.None));
     }
+    private void UsageClick(object sender,RoutedEventArgs e) => new ExamHelper.App.Help.UsageWindow(_viewModel.SettingsSnapshot.Hotkeys.Bindings) { Owner=this }.Show();
     private async void SettingsClick(object sender,RoutedEventArgs e)
-    { await RunAsync(async () => { var settings=new SettingsWindow(await _settings()) { Owner=this }; settings.ShowDialog(); await _viewModel.RefreshAsync(CancellationToken.None); Render(true); }); }
+    {
+        await RunAsync(async () =>
+        {
+            var settings=new SettingsWindow(await _settings()) { Owner=this }; _settingsWindow=settings;
+            try { settings.ShowDialog(); } finally { _settingsWindow=null; }
+            await _viewModel.RefreshAsync(CancellationToken.None); Render(true);
+        });
+    }
     private async void Paste(object sender,DataObjectPastingEventArgs e)
     {
         if(e.DataObject.GetDataPresent(DataFormats.Bitmap) && e.DataObject.GetData(DataFormats.Bitmap) is BitmapSource bitmap)
@@ -89,7 +105,9 @@ public partial class HomeWindow : Window
     { if(e.Data.GetData(DataFormats.FileDrop) is string[] paths) { e.Handled=true; await RunAsync(() => DraftController.ImportFilesAsync(paths,CancellationToken.None)); } }
     private async void OnClosing(object? sender,CancelEventArgs e)
     {
-        if(_closing) return; e.Cancel=true; if(_closePending) return; _closePending=true;
+        if(_closing || _lifecycle?.IsExitCommitted==true) return;
+        if(_lifecycle is not null) { e.Cancel=true; _lifecycle.HideToTray(); return; }
+        e.Cancel=true; if(_closePending) return; _closePending=true;
         try { await DraftController.FlushAsync(CancellationToken.None); await _shutdown(); _closing=true; Close(); if(Application.Current is ExamHelper.App.App) Application.Current.Shutdown(); }
         catch(Exception error) { _viewModel.Status=Common.ObservableObject.Explain(error); }
         finally { _closePending=false; }

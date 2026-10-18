@@ -28,6 +28,36 @@ public class ConversationWorkspaceTests
         Assert.Same(a,rig.Workspace.Selected); Assert.Equal("keep",a.State.Draft.Text);
         rig.Store.FailWrites = false;
     }
+    [Fact] public async Task DisposedRuntimeCannotRecreateDeletedHistoryThroughALateFlush()
+    {
+        await using var rig=new ConversationWorkspaceRig(); var a=await rig.Workspace.NewAsync(false,default); await a.UpdateDraftTextAsync("delete",default); await a.FlushAsync(default);
+        await rig.Workspace.DeleteAsync(a.State.Id,default);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => a.FlushAsync(default)); Assert.Null(await rig.Store.LoadAsync(a.State.Id,default));
+    }
+    [Fact] public async Task ExitSuspensionRejectsLateSendWithoutConsumingItsDraft()
+    {
+        await using var rig=new ConversationWorkspaceRig(); var a=await rig.Workspace.NewAsync(false,default); await a.UpdateDraftTextAsync("keep",default);
+        var answer=rig.Ai.QueueAttempt(); rig.CommandsSuspended=true;
+        Assert.False(a.CanExecute(AppCommand.Send)); await Assert.ThrowsAsync<InvalidOperationException>(() => a.ExecuteAsync(AppCommand.Send,default));
+        Assert.Equal("keep",a.State.Draft.Text); Assert.False(answer.Started.Task.IsCompleted);
+        rig.CommandsSuspended=false; await a.ExecuteAsync(AppCommand.Send,default); await answer.Started.Task; answer.Complete(); await a.WaitForIdleAsync(default);
+    }
+    [Fact] public async Task ExitWaitsForNavigationAlreadyLoadingAnotherConversation()
+    {
+        var store=new LoadingStore(); var stub=new StubServices(); var snapshot=new SessionSnapshot { Draft=new("B",[],1) }; await store.Inner.SaveAsync(snapshot,default);
+        store.DelayedId=snapshot.Id;
+        await using var workspace=new ConversationWorkspace(store,() => new SessionCoordinator(stub,stub,new StubServices(),stub,stub,() => new(),store,new ManualTimeProvider()));
+        await workspace.NewAsync(false,default); var opening=workspace.OpenAsync(snapshot.Id,default); await store.Started.Task;
+        var exit=workspace.ExitAsync(default); var prematurelyCompleted=exit.IsCompleted; store.Release.TrySetResult(); await opening; await exit;
+        Assert.False(prematurelyCompleted); Assert.Equal("B",(await store.Inner.LoadAsync(snapshot.Id,default))!.Draft.Text);
+    }
+    private sealed class LoadingStore : ISessionStore
+    {
+        public InMemorySessionStore Inner { get; }=new(); public Guid DelayedId; public TaskCompletionSource Started { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously); public TaskCompletionSource Release { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task SaveAsync(SessionSnapshot state,CancellationToken ct) => Inner.SaveAsync(state,ct);
+        public async Task<SessionSnapshot?> LoadAsync(Guid id,CancellationToken ct) { if(id==DelayedId) { Started.TrySetResult(); await Release.Task.WaitAsync(ct); } return await Inner.LoadAsync(id,ct); }
+        public Task<IReadOnlyList<SessionSummary>> ListAsync(CancellationToken ct) => Inner.ListAsync(ct); public Task DeleteAsync(Guid id,CancellationToken ct) => Inner.DeleteAsync(id,ct);
+    }
     [Fact] public void LateLeaseDisposalCannotReleaseNewGeneration()
     {
         var gate = new AiGenerationGate(); var first = gate.TryAcquire(Guid.NewGuid())!; first.Dispose();

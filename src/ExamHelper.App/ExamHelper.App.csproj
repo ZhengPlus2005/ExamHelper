@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><OutputType>WinExe</OutputType><ApplicationManifest>app.manifest</ApplicationManifest><ApplicationIcon>Assets/app-icon.ico</ApplicationIcon></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><OutputType>WinExe</OutputType><!-- WPF owns startup/DPI; WinForms is used only for NotifyIcon. Keep PMv2 in the manifest. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn><ApplicationManifest>app.manifest</ApplicationManifest><ApplicationIcon>Assets/app-icon.ico</ApplicationIcon></PropertyGroup>
   <ItemGroup><ProjectReference Include="../ExamHelper.Windows/ExamHelper.Windows.csproj" /></ItemGroup>
-<ItemGroup><Resource Include="Assets/service-test.png" /><Resource Include="Assets/app-icon.ico" /><Resource Include="Assets/app-icon.png" /></ItemGroup><ItemGroup><PackageReference Include="AvalonEdit" /></ItemGroup></Project>
+<ItemGroup><Resource Include="Assets/service-test.png" /><Resource Include="Assets/app-icon.ico" /><Resource Include="Assets/app-icon.png" /></ItemGroup><ItemGroup><PackageReference Include="AvalonEdit" /></ItemGroup><ItemGroup><Using Remove="System.Windows.Forms" /><Using Remove="System.Drawing" /></ItemGroup></Project>

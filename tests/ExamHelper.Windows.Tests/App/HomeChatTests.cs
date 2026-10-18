@@ -118,6 +118,20 @@ public class HomeChatTests
             Assert.Null(requested); Assert.Contains("已删除配置",Assert.IsType<System.Windows.Controls.TextBlock>(selector.FindName("Unavailable")).Text);
         });
     }
+    [Fact] public async Task AHandledSendFailureDoesNotBlockSavingOrSwitchingTheDraft()
+    {
+        await using var rig=new ConversationWorkspaceRig(); rig.ClientOverride=new MissingCredentialClient();
+        var a=await rig.Workspace.NewAsync(false,default); var editor=new HomeDraftController(() => rig.Workspace.Selected,new Importer());
+        await editor.UpdateTextAsync("keep",default);
+        await Assert.ThrowsAsync<ExamHelper.Core.Common.ServiceFailure>(() => editor.SendAsync(default));
+        await editor.FlushAsync(default); await rig.Workspace.NewAsync(false,default);
+        Assert.Equal("keep",(await rig.Store.LoadAsync(a.State.Id,default))!.Draft.Text);
+    }
+    private sealed class MissingCredentialClient : ExamHelper.Core.Ai.IAiClient
+    {
+        public Task<ExamHelper.Core.Ai.IAiClient> PrepareAsync(AiSettings settings,CancellationToken ct) => Task.FromException<ExamHelper.Core.Ai.IAiClient>(new ExamHelper.Core.Common.ServiceFailure(ExamHelper.Core.Common.FailureCategory.Authentication,"missing test credential"));
+        public IAsyncEnumerable<ExamHelper.Core.Ai.AiChunk> StreamAsync(ExamHelper.Core.Ai.AiRequest request,AiSettings settings,CancellationToken ct) => throw new NotSupportedException();
+    }
     private sealed class Host : IOverlayHost
     { public Task<ProtectionResult> OpenAsync(CancellationToken ct) => Task.FromResult(new ProtectionResult(true,0,0x11)); public void Show() { } public void Close() { } }
     private sealed class Importer : IImageImporter

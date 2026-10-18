@@ -7,6 +7,7 @@ public sealed class HomeDraftController(Func<SessionCoordinator?> selected,IImag
 {
     private readonly object _sync = new();
     private readonly Dictionary<Guid,Task> _writes = [];
+    private readonly HashSet<Task> _imports = [];
     private readonly Dictionary<Guid,string> _localTexts = [];
     public void ObserveText(Guid id,string text) { lock(_sync) _localTexts[id]=text; }
     public bool HasPendingEdits(Guid id) { lock(_sync) return _writes.TryGetValue(id,out var task) && !task.IsCompleted; }
@@ -33,10 +34,31 @@ public sealed class HomeDraftController(Func<SessionCoordinator?> selected,IImag
     {
         var target = selected(); if(target is null) return;
         Task pending; lock(_sync) pending = _writes.GetValueOrDefault(target.State.Id) ?? Task.CompletedTask;
-        await pending.WaitAsync(ct).ConfigureAwait(false); await target.FlushAsync(ct).ConfigureAwait(false);
+        try { await pending.WaitAsync(ct).ConfigureAwait(false); } catch when(!ct.IsCancellationRequested) { }
+        await target.FlushAsync(ct).ConfigureAwait(false);
     }
-    public async Task ImportFilesAsync(IEnumerable<string> files,CancellationToken ct)
-    { var target = Target(); var imported = await importer.ImportFilesAsync(files,ct).ConfigureAwait(false); await target.AppendImagesAsync(imported,ct).ConfigureAwait(false); }
-    public async Task ImportBitmapAsync(BitmapSource bitmap,CancellationToken ct)
-    { var target = Target(); var imported = await importer.ImportBitmapAsync(bitmap,ct).ConfigureAwait(false); await target.AppendImagesAsync(imported,ct).ConfigureAwait(false); }
+    public Task ImportFilesAsync(IEnumerable<string> files,CancellationToken ct)
+    { var target=Target(); return TrackImport(ImportFilesCoreAsync(target,files.ToArray(),ct)); }
+    private async Task ImportFilesCoreAsync(SessionCoordinator target,string[] files,CancellationToken ct)
+    { var imported=await importer.ImportFilesAsync(files,ct).ConfigureAwait(false); await target.AppendImagesAsync(imported,ct).ConfigureAwait(false); }
+    public Task ImportBitmapAsync(BitmapSource bitmap,CancellationToken ct)
+    { var target=Target(); return TrackImport(ImportBitmapCoreAsync(target,bitmap,ct)); }
+    private async Task ImportBitmapCoreAsync(SessionCoordinator target,BitmapSource bitmap,CancellationToken ct)
+    { var imported=await importer.ImportBitmapAsync(bitmap,ct).ConfigureAwait(false); await target.AppendImagesAsync(imported,ct).ConfigureAwait(false); }
+    private Task TrackImport(Task task)
+    {
+        lock(_sync) _imports.Add(task);
+        _=task.ContinueWith(completed => { lock(_sync) _imports.Remove(completed); },CancellationToken.None,TaskContinuationOptions.ExecuteSynchronously,TaskScheduler.Default);
+        return task;
+    }
+    public async Task DrainAllAsync(CancellationToken ct)
+    {
+        while(true)
+        {
+            Task[] pending; lock(_sync) pending=_writes.Values.Concat(_imports).Where(t => !t.IsCompleted).ToArray();
+            if(pending.Length==0) return;
+            try { await Task.WhenAll(pending).WaitAsync(ct).ConfigureAwait(false); }
+            catch when(!ct.IsCancellationRequested) { /* UI reports operation errors; final workspace flush retries persistence. */ }
+        }
+    }
 }

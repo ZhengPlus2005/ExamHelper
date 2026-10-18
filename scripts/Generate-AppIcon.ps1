@@ -1,22 +1,24 @@
 [CmdletBinding()]
-param([string]$OutputDirectory)
+param([string]$OutputDirectory,[string]$SourceImage)
 if(-not $OutputDirectory){ $OutputDirectory = Join-Path $PSScriptRoot '../src/ExamHelper.App/Assets' }
 $ErrorActionPreference = 'Stop'
 if([Threading.Thread]::CurrentThread.ApartmentState -ne 'STA'){ throw 'Use powershell.exe -STA -File scripts/Generate-AppIcon.ps1' }
 Add-Type -AssemblyName PresentationCore,WindowsBase
 $taskOutput = [IO.Path]::GetFullPath($OutputDirectory)
 [IO.Directory]::CreateDirectory($taskOutput) | Out-Null
-[xml]$taskSvg = [IO.File]::ReadAllText((Join-Path $taskOutput 'app-icon.svg'))
-$taskGeometry = [Windows.Media.Geometry]::Parse('F0 ' + $taskSvg.svg.path.d)
-$taskInk = [Windows.Media.SolidColorBrush]::new([Windows.Media.Color]::FromRgb(43,43,43))
+if(-not $SourceImage){ $SourceImage = Join-Path $PSScriptRoot '../src/ExamHelper.App/Assets/app-icon-source.png' }
+$taskSource = [Windows.Media.Imaging.BitmapImage]::new()
+$taskSource.BeginInit(); $taskSource.CacheOption = [Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+$taskSource.UriSource = [Uri]::new([IO.Path]::GetFullPath($SourceImage)); $taskSource.EndInit(); $taskSource.Freeze()
 $taskImages = @()
 foreach($taskSize in @(16,24,32,48,64,128,256)){
  $taskVisual = [Windows.Media.DrawingVisual]::new()
  $taskContext = $taskVisual.RenderOpen()
- $taskContext.PushTransform([Windows.Media.ScaleTransform]::new($taskSize/256.0,$taskSize/256.0))
- $taskContext.DrawRoundedRectangle([Windows.Media.Brushes]::White,$null,[Windows.Rect]::new(8,8,240,240),48,48)
- $taskContext.DrawGeometry($taskInk,$null,$taskGeometry)
- $taskContext.Pop(); $taskContext.Close()
+ [Windows.Media.RenderOptions]::SetBitmapScalingMode($taskVisual,[Windows.Media.BitmapScalingMode]::HighQuality)
+ $taskScale = [Math]::Min($taskSize / [double]$taskSource.PixelWidth,$taskSize / [double]$taskSource.PixelHeight)
+ $taskWidth = $taskSource.PixelWidth * $taskScale; $taskHeight = $taskSource.PixelHeight * $taskScale
+ $taskContext.DrawImage($taskSource,[Windows.Rect]::new(($taskSize-$taskWidth)/2,($taskSize-$taskHeight)/2,$taskWidth,$taskHeight))
+ $taskContext.Close()
  $taskBitmap = [Windows.Media.Imaging.RenderTargetBitmap]::new($taskSize,$taskSize,96,96,[Windows.Media.PixelFormats]::Pbgra32)
  $taskBitmap.Render($taskVisual)
  $taskEncoder = [Windows.Media.Imaging.PngBitmapEncoder]::new()

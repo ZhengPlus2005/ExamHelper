@@ -74,7 +74,7 @@ public class SettingsRevisionTests
             var window = new SettingsWindow(rig.Vm,() => { prompts++; return Task.FromResult(choice); });
             window.Show(); StaTest.Pump();
             rig.Vm.DirectCapturePrompt = "刚刚修改";
-            window.Close(); StaTest.Pump();
+            Assert.False(window.TryCloseAsync().GetAwaiter().GetResult()); StaTest.Pump();
             Assert.True(window.IsVisible); Assert.Equal(1,prompts);
             choice = SettingsCloseChoice.Discard; window.Close(); StaTest.Pump();
             Assert.False(window.IsVisible); Assert.Equal(2,prompts);

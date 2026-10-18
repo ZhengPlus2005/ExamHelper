@@ -22,7 +22,7 @@ public sealed partial class SessionCoordinator
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var settings = AiProfileCatalog.Normalize(_settings());
+            ObjectDisposedException.ThrowIf(_disposed,this); var settings = AiProfileCatalog.Normalize(_settings());
             ModelCatalog.Resolve(settings,selection,_state.IsAuxiliaryMode && _verification is not null,_verification ?? new(new byte[32]));
             var p = settings.AiProfiles!.Value.Single(p => p.Id == selection.ProfileId); var m = p.Models!.Value.Single(m => m.Id == selection.ModelId);
             _state = _state with { Selection = ModelCatalog.Select(p,m,selection.Thinking) }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false);
@@ -33,19 +33,19 @@ public sealed partial class SessionCoordinator
     {
         if(string.IsNullOrWhiteSpace(title)) throw new ArgumentException("标题不能为空。");
         await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try { _state = _state with { CustomTitle = title.Trim() }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
+        try { ObjectDisposedException.ThrowIf(_disposed,this); _state = _state with { CustomTitle = title.Trim() }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
         finally { _gate.Release(); }
     }
     public async Task FlushAsync(CancellationToken ct)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try { Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
+        try { ObjectDisposedException.ThrowIf(_disposed,this); Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
         finally { _gate.Release(); }
     }
     public async Task SetAuxiliaryModeAsync(bool auxiliary,CancellationToken ct)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try { _state = _state with { IsAuxiliaryMode = auxiliary }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
+        try { ObjectDisposedException.ThrowIf(_disposed,this); _state = _state with { IsAuxiliaryMode = auxiliary }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
         finally { _gate.Release(); }
     }
     private AiSettings ResolveAi(AppSettings settings) => _state.Selection is { } choice

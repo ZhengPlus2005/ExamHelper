@@ -10,6 +10,7 @@ namespace ExamHelper.Core.Sessions;
 public sealed partial class SessionCoordinator : IAsyncDisposable
 {
     private readonly IAiClient _ai;
+    private readonly Func<bool>? _commandsSuspended;
     private readonly AiGenerationGate _generationGate;
     private readonly ServiceVerification? _verification;
     private IDisposable? _generationLease;
@@ -39,9 +40,9 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
     public event Action<AppCommand>? UiCommandRequested;
 
     public SessionCoordinator(IAiClient ai,IAsrClient asr,IMicrophoneRecorder microphone,IScreenCapture capture,
-        IImageStore images,Func<AppSettings> settings,ISessionStore store,TimeProvider clock,AiGenerationGate? generationGate = null,ServiceVerification? verification = null)
+        IImageStore images,Func<AppSettings> settings,ISessionStore store,TimeProvider clock,AiGenerationGate? generationGate = null,ServiceVerification? verification = null,Func<bool>? commandsSuspended = null)
     {
-        _generationGate = generationGate ?? new(); _verification = verification; _generationGate.Changed += GlobalGenerationChanged;
+        _commandsSuspended=commandsSuspended; _generationGate = generationGate ?? new(); _verification = verification; _generationGate.Changed += GlobalGenerationChanged;
         _ai = ai; _capture = capture; _images = images; _settings = settings; _store = store; _clock = clock;
         _undo = new(_draft,clock); _recording = new(microphone,clock);
         _speech = new(_recording,asr,() => _settings().Asr,() => (_state.Id,_state.SpeechGeneration));
@@ -87,7 +88,7 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
         finally { _gate.Release(); }
     }
     public bool CanExecute(AppCommand command) => Availability(command).Allowed;
-    private CommandAvailability Availability(AppCommand command) => command is AppCommand.Send or AppCommand.RetryRequest or AppCommand.CaptureAndSend && _generationGate.IsBusy
+    private CommandAvailability Availability(AppCommand command) => _commandsSuspended?.Invoke() == true ? new(false,"软件正在退出，草稿会保留。") : command is AppCommand.Send or AppCommand.RetryRequest or AppCommand.CaptureAndSend && _generationGate.IsBusy
         ? new(false,"正在生成回答或进行服务测试，请先等待或停止。") : _policy.Evaluate(command,_state);
     public Task WaitForIdleAsync(CancellationToken ct) => _background.WaitAsync(ct);
 
@@ -320,7 +321,7 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
         }
     }
     private bool CaptureCurrent(CaptureWork work) => _state.IsAuxiliaryMode && _state.Id == work.SessionId && _state.Generation == work.Generation && _captureEpoch == work.Epoch;
-    public async Task ReturnHomeAsync(CancellationToken ct)
+    public async Task ReturnHomeAsync(CancellationToken ct,bool notifyUi = true)
     {
         (Guid SessionId,long Generation) context; bool stopRecording;
         await _gate.WaitAsync(ct).ConfigureAwait(false);
@@ -334,7 +335,18 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
         }
         finally { _gate.Release(); }
         if(stopRecording) await _speech.ToggleAsync(_lifetime.Token,context,waitForRecognition: false).ConfigureAwait(false);
-        UiCommandRequested?.Invoke(AppCommand.ReturnHome);
+        if(notifyUi) UiCommandRequested?.Invoke(AppCommand.ReturnHome);
+    }
+    public async Task CancelTasksAsync(CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if(_disposed) return; StopAnswerLocked(); CancelCaptureLocked(); _undo.Invalidate();
+            _state=_state with { SpeechGeneration=checked(_state.SpeechGeneration+1),SpeechState=SpeechState.Idle };
+            await _speech.CancelAsync().ConfigureAwait(false); Publish();
+        }
+        finally { _gate.Release(); }
     }
     public Task ExitAsync(CancellationToken ct) => StopAndSaveAsync(ct,true);
     public Task AbortEntryAsync(CancellationToken ct) => StopAndSaveAsync(ct,false);
@@ -343,7 +355,7 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var auxiliary = _state.IsAuxiliaryMode;
+            if(_disposed) return; var auxiliary = _state.IsAuxiliaryMode;
             StopAnswerLocked(); CancelCaptureLocked(); _undo.Invalidate();
             _state = _state with { SpeechGeneration = checked(_state.SpeechGeneration + 1),SpeechState = SpeechState.Idle };
             await _speech.CancelAsync().ConfigureAwait(false);

@@ -5,6 +5,8 @@ using ExamHelper.Core.Settings;
 namespace ExamHelper.TestSupport;
 public sealed class ConversationWorkspaceRig : IAsyncDisposable
 {
+    public bool CommandsSuspended { get; set; }
+    public IAiClient? ClientOverride { get; set; }
     public DeferredAiClient Ai { get; } = new();
     public InMemorySessionStore Store { get; } = new();
     public AiGenerationGate Generation { get; } = new();
@@ -14,7 +16,7 @@ public sealed class ConversationWorkspaceRig : IAsyncDisposable
     public IAsrClient Asr { get; set; } = new StubServices();
     public ConversationWorkspaceRig()
     {
-        Workspace = new(Store,() => { var stub = new StubServices(); return new(Ai,Asr,stub,stub,stub,() => Settings,Store,Clock,Generation); });
+        Workspace = new(Store,() => { var stub = new StubServices(); return new(ClientOverride ?? Ai,Asr,stub,stub,stub,() => Settings,Store,Clock,Generation,commandsSuspended: () => CommandsSuspended); });
     }
     public ValueTask DisposeAsync() => Workspace.DisposeAsync();
 }
