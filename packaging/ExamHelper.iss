@@ -1,5 +1,5 @@
-﻿#ifndef AppVersion
- #define AppVersion "0.2.0"
+#ifndef AppVersion
+ #define AppVersion "0.3.0"
 #endif
 #ifndef PublishDir
  #error PublishDir must be provided by Build-Installer.ps1

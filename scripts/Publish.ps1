@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.0',[string]$DotnetPath,[string]$OutputDirectory)
+param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.3.0',[string]$DotnetPath,[string]$OutputDirectory)
 . (Join-Path $PSScriptRoot 'Common.ps1')
 $taskDotnet = Resolve-ExamHelperDotnet $DotnetPath
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
