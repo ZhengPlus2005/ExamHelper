@@ -7,9 +7,12 @@ using ExamHelper.Core.Interaction;
 using ExamHelper.Core.Settings;
 namespace ExamHelper.Core.Sessions;
 
-public sealed class SessionCoordinator : IAsyncDisposable
+public sealed partial class SessionCoordinator : IAsyncDisposable
 {
     private readonly IAiClient _ai;
+    private readonly AiGenerationGate _generationGate;
+    private readonly ServiceVerification? _verification;
+    private IDisposable? _generationLease;
     private readonly IScreenCapture _capture;
     private readonly IImageStore _images;
     private readonly Func<AppSettings> _settings;
@@ -36,8 +39,9 @@ public sealed class SessionCoordinator : IAsyncDisposable
     public event Action<AppCommand>? UiCommandRequested;
 
     public SessionCoordinator(IAiClient ai,IAsrClient asr,IMicrophoneRecorder microphone,IScreenCapture capture,
-        IImageStore images,Func<AppSettings> settings,ISessionStore store,TimeProvider clock)
+        IImageStore images,Func<AppSettings> settings,ISessionStore store,TimeProvider clock,AiGenerationGate? generationGate = null,ServiceVerification? verification = null)
     {
+        _generationGate = generationGate ?? new(); _verification = verification; _generationGate.Changed += GlobalGenerationChanged;
         _ai = ai; _capture = capture; _images = images; _settings = settings; _store = store; _clock = clock;
         _undo = new(_draft,clock); _recording = new(microphone,clock);
         _speech = new(_recording,asr,() => _settings().Asr,() => (_state.Id,_state.SpeechGeneration));
@@ -50,7 +54,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if(_state.IsAuxiliaryMode) throw new InvalidOperationException("请先返回主页。");
+            if(_state.IsAuxiliaryMode || _state.AnswerState == AnswerState.Generating) throw new InvalidOperationException("请使用独立对话工作区创建或切换对话。");
             await StartFreshLockedAsync(ct).ConfigureAwait(false);
         }
         finally { _gate.Release(); }
@@ -60,7 +64,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
         var previous = _state; var draft = _draft.Snapshot();
         _undo.Invalidate(); _receivedSpeech.Clear(); _draft.Clear();
         var generation = checked(previous.Generation + 1);
-        _state = new() { Generation = generation,SpeechGeneration = generation,UpdatedAt = _clock.GetUtcNow() };
+        _state = new() { Generation = generation,SpeechGeneration = generation,Selection = InitialSelection(_settings()),UpdatedAt = _clock.GetUtcNow() };
         Error = null; Publish();
         try { await SaveLockedAsync(ct).ConfigureAwait(false); }
         catch { _draft.Restore(draft); _state = previous; Publish(); throw; }
@@ -70,19 +74,21 @@ public sealed class SessionCoordinator : IAsyncDisposable
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if(_state.IsAuxiliaryMode) throw new InvalidOperationException("请先返回主页。");
+            if(_state.IsAuxiliaryMode || _state.AnswerState == AnswerState.Generating) throw new InvalidOperationException("请使用独立对话工作区创建或切换对话。");
             var previous = _state; var previousDraft = _draft.Snapshot();
             var saved = await _store.LoadAsync(id,ct).ConfigureAwait(false) ?? throw new InvalidOperationException("历史对话不存在。");
             var generation = checked(Math.Max(_state.Generation,saved.Generation) + 1);
             _undo.Invalidate(); _receivedSpeech.Clear(); _draft.Restore(saved.Draft);
-            _state = RequestRecovery.RecoverOnStartup(saved) with { Generation = generation,SpeechGeneration = generation,IsAuxiliaryMode = true };
+            _state = RequestRecovery.RecoverOnStartup(saved) with { Generation = generation,SpeechGeneration = generation,Selection = saved.Selection ?? InitialSelection(_settings()),IsAuxiliaryMode = true };
             Error = null; Publish();
             try { await SaveLockedAsync(ct).ConfigureAwait(false); }
             catch { _state = previous; _draft.Restore(previousDraft); Publish(); throw; }
         }
         finally { _gate.Release(); }
     }
-    public bool CanExecute(AppCommand command) => _policy.CanExecute(command,_state);
+    public bool CanExecute(AppCommand command) => Availability(command).Allowed;
+    private CommandAvailability Availability(AppCommand command) => command is AppCommand.Send or AppCommand.RetryRequest or AppCommand.CaptureAndSend && _generationGate.IsBusy
+        ? new(false,"正在生成回答或进行服务测试，请先等待或停止。") : _policy.Evaluate(command,_state);
     public Task WaitForIdleAsync(CancellationToken ct) => _background.WaitAsync(ct);
 
     public async Task ExecuteAsync(AppCommand command,CancellationToken ct)
@@ -95,7 +101,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed,this);
             _state = _state with { Draft = _draft.Snapshot(),SpeechUndoAvailable = _undo.CanUndo };
-            var available = _policy.Evaluate(command,_state);
+            var available = Availability(command);
             if(!available.Allowed) throw new InvalidOperationException(available.Reason);
             Error = null;
             switch(command)
@@ -108,7 +114,6 @@ public sealed class SessionCoordinator : IAsyncDisposable
                     await StartRequestLockedAsync(NewRequest(_draft.Snapshot(),_settings(),false),false,ct).ConfigureAwait(false); break;
                 case AppCommand.RetryRequest:
                     var retry = _state.PendingRequest!;
-                    if(retry.RestoredDraftRevision == _draft.Snapshot().Revision) _draft.Clear();
                     await StartRequestLockedAsync(retry with { Generation = _state.Generation,Status = MessageStatus.Pending,RestoredDraftRevision = null },true,ct).ConfigureAwait(false); break;
                 case AppCommand.DiscardRequest:
                     if(_state.PendingRequest!.RestoredDraftRevision == _draft.Snapshot().Revision) _draft.Clear();
@@ -151,7 +156,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if(!_state.IsAuxiliaryMode || result.SessionId != _state.Id || result.Generation != _state.SpeechGeneration || !_receivedSpeech.Add(result.OperationId)) return;
+            if(_disposed || result.SessionId != _state.Id || result.Generation != _state.SpeechGeneration || !_receivedSpeech.Add(result.OperationId)) return;
             _undo.Append(result.OperationId,result.Transcript); Publish(); await SaveLockedAsync(ct).ConfigureAwait(false);
         }
         finally { _gate.Release(); }
@@ -161,7 +166,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if(!_state.IsAuxiliaryMode) return;
+            if(_disposed) return;
             _draft.RemoveImage(id); Publish(); await SaveLockedAsync(ct).ConfigureAwait(false);
         }
         finally { _gate.Release(); }
@@ -186,35 +191,39 @@ public sealed class SessionCoordinator : IAsyncDisposable
     };
     private async Task StartRequestLockedAsync(RequestSnapshot request,bool retry,CancellationToken ct)
     {
-        _undo.Invalidate();
-        if(!retry) _draft.Clear();
+        var lease = _generationGate.TryAcquire(_state.Id) ?? throw new InvalidOperationException("已有回答或测试正在进行。");
+        AiSettings aiSettings; IAiClient prepared; var snapshot = _settings();
+        try { aiSettings = ResolveAi(snapshot); prepared = await _ai.PrepareAsync(aiSettings,ct).ConfigureAwait(false); }
+        catch { lease.Dispose(); throw; }
+        _generationLease = lease; _undo.Invalidate();
+        if(!retry || _state.PendingRequest?.RestoredDraftRevision == _draft.Snapshot().Revision) _draft.Clear();
         var messages = _state.Messages;
         if(!retry)
             messages = messages.Add(new() { RequestId = request.RequestId,Role = MessageRole.User,Text = ContextBuilder.RequestText(request),Images = request.Images,CreatedAt = _clock.GetUtcNow() })
                 .Add(new() { RequestId = request.RequestId,Role = MessageRole.Assistant,CreatedAt = _clock.GetUtcNow() });
-        else messages = messages.Select(m => m.RequestId == request.RequestId ? m with { Text = m.Role == MessageRole.Assistant ? "" : m.Text,Status = MessageStatus.Pending } : m).ToImmutableArray();
-        _state = _state with { Messages = messages,Requests = _state.Requests.Where(r => r.RequestId != request.RequestId).Append(request).ToImmutableArray(),PendingRequest = null,AnswerState = AnswerState.Generating };
+        else messages = messages.Select(m => m.RequestId == request.RequestId ? m with { Text = m.Role == MessageRole.Assistant ? "" : m.Text,ReasoningContent = m.Role == MessageRole.Assistant ? null : m.ReasoningContent,Status = MessageStatus.Pending } : m).ToImmutableArray();
+        _state = _state with { Messages = messages,FirstSentAt = _state.FirstSentAt ?? _clock.GetUtcNow(),Requests = _state.Requests.Where(r => r.RequestId != request.RequestId).Append(request).ToImmutableArray(),PendingRequest = null,AnswerState = AnswerState.Generating };
         _active = request; Publish();
         try { await SaveLockedAsync(ct).ConfigureAwait(false); }
-        catch { ApplyFailureLocked(request); Publish(); throw; }
+        catch { ApplyFailureLocked(request); lease.Dispose(); _generationLease = null; Publish(); throw; }
         _requestCancellation?.Dispose(); _requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
         var epoch = ++_requestEpoch; _lastStreamSave = _clock.GetTimestamp();
-        var context = ContextBuilder.Build(_state,request,_settings()); var settings = _settings().Ai;
-        _background = RunRequestAsync(request,epoch,context,settings,_requestCancellation.Token);
+        var context = ContextBuilder.Build(_state,request,snapshot);
+        _background = RunRequestAsync(request,epoch,context,aiSettings,prepared,lease,_requestCancellation.Token);
     }
-    private async Task RunRequestAsync(RequestSnapshot request,long epoch,AiRequest context,AiSettings settings,CancellationToken ct)
+    private async Task RunRequestAsync(RequestSnapshot request,long epoch,AiRequest context,AiSettings settings,IAiClient prepared,IDisposable lease,CancellationToken ct)
     {
         try
         {
             bool final = false, complete = false;
-            await foreach(var chunk in _ai.StreamAsync(context,settings,ct).ConfigureAwait(false))
+            await foreach(var chunk in prepared.StreamAsync(context,settings,ct).ConfigureAwait(false))
             {
                 await _gate.WaitAsync().ConfigureAwait(false);
                 try
                 {
                     if(!Current(request,epoch)) return;
-                    if(chunk.Text.Length > 0)
-                        _state = _state with { Messages = _state.Messages.Select(m => m.RequestId == request.RequestId && m.Role == MessageRole.Assistant ? m with { Text = m.Text + chunk.Text } : m).ToImmutableArray() };
+                    if(chunk.Text.Length > 0 || chunk.ReasoningContent is not null)
+                        _state = _state with { Messages = _state.Messages.Select(m => m.RequestId == request.RequestId && m.Role == MessageRole.Assistant ? m with { Text = m.Text + chunk.Text,ReasoningContent = chunk.ReasoningContent is null ? m.ReasoningContent : (m.ReasoningContent ?? "") + chunk.ReasoningContent } : m).ToImmutableArray() };
                     if(chunk.IsFinal) { final = true; complete = chunk.IsComplete; }
                     Publish();
                     if(_clock.GetElapsedTime(_lastStreamSave) >= TimeSpan.FromMilliseconds(500))
@@ -243,8 +252,9 @@ public sealed class SessionCoordinator : IAsyncDisposable
             }
             finally { _gate.Release(); }
         }
+        finally { lease.Dispose(); }
     }
-    private bool Current(RequestSnapshot request,long epoch) => !_disposed && _state.IsAuxiliaryMode &&
+    private bool Current(RequestSnapshot request,long epoch) => !_disposed &&
         request.SessionId == _state.Id && request.Generation == _state.Generation && epoch == _requestEpoch &&
         _active?.RequestId == request.RequestId && _state.AnswerState == AnswerState.Generating;
     private void FinishLocked(RequestSnapshot request,MessageStatus status)
@@ -271,7 +281,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
     }
     private void StopAnswerLocked()
     {
-        ++_requestEpoch; _requestCancellation?.Cancel();
+        ++_requestEpoch; _requestCancellation?.Cancel(); _generationLease?.Dispose(); _generationLease = null;
         if(_active is { } request) FinishLocked(request,MessageStatus.Stopped);
     }
     private void CancelCaptureLocked()
@@ -310,26 +320,39 @@ public sealed class SessionCoordinator : IAsyncDisposable
         }
     }
     private bool CaptureCurrent(CaptureWork work) => _state.IsAuxiliaryMode && _state.Id == work.SessionId && _state.Generation == work.Generation && _captureEpoch == work.Epoch;
-    public Task ReturnHomeAsync(CancellationToken ct) => LeaveAsync(false,ct);
-    public Task ExitAsync(CancellationToken ct) => LeaveAsync(true,ct);
-    public Task AbortEntryAsync(CancellationToken ct) => LeaveAsync(true,ct,false);
-    private async Task LeaveAsync(bool preserveDraft,CancellationToken ct,bool notifyUi = true)
+    public async Task ReturnHomeAsync(CancellationToken ct)
     {
+        (Guid SessionId,long Generation) context; bool stopRecording;
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             if(!_state.IsAuxiliaryMode) return;
-            var before = _draft.Snapshot(); var pendingBefore = _state.PendingRequest;
-            StopAnswerLocked(); CancelCaptureLocked(); _undo.Invalidate();
-            _state = _state with { Generation = checked(_state.Generation + 1),SpeechGeneration = checked(_state.SpeechGeneration + 1),SpeechState = SpeechState.Idle };
-            await _speech.CancelAsync().ConfigureAwait(false);
-            if(!preserveDraft) { _draft.Clear(); _state = _state with { PendingRequest = null }; }
-            _state = _state with { IsAuxiliaryMode = false }; Publish();
+            stopRecording = _speech.State == SpeechState.Recording; context = (_state.Id,_state.SpeechGeneration);
+            CancelCaptureLocked(); _state = _state with { IsAuxiliaryMode = false }; Publish();
             try { await SaveLockedAsync(ct).ConfigureAwait(false); }
-            catch { _draft.Restore(before); _state = _state with { IsAuxiliaryMode = true,PendingRequest = pendingBefore }; Publish(); throw; }
+            catch { _state = _state with { IsAuxiliaryMode = true }; Publish(); throw; }
         }
         finally { _gate.Release(); }
-        if(notifyUi) UiCommandRequested?.Invoke(preserveDraft ? AppCommand.Exit : AppCommand.ReturnHome);
+        if(stopRecording) await _speech.ToggleAsync(_lifetime.Token,context,waitForRecognition: false).ConfigureAwait(false);
+        UiCommandRequested?.Invoke(AppCommand.ReturnHome);
+    }
+    public Task ExitAsync(CancellationToken ct) => StopAndSaveAsync(ct,true);
+    public Task AbortEntryAsync(CancellationToken ct) => StopAndSaveAsync(ct,false);
+    public async Task StopAndSaveAsync(CancellationToken ct,bool notifyUi = false)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var auxiliary = _state.IsAuxiliaryMode;
+            StopAnswerLocked(); CancelCaptureLocked(); _undo.Invalidate();
+            _state = _state with { SpeechGeneration = checked(_state.SpeechGeneration + 1),SpeechState = SpeechState.Idle };
+            await _speech.CancelAsync().ConfigureAwait(false);
+            _state = _state with { IsAuxiliaryMode = false }; Publish();
+            try { await SaveLockedAsync(ct).ConfigureAwait(false); }
+            catch { _state = _state with { IsAuxiliaryMode = auxiliary }; Publish(); throw; }
+        }
+        finally { _gate.Release(); }
+        if(notifyUi) UiCommandRequested?.Invoke(AppCommand.Exit);
     }
     private void Publish()
     {
@@ -359,7 +382,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if(_disposed || !_state.IsAuxiliaryMode) return;
+            if(_disposed) return;
             _state = _state with { SpeechState = _speech.State };
             if(_speech.Error is not null) Error = _speech.Error;
             Publish(); await TrySaveLockedAsync().ConfigureAwait(false);
@@ -372,7 +395,7 @@ public sealed class SessionCoordinator : IAsyncDisposable
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if(_disposed) return; _disposed = true; _lifetime.Cancel(); StopAnswerLocked(); CancelCaptureLocked();
+            if(_disposed) return; _disposed = true; _generationGate.Changed -= GlobalGenerationChanged; _lifetime.Cancel(); StopAnswerLocked(); CancelCaptureLocked();
             _state = _state with { IsAuxiliaryMode = false }; _undo.Dispose();
             _speech.TranscriptReady -= OnTranscript; _speech.StateChanged -= OnSpeechStateChanged;
         }

@@ -13,15 +13,16 @@ public sealed record ServiceTestResult(bool Passed,string Text,string? Error,Tim
 public sealed class ServiceTestRunner
 {
     public IModelDiscovery ModelDiscovery { get; }
+    private readonly AiGenerationGate _generationGate;
     private readonly HttpClient _http;
     private readonly MarkerStore _images;
     private readonly IAiClient _ai;
     private readonly IAsrClient _asr;
     private readonly ServiceVerification _verification;
     private readonly ImageRef _marker;
-    public ServiceTestRunner(HttpClient http,ISecretStore secrets,ServiceVerification verification,byte[] markerPng)
+    public ServiceTestRunner(HttpClient http,ISecretStore secrets,ServiceVerification verification,byte[] markerPng,AiGenerationGate? generationGate = null)
     {
-        ModelDiscovery = new ModelDiscoveryClient(http); _http = http; var images = _images = new MarkerStore(markerPng); _marker = images.Image;
+        _generationGate = generationGate ?? new(); ModelDiscovery = new ModelDiscoveryClient(http); _http = http; var images = _images = new MarkerStore(markerPng); _marker = images.Image;
         _ai = new ChatCompletionsClient(http,secrets,images); _asr = new AliyunAsrClient(http,secrets); _verification = verification;
     }
     public Task<ServiceTestResult> TestTextAsync(AppSettings settings,CancellationToken ct) => TestAiAsync(settings,false,ct);
@@ -33,6 +34,7 @@ public sealed class ServiceTestRunner
         var fingerprint = _verification.AiFingerprint(settings); var time = Stopwatch.StartNew();
         try
         {
+            using var lease = _generationGate.TryAcquire(Guid.NewGuid()) ?? throw new ServiceFailure(FailureCategory.Permission,"已有回答或服务测试正在进行，请等待或停止。");
             var request = new AiRequest(Guid.NewGuid(),[new(MessageRole.User,image ? "请只回复图片中的英文字母和数字，保持原顺序。" : "请用中文回复：连接测试成功。",image ? [_marker] : [])]);
             var text = new System.Text.StringBuilder(); bool complete = false;
             await foreach(var chunk in (client ?? _ai).StreamAsync(request,settings.Ai,ct).ConfigureAwait(false))

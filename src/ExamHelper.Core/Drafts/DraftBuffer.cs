@@ -6,6 +6,7 @@ public sealed class DraftBuffer
     public event Action<DraftChange>? Changed;
     public DraftBuffer(DraftSnapshot? initial = null) => _value = initial ?? DraftSnapshot.Empty;
     public DraftSnapshot Snapshot() => _value;
+    public void ReplaceText(string text) { ArgumentNullException.ThrowIfNull(text); if(text != _value.Text) Set(_value with { Text = text },DraftChangeKind.Restored); }
     public void AppendText(string transcript)
     {
         ArgumentNullException.ThrowIfNull(transcript);

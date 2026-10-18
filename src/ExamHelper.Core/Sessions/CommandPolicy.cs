@@ -6,7 +6,8 @@ public sealed class CommandPolicy
     public bool CanExecute(AppCommand command, SessionSnapshot state) => Evaluate(command, state).Allowed;
     public CommandAvailability Evaluate(AppCommand command, SessionSnapshot state)
     {
-        if (!state.IsAuxiliaryMode) return new(false, "请先进入辅助模式。");
+        if(!state.IsAuxiliaryMode && command is AppCommand.CaptureAndSend or AppCommand.CaptureToDraft or AppCommand.ToggleRecording or AppCommand.HideOverlay or AppCommand.ToggleVisibility or AppCommand.ToggleCollapse or AppCommand.ReturnHome)
+            return new(false,"此操作仅用于辅助模式。");
         bool generating = state.AnswerState == AnswerState.Generating;
         bool speech = state.SpeechState != SpeechState.Idle;
         bool pending = state.PendingRequest is not null;

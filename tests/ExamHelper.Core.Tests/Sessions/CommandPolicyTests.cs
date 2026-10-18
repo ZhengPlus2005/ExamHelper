@@ -57,14 +57,17 @@ public class CommandPolicyTests
         Assert.True(_policy.CanExecute(AppCommand.DiscardRequest, state));
     }
     [Fact]
-    public void HiddenModeKeepsAvailabilityButLeavingAuxiliaryDisablesCommands()
+    public void HomeKeepsChatCommandsButDisablesAuxiliaryActions()
     {
         var state = new SessionSnapshot();
         var before = Enum.GetValues<AppCommand>().ToDictionary(c => c, c => _policy.CanExecute(c, state));
         Assert.True(_policy.CanExecute(AppCommand.ToggleVisibility, state));
         Assert.All(before, item => Assert.Equal(item.Value, _policy.CanExecute(item.Key, state)));
         state = state with { IsAuxiliaryMode = false };
-        Assert.All(Enum.GetValues<AppCommand>(), c => Assert.False(_policy.CanExecute(c, state)));
+        Assert.False(_policy.CanExecute(AppCommand.CaptureAndSend,state));
+        Assert.False(_policy.CanExecute(AppCommand.ToggleRecording,state));
+        Assert.True(_policy.CanExecute(AppCommand.ClearInput,state));
+        Assert.True(_policy.CanExecute(AppCommand.Send,state with { Draft = new("home",[],1) }));
     }
     [Fact]
     public void CaptureCannotOverlapAndUndoRequiresLiveInsertion()

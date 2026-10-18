@@ -24,7 +24,7 @@ public sealed class SpeechCoordinator : IAsyncDisposable
     public SpeechCoordinator(RecordingController recording, IAsrClient asr, Func<AsrSettings> settings, Func<(Guid SessionId,long Generation)> context)
     { _recording = recording; _asr = asr; _settings = settings; _context = context; }
 
-    public async Task ToggleAsync(CancellationToken ct, (Guid SessionId,long Generation)? expectedContext = null)
+    public async Task ToggleAsync(CancellationToken ct, (Guid SessionId,long Generation)? expectedContext = null,bool waitForRecognition = true)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var dispatchContext = expectedContext ?? _context();
@@ -51,7 +51,7 @@ public sealed class SpeechCoordinator : IAsyncDisposable
         finally { _gate.Release(); }
         if (stop)
         {
-            try { await _recording.StopAsync(ct).ConfigureAwait(false); await _processing.ConfigureAwait(false); }
+            try { await _recording.StopAsync(ct).ConfigureAwait(false); if(waitForRecognition) await _processing.ConfigureAwait(false); }
             catch (Exception error) { await RecordingFailedAsync(error, stopEpoch).ConfigureAwait(false); }
         }
     }

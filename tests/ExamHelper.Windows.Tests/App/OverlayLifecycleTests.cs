@@ -30,7 +30,7 @@ public class OverlayLifecycleTests
         });
     }
     [Fact]
-    public async Task ReturnClearsDraftAndUnregisters()
+    public async Task ReturnPreservesDraftAndUnregisters()
     {
         await StaTest.RunAsync(() =>
         {
@@ -38,7 +38,7 @@ public class OverlayLifecycleTests
             rig.Host.OpenAsync(default).GetAwaiter().GetResult(); rig.Host.Show(); StaTest.Pump();
             rig.Coordinator.ReturnHomeAsync(default).GetAwaiter().GetResult(); StaTest.Pump();
             Assert.Empty(rig.Keys.Registered); Assert.Null(rig.Host.CurrentWindow);
-            Assert.False(rig.Coordinator.State.Draft.HasContent); Assert.Equal(1,rig.HomeCalls);
+            Assert.Equal("返回清除",rig.Coordinator.State.Draft.Text); Assert.Equal(1,rig.HomeCalls);
         });
     }
     [Fact]

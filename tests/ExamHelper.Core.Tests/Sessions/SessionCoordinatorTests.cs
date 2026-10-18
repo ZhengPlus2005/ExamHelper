@@ -49,21 +49,21 @@ public class SessionCoordinatorTests
         Assert.False(rig.Coordinator.State.Draft.HasContent);
     }
     [Fact]
-    public async Task LateChunkAfterNewSessionIsIgnored()
+    public async Task StoppedLateChunkAfterNewSessionIsIgnored()
     {
         await using var rig = new Rig(); await rig.Start("旧问题");
         var attempt = rig.Ai.QueueAttempt(true); await rig.Coordinator.ExecuteAsync(AppCommand.Send,default); await attempt.Started.Task;
         var waiting = rig.Coordinator.WaitForIdleAsync(default);
-        await rig.Coordinator.ReturnHomeAsync(default); await rig.Coordinator.StartNewAsync(default); var id = rig.Coordinator.State.Id;
+        await rig.Coordinator.ReturnHomeAsync(default); await rig.Coordinator.ExecuteAsync(AppCommand.StopAnswer,default); await rig.Coordinator.StartNewAsync(default); var id = rig.Coordinator.State.Id;
         attempt.Text("晚到旧答案"); attempt.Complete(); await waiting;
         Assert.Equal(id,rig.Coordinator.State.Id); Assert.Empty(rig.Coordinator.State.Messages);
     }
     [Fact]
-    public async Task ReturnClearsButExitRestoresDraft()
+    public async Task ReturnAndExitBothPreserveDraft()
     {
         await using var rig = new Rig(); await rig.Start("返回时清除"); var first = rig.Coordinator.State.Id;
         await rig.Coordinator.ReturnHomeAsync(default);
-        Assert.False((await rig.Store.LoadAsync(first,default))!.Draft.HasContent);
+        Assert.Equal("返回时清除",(await rig.Store.LoadAsync(first,default))!.Draft.Text);
         await rig.Coordinator.StartNewAsync(default); await rig.Voice("退出时保留"); var second = rig.Coordinator.State.Id;
         await rig.Coordinator.ExitAsync(default);
         Assert.Equal("退出时保留",(await rig.Store.LoadAsync(second,default))!.Draft.Text);

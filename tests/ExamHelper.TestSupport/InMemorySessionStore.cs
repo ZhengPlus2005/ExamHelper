@@ -3,7 +3,7 @@ using ExamHelper.Core.Sessions;
 namespace ExamHelper.TestSupport;
 public sealed class InMemorySessionStore : ISessionStore
 {
-    private readonly Dictionary<Guid,SessionSnapshot> _sessions = [];
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid,SessionSnapshot> _sessions = new();
     public bool FailWrites { get; set; }
     public Task SaveAsync(SessionSnapshot snapshot,CancellationToken ct)
     {
@@ -13,5 +13,5 @@ public sealed class InMemorySessionStore : ISessionStore
     }
     public Task<SessionSnapshot?> LoadAsync(Guid id,CancellationToken ct) => Task.FromResult(_sessions.GetValueOrDefault(id));
     public Task<IReadOnlyList<SessionSummary>> ListAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<SessionSummary>>(_sessions.Values.Select(s => new SessionSummary(s.Id,"会话",s.UpdatedAt,s.Draft.HasContent)).ToArray());
-    public Task DeleteAsync(Guid id,CancellationToken ct) { _sessions.Remove(id); return Task.CompletedTask; }
+    public Task DeleteAsync(Guid id,CancellationToken ct) { _sessions.TryRemove(id,out _); return Task.CompletedTask; }
 }

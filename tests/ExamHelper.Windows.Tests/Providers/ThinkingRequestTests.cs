@@ -57,5 +57,14 @@ public class ThinkingRequestTests
         var error = await Assert.ThrowsAsync<ServiceFailure>(async () => { await foreach(var _ in new ChatCompletionsClient(http,secrets,new StubServices()).StreamAsync(new(Guid.NewGuid(),[]),new(),default)) { } });
         Assert.Contains("400",error.Message); Assert.Contains("invalid_model",error.Message); Assert.DoesNotContain("test-key",error.Message);
     }
+    [Fact] public async Task ServiceTestsUseTheSameNonQueuedGenerationLease()
+    {
+        var gate = new AiGenerationGate(); using var active = gate.TryAcquire(Guid.NewGuid());
+        using var handler = new FakeHttpHandler((_,_) => throw new InvalidOperationException("network must not start"));
+        using var http = new HttpClient(handler); var verification = new ServiceVerification(new byte[32]);
+        var runner = new ExamHelper.Windows.Settings.ServiceTestRunner(http,new InMemorySecretStore(),verification,[1],gate);
+        var result = await runner.TestTextAsync(new(),"test-key",default);
+        Assert.False(result.Passed); Assert.Equal(0,handler.Calls); Assert.True(gate.IsBusy);
+    }
     private static HttpResponseMessage Reply(string prefix = "") => new(HttpStatusCode.OK) { Content = new StringContent(prefix+"data: {\"choices\":[{\"delta\":{\"content\":\"answer\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",Encoding.UTF8,"text/event-stream") };
 }

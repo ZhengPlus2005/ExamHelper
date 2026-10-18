@@ -32,6 +32,9 @@ public sealed record RequestSnapshot
 public sealed record SessionSnapshot
 {
     public Guid Id { get; init; } = Guid.NewGuid();
+    public ExamHelper.Core.Settings.ModelSelection? Selection { get; init; }
+    public string? CustomTitle { get; init; }
+    public DateTimeOffset? FirstSentAt { get; init; }
     public long Generation { get; init; }
     public long SpeechGeneration { get; init; }
     public ImmutableArray<MessageSnapshot> Messages { get; init; } = [];
