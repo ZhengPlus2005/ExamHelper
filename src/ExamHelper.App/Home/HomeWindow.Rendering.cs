@@ -79,7 +79,11 @@ public partial class HomeWindow
         _=RunAsync(async()=> { var bitmap=await LoadBitmapAsync(image,true);if(_renderedSession==session)preview.Source=bitmap; });return button;
     }
     private async Task OpenImageAsync(ImageRef image)
-    { var bitmap=await LoadBitmapAsync(image,false);var viewer=new ImageViewerWindow(bitmap) { Owner=this };viewer.Show(); }
+    {
+        var bytes=await _viewModel.ReadImageAsync(image,CancellationToken.None);
+        using var stream=new MemoryStream(bytes);var bitmap=new BitmapImage();bitmap.BeginInit();bitmap.CacheOption=BitmapCacheOption.OnLoad;bitmap.StreamSource=stream;bitmap.EndInit();bitmap.Freeze();
+        var viewer=new ImageViewerWindow(bitmap,bytes) { Owner=this };viewer.Show();
+    }
     private async Task<BitmapSource> LoadBitmapAsync(ImageRef image,bool thumbnail)
     {
         if(thumbnail && _thumbnails.TryGetValue(image.Id,out var cached)) return cached;

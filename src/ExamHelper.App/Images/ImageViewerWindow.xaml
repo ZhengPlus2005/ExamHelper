@@ -1,5 +1,14 @@
-<Window Icon="/ExamHelper.App;component/Assets/app-icon.ico" x:Class="ExamHelper.App.Images.ImageViewerWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="查看原图 · 滚轮缩放，拖动平移，Esc关闭" Width="1000" Height="720" MinWidth="420" MinHeight="300" Background="#202633" WindowStartupLocation="CenterOwner" PreviewKeyDown="KeyDownHandler">
- <Grid x:Name="Viewport" ClipToBounds="True" Background="Transparent" MouseWheel="Wheel" MouseLeftButtonDown="BeginPan" MouseLeftButtonUp="EndPan" MouseMove="Pan">
-  <Image x:Name="Picture" Stretch="Fill" HorizontalAlignment="Left" VerticalAlignment="Top" RenderTransformOrigin="0,0"><Image.RenderTransform><TransformGroup><ScaleTransform x:Name="Scale"/><TranslateTransform x:Name="Offset"/></TransformGroup></Image.RenderTransform></Image>
- </Grid>
+<Window Icon="/ExamHelper.App;component/Assets/app-icon.ico" x:Class="ExamHelper.App.Images.ImageViewerWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="查看原图" Width="1000" Height="720" MinWidth="420" MinHeight="300" Background="#202633" WindowStartupLocation="CenterOwner" PreviewKeyDown="KeyDownHandler">
+ <DockPanel>
+  <Grid DockPanel.Dock="Top" Background="#F4F6F9" Height="44">
+   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,4">
+    <Button Content="适应窗口" Click="FitClick" Padding="14,5" Margin="0,0,8,0"/>
+    <Button x:Name="SaveButton" Content="保存图片" Click="SaveClick" Padding="14,5"/>
+   </StackPanel>
+   <TextBlock x:Name="SaveStatus" Foreground="#B42318" Margin="12,0,220,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+  </Grid>
+  <Canvas x:Name="Viewport" ClipToBounds="True" Background="Transparent" MouseWheel="Wheel" MouseLeftButtonDown="BeginPan" MouseLeftButtonUp="EndPan" MouseMove="Pan" SizeChanged="ViewportChanged">
+   <Image x:Name="Picture" Stretch="Fill" RenderTransformOrigin="0,0"/>
+  </Canvas>
+ </DockPanel>
 </Window>
