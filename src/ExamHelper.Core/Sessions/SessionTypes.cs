@@ -9,6 +9,7 @@ public sealed record MessageSnapshot
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid RequestId { get; init; }
+    public string? ReasoningContent { get; init; }
     public MessageRole Role { get; init; }
     public string Text { get; init; } = "";
     public ImmutableArray<ImageRef> Images { get; init; } = [];

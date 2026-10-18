@@ -10,6 +10,12 @@ using ExamHelper.Core.Settings;
 namespace ExamHelper.Windows.Providers;
 public sealed class ChatCompletionsClient(HttpClient http,ISecretStore secrets,IImageStore images,TimeSpan? idleTimeout = null,TimeSpan? totalTimeout = null) : IAiClient
 {
+    public async Task<IAiClient> PrepareAsync(AiSettings settings,CancellationToken ct)
+    {
+        var key = await secrets.GetAsync(settings.SecretId,ct).ConfigureAwait(false);
+        if(string.IsNullOrWhiteSpace(key)) throw new ServiceFailure(FailureCategory.Authentication,"请先配置 AI 服务密钥。");
+        return new ChatCompletionsClient(http,new FrozenSecretStore(settings.SecretId,key),images,idleTimeout,totalTimeout);
+    }
     public async IAsyncEnumerable<AiChunk> StreamAsync(AiRequest request,AiSettings settings,[EnumeratorCancellation] CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -38,10 +44,12 @@ public sealed class ChatCompletionsClient(HttpClient http,ISecretStore secrets,I
                 }
                 content = parts;
             }
-            messages.Add(new { role = message.Role.ToString().ToLowerInvariant(),content });
+            var item = new Dictionary<string,object> { ["role"] = message.Role.ToString().ToLowerInvariant(),["content"] = content };
+            if(message.Role == ExamHelper.Core.Sessions.MessageRole.Assistant && message.ReasoningContent is not null) item["reasoning_content"] = message.ReasoningContent;
+            messages.Add(item);
         }
         var payload = new Dictionary<string,object> { ["model"] = settings.Model,["messages"] = messages,["stream"] = true };
-        if (settings.ProviderKind == ProviderKind.Kimi && settings.Model == "kimi-k2.6") payload["thinking"] = new { type = "disabled" };
+        ThinkingRequestWriter.Apply(payload,settings);
         var json = JsonSerializer.SerializeToUtf8Bytes(payload);
         if (json.LongLength > 100_000_000) throw new ServiceFailure(FailureCategory.InvalidPayload,"请求超过客户端 100MB 上限，请减少截图或新建对话。");
         using var messageRequest = new HttpRequestMessage(HttpMethod.Post,endpoint);
@@ -49,7 +57,7 @@ public sealed class ChatCompletionsClient(HttpClient http,ISecretStore secrets,I
         messageRequest.Content = new ByteArrayContent(json); messageRequest.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         read.CancelAfter(idleTimeout ?? TimeSpan.FromSeconds(60));
         using var response = await SendAsync(messageRequest,read.Token,ct).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode) throw ProviderErrorMapper.FromStatus(response.StatusCode);
+        if (!response.IsSuccessStatusCode) throw await ProviderErrorMapper.FromResponseAsync(response,key,read.Token).ConfigureAwait(false);
         var stream = await response.Content.ReadAsStreamAsync(read.Token).ConfigureAwait(false);
         await using var events = SseReader.ReadEventsAsync(stream,read.Token).GetAsyncEnumerator(read.Token);
         string? finish = null;
@@ -57,8 +65,8 @@ public sealed class ChatCompletionsClient(HttpClient http,ISecretStore secrets,I
         {
             var data = events.Current;
             if (data == "[DONE]") break;
-            var (text,reason) = Parse(data);
-            if (text.Length > 0) yield return new(text,false);
+            var (text,reason,reasoning) = Parse(data);
+            if (text.Length > 0 || reasoning is not null) yield return new(text,false,ReasoningContent: reasoning);
             if (reason is not null) finish = reason;
         }
         if (finish is null) throw new ServiceFailure(FailureCategory.Transport,"回答流中断，未收到完成标记，请手动重试。");
@@ -78,19 +86,21 @@ public sealed class ChatCompletionsClient(HttpClient http,ISecretStore secrets,I
         catch (IOException) { throw new ServiceFailure(FailureCategory.Transport,"AI 回答连接中断，请手动重试。"); }
         finally { read.CancelAfter(Timeout.InfiniteTimeSpan); }
     }
-    private static (string Text,string? Finish) Parse(string data)
+    private static (string Text,string? Finish,string? Reasoning) Parse(string data)
     {
         try
         {
             using var document = JsonDocument.Parse(data); var root = document.RootElement;
             if (root.TryGetProperty("error",out _)) throw new ServiceFailure(FailureCategory.Transport,"AI 服务在回答中报告错误，请手动重试。");
             var choices = root.GetProperty("choices");
-            if (choices.GetArrayLength() == 0) return ("",null);
-            var choice = choices[0]; string text = "",finish = "";
+            if (choices.GetArrayLength() == 0) return ("",null,null);
+            var choice = choices[0]; string text = "",finish = ""; string? reasoning = null;
             if (choice.TryGetProperty("delta",out var delta) && delta.TryGetProperty("content",out var content) && content.ValueKind == JsonValueKind.String)
                 text = content.GetString() ?? "";
+            if(choice.TryGetProperty("delta",out var deltaReason) && deltaReason.TryGetProperty("reasoning_content",out var reasoningValue) && reasoningValue.ValueKind == JsonValueKind.String)
+                reasoning = reasoningValue.GetString();
             if (choice.TryGetProperty("finish_reason",out var reason) && reason.ValueKind == JsonValueKind.String) finish = reason.GetString() ?? "";
-            return (text,finish.Length > 0 ? finish : null);
+            return (text,finish.Length > 0 ? finish : null,reasoning);
         }
         catch (Exception error) when (error is JsonException or KeyNotFoundException or InvalidOperationException)
         { throw new ServiceFailure(FailureCategory.InvalidPayload,"AI 服务返回了无法解析的流数据。"); }

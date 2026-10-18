@@ -39,9 +39,9 @@ public class ChatCompletionsClientTests
         Assert.Equal(FailureCategory.Transport,error.Category);
     }
     [Theory]
-    [InlineData(ProviderKind.Kimi,true)]
+    [InlineData(ProviderKind.Kimi,false)]
     [InlineData(ProviderKind.Compatible,false)]
-    public async Task PreservesImageOrderAndOnlyKimiPresetSendsThinkingOption(ProviderKind provider,bool thinking)
+    public async Task PreservesImageOrderAndDefaultThinkingDoesNotSendExplicitOption(ProviderKind provider,bool thinking)
     {
         var images = new Images(); var a = new ImageRef(Guid.NewGuid(),"a",1,1); var b = new ImageRef(Guid.NewGuid(),"b",1,1);
         images.Bytes[a.Id] = [1]; images.Bytes[b.Id] = [2];

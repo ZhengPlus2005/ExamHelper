@@ -9,6 +9,7 @@ public static class ProviderEndpoint
         var text = baseUri.AbsoluteUri.TrimEnd('/');
         return new Uri(text.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase) ? text : text + "/chat/completions");
     }
+    public static Uri Models(Uri uri) => new(ChatCompletions(uri).AbsoluteUri[..^"chat/completions".Length] + "models");
     public static bool IsBeijingAsr(Uri uri) => uri.IsAbsoluteUri && uri.Scheme == "https" &&
         (uri.Host.Equals("dashscope.aliyuncs.com", StringComparison.OrdinalIgnoreCase) ||
          (uri.Host.EndsWith(".cn-beijing.maas.aliyuncs.com", StringComparison.OrdinalIgnoreCase) && uri.Host.Length > ".cn-beijing.maas.aliyuncs.com".Length));

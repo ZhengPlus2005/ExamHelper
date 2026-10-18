@@ -54,6 +54,8 @@ public partial class SettingsWindow : Window
         catch(Exception error) { _viewModel.Status = Common.ObservableObject.Explain(error); }
         finally { _closing = false; }
     }
+    private async void FetchModelsClick(object sender,RoutedEventArgs args) => await _viewModel.FetchModelsAsync(CancellationToken.None);
+    private void AddDiscoveredModelsClick(object sender,RoutedEventArgs args) => _viewModel.AddDiscoveredModels();
     private void AddModelClick(object sender,RoutedEventArgs args) => _viewModel.SelectedAiProfile?.AddModel();
     private void DeleteModelClick(object sender,RoutedEventArgs args) => _viewModel.SelectedAiProfile?.DeleteSelectedModel();
     private void DefaultModelClick(object sender,RoutedEventArgs args) { if(_viewModel.SelectedAiProfile is { SelectedModel: { } model } p) p.DefaultModelId = model.Id; }

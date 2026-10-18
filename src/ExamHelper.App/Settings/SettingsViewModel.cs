@@ -70,11 +70,11 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
         get { try { var c = BuildCandidate(); return $"AI 图片：{(_verification.IsAiVerified(c) ? "已验证" : "未验证")}　语音：{(_verification.IsAsrVerified(c) ? "已验证" : "未验证")}"; } catch { return "配置尚未完整"; } }
     }
     public SettingsViewModel(AppSettings initial,string aiKey,string asrKey,ISettingsStore store,ISecretStore secrets,ServiceVerification verification,
-        ServiceTestRunner runner,RecordingController recording,Action<AppSettings> saved,Action<Action>? dispatch = null,IReadOnlyDictionary<string,string>? aiKeys = null)
+        ServiceTestRunner runner,RecordingController recording,Action<AppSettings> saved,Action<Action>? dispatch = null,IReadOnlyDictionary<string,string>? aiKeys = null,ExamHelper.Windows.Providers.IModelDiscovery? discovery = null)
     {
         initial = AiProfileCatalog.Normalize(initial);
         _initial = initial; _evidence = initial.Evidence; _store = store; _secrets = secrets; _verification = verification;
-        _runner = runner; _recording = recording; _saved = saved; _dispatch = dispatch ?? (action => action());
+        _runner = runner; _discovery = discovery ?? runner.ModelDiscovery; _recording = recording; _saved = saved; _dispatch = dispatch ?? (action => action());
         _activeAiProfileId = initial.ActiveAiProfileId;
         foreach(var profile in initial.AiProfiles!.Value)
             AddEditor(profile,aiKeys?.GetValueOrDefault(profile.Settings.SecretId) ?? (profile.Id == initial.ActiveAiProfileId ? aiKey : ""));

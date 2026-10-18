@@ -282,6 +282,28 @@ public class SettingsRevisionTests
         rig.Release.TrySetResult(); await running;
         Assert.DoesNotContain(rig.Store.Value.AiProfiles!.Value.Single().Models!.Value,m => m.Id == b.Id);
     }
+    [Fact]
+    public async Task DiscoveryAddsOnlyCheckedModelsAndNeverAppliesStaleAddressResults()
+    {
+        var discovery = new DelayedDiscovery(); await using var rig = new Rig(discovery);
+        var original = rig.Vm.SelectedAiProfile!;
+        var pending = rig.Vm.FetchModelsAsync(default); await discovery.Entered.Task;
+        original.BaseAddress = "https://changed.example/v1"; discovery.Release.TrySetResult(); await pending;
+        Assert.Empty(original.DiscoveredModels);
+        await rig.Vm.FetchModelsAsync(default);
+        Assert.Equal(2,original.DiscoveredModels.Count);
+        Assert.Single(original.Models);
+        original.DiscoveredModels[1].IsSelected = true; rig.Vm.AddDiscoveredModels();
+        Assert.Equal(2,original.Models.Count); Assert.Contains(original.Models,m => m.Name == "chosen");
+        Assert.DoesNotContain(original.Models,m => m.Name == "not-chosen");
+    }
+    private sealed class DelayedDiscovery : ExamHelper.Windows.Providers.IModelDiscovery
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async Task<IReadOnlyList<ModelMetadata>> ListAsync(AiSettings settings,string key,CancellationToken ct)
+        { Entered.TrySetResult(); await Release.Task.WaitAsync(ct); return [new("not-chosen"),new("chosen")]; }
+    }
     private sealed class Rig : IAsyncDisposable
     {
         public Store Store { get; } = new(); public ServiceVerification Verification { get; } = new(new byte[32]);
@@ -290,7 +312,7 @@ public class SettingsRevisionTests
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public InMemorySecretStore Secrets { get; } = new();
         private readonly HttpClient _http;
-        public Rig()
+        public Rig(ExamHelper.Windows.Providers.IModelDiscovery? discovery = null)
         {
             _http = new(new FakeHttpHandler(async (request,ct) =>
             {
@@ -301,7 +323,7 @@ public class SettingsRevisionTests
                 return new(HttpStatusCode.OK) { Content = new StringContent("data: {\"choices\":[{\"delta\":{\"content\":\"EH7Q9\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",Encoding.UTF8,"text/event-stream") };
             }));
             var secrets = Secrets; secrets.SetAsync("ai","ai",default).GetAwaiter().GetResult(); secrets.SetAsync("asr","asr",default).GetAwaiter().GetResult(); var recording = new RecordingController(new StubServices(),new ManualTimeProvider());
-            Vm = new(new(),"ai","asr",Store,secrets,Verification,new(_http,secrets,Verification,[1]),recording,_ => { });
+            Vm = new(new(),"ai","asr",Store,secrets,Verification,new(_http,secrets,Verification,[1]),recording,_ => { },discovery: discovery);
         }
         public async ValueTask DisposeAsync() { await Vm.DisposeAsync(); _http.Dispose(); }
     }

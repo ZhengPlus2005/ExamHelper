@@ -16,7 +16,9 @@
      <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto"><StackPanel IsEnabled="{Binding HasSelectedAiProfile}">
       <TextBlock Text="配置名称"/><TextBox Text="{Binding SelectedAiProfile.Name,UpdateSourceTrigger=PropertyChanged}"/>
       <TextBlock Text="API 地址"/><TextBox Text="{Binding AiBaseAddress,UpdateSourceTrigger=PropertyChanged}"/>
-      <TextBlock Text="模型（每项独立测试）"/>
+      <WrapPanel><Button Content="拉取模型" Click="FetchModelsClick"/><Button Content="加入勾选模型" Click="AddDiscoveredModelsClick"/></WrapPanel>
+<ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto"><ItemsControl ItemsSource="{Binding SelectedAiProfile.DiscoveredModels}"><ItemsControl.ItemTemplate><DataTemplate><CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Margin="4"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+<TextBlock Text="模型（每项独立测试）"/>
 <ComboBox ItemsSource="{Binding SelectedAiProfile.Models}" SelectedItem="{Binding SelectedAiProfile.SelectedModel}" DisplayMemberPath="Name" Margin="0,4,0,8"/>
 <WrapPanel><Button Content="添加模型" Click="AddModelClick"/><Button Content="删除模型" Click="DeleteModelClick"/><Button Content="设为默认" Click="DefaultModelClick"/></WrapPanel>
 <TextBlock Text="真实模型 ID"/><TextBox Text="{Binding SelectedAiProfile.SelectedModel.Name,UpdateSourceTrigger=PropertyChanged}"/>

@@ -13,13 +13,14 @@ public sealed class AiProfileEditor : ObservableObject
     private ModelEditor? _selectedModel;
     private Guid? _defaultModelId;
     public Guid Id { get; }
+    public ObservableCollection<DiscoveredModelEditor> DiscoveredModels { get; } = [];
     public ObservableCollection<ModelEditor> Models { get; } = [];
     public ModelEditor? SelectedModel { get => _selectedModel; set { if(Set(ref _selectedModel,value)) { Notify(nameof(Model)); Changed(); } } }
     public Guid? DefaultModelId { get => _defaultModelId; set { if(Set(ref _defaultModelId,value)) Changed(); } }
     public string Name { get => _name; set { if(Set(ref _name,value)) Changed(); } }
-    public string BaseAddress { get => _baseAddress; set { if(Set(ref _baseAddress,value)) Changed(); } }
+    public string BaseAddress { get => _baseAddress; set { if(Set(ref _baseAddress,value)) { DiscoveredModels.Clear(); Changed(); } } }
     public string Model { get => SelectedModel?.Name ?? ""; set { if(SelectedModel is { } m) m.Name = value; } }
-    public string ApiKey { get => _apiKey; set { if(Set(ref _apiKey,value)) Changed(); } }
+    public string ApiKey { get => _apiKey; set { if(Set(ref _apiKey,value)) { DiscoveredModels.Clear(); Changed(); } } }
     public ProviderKind ProviderKind { get => _kind; set { if(Set(ref _kind,value)) Changed(); } }
     public bool IsActive { get => _active; set { if(Set(ref _active,value)) Changed(); } }
     public string? VerifiedFingerprint { get => SelectedModel?.VerifiedFingerprint; set { if(SelectedModel is { } m) m.VerifiedFingerprint = value; Changed(); } }

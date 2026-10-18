@@ -12,6 +12,7 @@ namespace ExamHelper.Windows.Settings;
 public sealed record ServiceTestResult(bool Passed,string Text,string? Error,TimeSpan Elapsed,string Fingerprint,bool RequiresConfirmation = false);
 public sealed class ServiceTestRunner
 {
+    public IModelDiscovery ModelDiscovery { get; }
     private readonly HttpClient _http;
     private readonly MarkerStore _images;
     private readonly IAiClient _ai;
@@ -20,7 +21,7 @@ public sealed class ServiceTestRunner
     private readonly ImageRef _marker;
     public ServiceTestRunner(HttpClient http,ISecretStore secrets,ServiceVerification verification,byte[] markerPng)
     {
-        _http = http; var images = _images = new MarkerStore(markerPng); _marker = images.Image;
+        ModelDiscovery = new ModelDiscoveryClient(http); _http = http; var images = _images = new MarkerStore(markerPng); _marker = images.Image;
         _ai = new ChatCompletionsClient(http,secrets,images); _asr = new AliyunAsrClient(http,secrets); _verification = verification;
     }
     public Task<ServiceTestResult> TestTextAsync(AppSettings settings,CancellationToken ct) => TestAiAsync(settings,false,ct);

@@ -16,7 +16,7 @@ public static class ContextBuilder
         foreach (var message in session.Messages)
         {
             if (message.RequestId == request.RequestId || !usable.Contains(message.RequestId) || message.Status is MessageStatus.Failed or MessageStatus.Pending) continue;
-            messages.Add(new(message.Role,message.Text,message.Images));
+            messages.Add(new(message.Role,message.Text,message.Images,message.ReasoningContent));
         }
         messages.Add(new(MessageRole.User,RequestText(request),request.Images));
         return new(request.RequestId,messages.ToImmutable());
