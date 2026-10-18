@@ -9,7 +9,7 @@ using ExamHelper.Core.Sessions;
 using ExamHelper.Core.Settings;
 using ExamHelper.Windows.Providers;
 namespace ExamHelper.Windows.Settings;
-public sealed record ServiceTestResult(bool Passed,string Text,string? Error,TimeSpan Elapsed,string Fingerprint,bool RequiresConfirmation = false);
+public sealed record ServiceTestResult(bool Passed,string Text,string? Error,TimeSpan Elapsed,string Fingerprint,bool RequiresConfirmation = false,bool WasAttempted = true);
 public sealed class ServiceTestRunner
 {
     public IModelDiscovery ModelDiscovery { get; }
@@ -32,9 +32,11 @@ public sealed class ServiceTestRunner
     private async Task<ServiceTestResult> TestAiAsync(AppSettings settings,bool image,CancellationToken ct,IAiClient? client = null)
     {
         var fingerprint = _verification.AiFingerprint(settings); var time = Stopwatch.StartNew();
+        ct.ThrowIfCancellationRequested();
+        using var lease = _generationGate.TryAcquire(Guid.NewGuid());
+        if(lease is null) return new(false,"","已有回答或服务测试正在进行，请等待或停止。",time.Elapsed,fingerprint,WasAttempted:false);
         try
         {
-            using var lease = _generationGate.TryAcquire(Guid.NewGuid()) ?? throw new ServiceFailure(FailureCategory.Permission,"已有回答或服务测试正在进行，请等待或停止。");
             var request = new AiRequest(Guid.NewGuid(),[new(MessageRole.User,image ? "请只回复图片中的英文字母和数字，保持原顺序。" : "请用中文回复：连接测试成功。",image ? [_marker] : [])]);
             var text = new System.Text.StringBuilder(); bool complete = false;
             await foreach(var chunk in (client ?? _ai).StreamAsync(request,settings.Ai,ct).ConfigureAwait(false))

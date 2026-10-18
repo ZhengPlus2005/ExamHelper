@@ -14,7 +14,7 @@ public class HomeChatTests
 {
     [Fact] public async Task HomeSendsWithoutAnyTestAndAuxiliaryAlwaysStartsNewConversation()
     {
-        await using var rig = new ConversationWorkspaceRig(); var verification = new ServiceVerification(new byte[32]); var host = new Host();
+        await using var rig = new ConversationWorkspaceRig(); rig.Settings = TestSettings.Configured(); var verification = new ServiceVerification(new byte[32]); var host = new Host();
         var home = new HomeViewModel(rig.Workspace,rig.Store,new StubServices(),() => Task.FromResult(rig.Settings),verification,host,() => Task.CompletedTask);
         await home.NewConversationAsync(default); await home.SetDraftTextAsync("home question",default);
         var answer = rig.Ai.QueueAttempt(); await home.SendAsync(default); await answer.Started.Task; answer.Complete(); await rig.Workspace.Selected!.WaitForIdleAsync(default);
@@ -111,7 +111,7 @@ public class HomeChatTests
             var selector=new ExamHelper.App.Controls.ModelSelector(); ModelSelection? requested=null; selector.SelectionRequested+=choice => requested=choice;
             selector.Configure(settings,ModelCatalog.Select(profile,model,new(ThinkingKind.Effort,"high")),false,new(new byte[32]));
             var thinking=Assert.IsType<System.Windows.Controls.ComboBox>(selector.FindName("Thinking")); Assert.Equal(new ThinkingChoice(ThinkingKind.Effort,"high"),thinking.SelectedItem);
-            var models=Assert.IsType<System.Windows.Controls.ComboBox>(selector.FindName("Models")); models.SelectedItem=selector.ModelChoices.Single(m => m.Id==other.Id);
+            var models=Assert.IsType<System.Windows.Controls.ComboBox>(selector.FindName("Models")); models.SelectedItem=selector.ModelChoices.Single(m => m.Model.Id==other.Id);
             Assert.Equal(other.Id,requested!.ModelId); Assert.Equal(ThinkingKind.ServiceDefault,requested.Thinking.Kind); Assert.Equal("low",model.DefaultThinking.Effort);
             requested=null;
             selector.Configure(settings,new(Guid.NewGuid(),Guid.NewGuid(),new()) { ProfileName="已删除配置",ModelName="原模型" },false,new(new byte[32]));

@@ -44,11 +44,11 @@ public class OverlayRevision03Tests
         {
             using var rig=new Rig(); var window=rig.Host.CurrentWindow!; window.Show(); window.UpdateLayout(); StaTest.Pump();
             var selector=Assert.IsType<ModelSelector>(window.FindName("AuxiliaryModels"));
-            Assert.True(selector.AuxiliaryInteraction); Assert.Equal(2,selector.ModelChoices.Count);
-            Assert.DoesNotContain(selector.ModelChoices,m => m.Name=="unverified");
+            Assert.True(selector.AuxiliaryInteraction); Assert.Equal(3,selector.ModelChoices.Count);
+            Assert.False(selector.ModelChoices.Single(m => m.Model.Name=="unverified").IsEnabled);
             ModelSelection? chosen=null; selector.SelectionRequested+=s => chosen=s;
             selector.OpenHoverMenu(ModelSelectorPart.Model); window.UpdateLayout(); StaTest.Pump(); Assert.True(selector.IsMenuOpen);
-            var choice=Nodes(selector).OfType<Button>().First(b => b.Tag is AiModelProfile m && m.Name=="kimi-k3");
+            var choice=Nodes(selector).OfType<Button>().First(b => b.Tag is ModelChoice m && m.Model.Name=="kimi-k3");
             Assert.Same(HwndSource.FromHwnd(window.NativeHandle),PresentationSource.FromVisual(choice)); Assert.False(choice.Focusable);
             Assert.Equal(1,DwellBehavior.GetDelay(choice)); DwellBehavior.GetCommand(choice)!.Execute(null); Assert.Equal("kimi-k3",chosen!.ModelName); Assert.False(selector.IsMenuOpen);
             Assert.DoesNotContain(Nodes(selector).OfType<ComboBox>(),c => c.IsVisible);
@@ -59,7 +59,7 @@ public class OverlayRevision03Tests
         await StaTest.RunAsync(() =>
         {
             var proof=new ServiceVerification(new byte[32]);var a=new AiModelProfile { Name="a" };var blocked=new AiModelProfile { Name="blocked" };var allowed=new AiModelProfile { Name="allowed" };
-            var endpoint=new AiSettings { BaseUri=new("https://example.invalid/v1"),SecretFingerprint="digest" };a=a with { VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=a.Name } }) };allowed=allowed with { VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=allowed.Name } }) };
+            var endpoint=new AiSettings { BaseUri=new("https://example.invalid/v1"),SecretFingerprint="digest" };a=a with { TextVerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=a.Name } }),VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=a.Name } }) };allowed=allowed with { TextVerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=allowed.Name } }),VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=allowed.Name } }) };
             var pa=new AiServiceProfile { Name="A",Settings=endpoint,Models=[a],DefaultModelId=a.Id };var pb=new AiServiceProfile { Name="B",Settings=endpoint,Models=[blocked,allowed],DefaultModelId=blocked.Id };
             var settings=AiProfileCatalog.Normalize(new() { AiProfiles=[pa,pb],ActiveAiProfileId=pa.Id });var selector=new ModelSelector { AuxiliaryInteraction=true };ModelSelection? request=null;
             selector.SelectionRequested+=choice=>request=choice;selector.Configure(settings,ModelCatalog.Select(pa,a),true,proof);
@@ -67,7 +67,7 @@ public class OverlayRevision03Tests
                 window.Show();StaTest.Pump();selector.OpenHoverMenu(ModelSelectorPart.Profile);StaTest.Pump();
                 var b=Nodes(selector).OfType<Button>().Single(x=>x.Tag is AiServiceProfile p && p.Id==pb.Id);DwellBehavior.GetCommand(b)!.Execute(null);StaTest.Pump();
                 Assert.Null(request);Assert.True(selector.IsMenuOpen);
-                var model=Nodes(selector).OfType<Button>().Single(x=>x.Tag is AiModelProfile m && m.Id==allowed.Id);Assert.DoesNotContain(Nodes(selector).OfType<Button>(),x=>x.Tag is AiModelProfile m && m.Id==blocked.Id);
+                var model=Nodes(selector).OfType<Button>().Single(x=>x.Tag is ModelChoice m && m.Model.Id==allowed.Id);Assert.False(Nodes(selector).OfType<Button>().Single(x=>x.Tag is ModelChoice m && m.Model.Id==blocked.Id).IsEnabled);
                 DwellBehavior.GetCommand(model)!.Execute(null);Assert.Equal(pb.Id,request!.ProfileId);Assert.Equal(allowed.Id,request.ModelId);Assert.False(selector.IsMenuOpen);
             } finally { window.Close(); }
         });
@@ -125,10 +125,11 @@ public class OverlayRevision03Tests
             var stub=new StubServices(); var store=new InMemorySessionStore();
             var a=new AiModelProfile { Name="model-a" }; var b=new AiModelProfile { Name="unverified" }; var c=new AiModelProfile { Name="kimi-k3" };
             var endpoint=new AiSettings { BaseUri=new("https://example.invalid/v1"),Model=a.Name,SecretFingerprint="digest" };
-            a=a with { VerifiedFingerprint=Verification.AiFingerprint(new() { Ai=endpoint }) }; c=c with { VerifiedFingerprint=Verification.AiFingerprint(new() { Ai=endpoint with { Model=c.Name } }) };
+            a=a with { TextVerifiedFingerprint=Verification.AiFingerprint(new() { Ai=endpoint }),VerifiedFingerprint=Verification.AiFingerprint(new() { Ai=endpoint }) }; c=c with { TextVerifiedFingerprint=Verification.AiFingerprint(new() { Ai=endpoint with { Model=c.Name } }),VerifiedFingerprint=Verification.AiFingerprint(new() { Ai=endpoint with { Model=c.Name } }) };
             var p=new AiServiceProfile { Name="测试配置",Models=[a,b,c],DefaultModelId=a.Id,Settings=endpoint };
-            var settings=AiProfileCatalog.Normalize(new() { AiProfiles=[p],ActiveAiProfileId=p.Id });
-            Workspace=new(store,() => new SessionCoordinator(Ai,asr ?? stub,new StubServices(),stub,stub,() => settings,store,new ManualTimeProvider()));
+            var settings=AiProfileCatalog.Normalize(new() { AiProfiles=[p],ActiveAiProfileId=p.Id,Asr=new() { SecretFingerprint=Verification.SecretDigest("asr") } });
+            settings=Verification.RecordAsrSuccess(settings,Verification.AsrFingerprint(settings));
+            Workspace=new(store,() => new SessionCoordinator(Ai,asr ?? stub,new StubServices(),stub,stub,() => settings,store,new ManualTimeProvider(),verification:Verification));
             Coordinator=Workspace.NewAsync(true,default).GetAwaiter().GetResult();
             Host=new(Coordinator,stub,() => settings,_ => Task.CompletedTask,() => Workspace.ReturnHomeAsync(CancellationToken.None),() => Task.CompletedTask,new Protection(),new Keys(),workspace: Workspace,verification: Verification);
             Host.OpenAsync(default).GetAwaiter().GetResult();

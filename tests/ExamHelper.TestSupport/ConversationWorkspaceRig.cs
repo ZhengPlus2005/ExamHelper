@@ -11,12 +11,14 @@ public sealed class ConversationWorkspaceRig : IAsyncDisposable
     public InMemorySessionStore Store { get; } = new();
     public AiGenerationGate Generation { get; } = new();
     public ManualTimeProvider Clock { get; } = new();
-    public AppSettings Settings { get; set; } = TestSettings.Configured();
+    public ServiceVerification Verification { get; } = new(new byte[32]);
+    public AppSettings Settings { get; set; }
     public ConversationWorkspace Workspace { get; }
     public IAsrClient Asr { get; set; } = new StubServices();
     public ConversationWorkspaceRig()
     {
-        Workspace = new(Store,() => { var stub = new StubServices(); return new(ClientOverride ?? Ai,Asr,stub,stub,stub,() => Settings,Store,Clock,Generation,commandsSuspended: () => CommandsSuspended); });
+        Settings = TestSettings.Qualified(Verification);
+        Workspace = new(Store,() => { var stub = new StubServices(); return new(ClientOverride ?? Ai,Asr,stub,stub,stub,() => Settings,Store,Clock,Generation,Verification,commandsSuspended: () => CommandsSuspended); });
     }
     public ValueTask DisposeAsync() => Workspace.DisposeAsync();
 }

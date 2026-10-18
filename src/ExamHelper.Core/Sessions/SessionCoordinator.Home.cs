@@ -23,7 +23,8 @@ public sealed partial class SessionCoordinator
         try
         {
             ObjectDisposedException.ThrowIf(_disposed,this); var settings = AiProfileCatalog.Normalize(_settings());
-            ModelCatalog.Resolve(settings,selection,_state.IsAuxiliaryMode && _verification is not null,_verification ?? new(new byte[32]));
+            if(_state.IsAuxiliaryMode && _verification is null) throw new InvalidOperationException("服务验证不可用，请返回主页重试。");
+            ModelCatalog.Resolve(settings,selection,_state.IsAuxiliaryMode,_verification ?? new(new byte[32]));
             var p = settings.AiProfiles!.Value.Single(p => p.Id == selection.ProfileId); var m = p.Models!.Value.Single(m => m.Id == selection.ModelId);
             _state = _state with { Selection = ModelCatalog.Select(p,m,selection.Thinking) }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false);
         }
@@ -48,8 +49,12 @@ public sealed partial class SessionCoordinator
         try { ObjectDisposedException.ThrowIf(_disposed,this); _state = _state with { IsAuxiliaryMode = auxiliary }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
         finally { _gate.Release(); }
     }
-    private AiSettings ResolveAi(AppSettings settings) => _state.Selection is { } choice
-        ? ModelCatalog.Resolve(settings,choice,_state.IsAuxiliaryMode && _verification is not null,_verification ?? new(new byte[32])) : settings.AiProfiles is null ? settings.Ai : throw new InvalidOperationException("请先选择可用的配置和模型。");
+    private AiSettings ResolveAi(AppSettings settings)
+    {
+        if(_state.IsAuxiliaryMode && _verification is null) throw new InvalidOperationException("服务验证不可用，请返回主页重试。");
+        if(_state.Selection is not { } choice) throw new InvalidOperationException("请先选择可用的配置和模型。");
+        return ModelCatalog.Resolve(settings,choice,_state.IsAuxiliaryMode,_verification ?? new(new byte[32]));
+    }
     private static ModelSelection? InitialSelection(AppSettings settings)
     { try { return ModelCatalog.Default(settings); } catch(InvalidOperationException) { return null; } }
     private void GlobalGenerationChanged() { if(!_disposed) StateChanged?.Invoke(_state); }

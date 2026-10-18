@@ -178,10 +178,10 @@ public class OverlayLifecycleTests
         public int HomeCalls,ExitCalls;
         public Rig()
         {
-            var services = new StubServices(); var settings = TestSettings.Configured();
-            Coordinator = new(Ai,services,services,services,services,() => settings,Store,new ManualTimeProvider());
+            var services = new StubServices(); var proof = new ServiceVerification(new byte[32]); var settings = TestSettings.Qualified(proof);
+            Coordinator = new(Ai,services,services,services,services,() => settings,Store,new ManualTimeProvider(),verification:proof);
             Host = new(Coordinator,services,() => settings,_ => Task.CompletedTask,
-                () => { HomeCalls++; return Task.CompletedTask; },() => { ExitCalls++; return Task.CompletedTask; },Protection,Keys);
+                () => { HomeCalls++; return Task.CompletedTask; },() => { ExitCalls++; return Task.CompletedTask; },Protection,Keys,verification:proof);
         }
         public void Start(string text)
         {

@@ -2,7 +2,7 @@
  <StackPanel>
   <Grid x:Name="OrdinaryControls" Margin="0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="130"/></Grid.ColumnDefinitions>
    <StackPanel><TextBlock Text="配置" FontSize="11"/><ComboBox x:Name="Profiles" DisplayMemberPath="Name" SelectionChanged="ProfileChanged" MinHeight="28"/></StackPanel>
-   <StackPanel Grid.Column="2"><TextBlock Text="模型" FontSize="11"/><ComboBox x:Name="Models" DisplayMemberPath="Name" SelectionChanged="ModelChanged" MinHeight="28"/></StackPanel>
+   <StackPanel Grid.Column="2"><TextBlock Text="模型" FontSize="11"/><ComboBox x:Name="Models" DisplayMemberPath="Model.Name" SelectionChanged="ModelChanged" MinHeight="28"><ComboBox.ItemContainerStyle><Style TargetType="ComboBoxItem"><Setter Property="IsEnabled" Value="{Binding IsEnabled}"/><Setter Property="ToolTip" Value="{Binding Reason}"/></Style></ComboBox.ItemContainerStyle></ComboBox></StackPanel>
    <StackPanel Grid.Column="4"><TextBlock Text="思考" FontSize="11"/><ComboBox x:Name="Thinking" SelectionChanged="ThinkingChanged" MinHeight="28"/></StackPanel>
   </Grid>
   <Grid x:Name="HoverRoot" Height="32" Background="Transparent" Visibility="Collapsed" ClipToBounds="False"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

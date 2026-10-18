@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 namespace ExamHelper.Core.Settings;
+public enum AiTestKind { Text,Image }
 public sealed record ServiceEvidence(string? AiFingerprint = null,string? AsrFingerprint = null);
 public sealed class ServiceVerification
 {
@@ -17,7 +18,41 @@ public sealed class ServiceVerification
     public string AsrFingerprint(AppSettings settings) => Hash(new { Endpoint = Endpoint(settings.Asr.BaseUri),settings.Asr.Model,settings.Asr.SecretId,settings.Asr.SecretFingerprint,settings.Asr.DeviceId });
     public bool IsAiVerified(AppSettings settings) => (settings.AiProfiles is null || settings.ActiveAiProfileId is not null) && settings.Ai.SecretFingerprint.Length > 0 && settings.Evidence.AiFingerprint == AiFingerprint(settings);
     public bool IsAsrVerified(AppSettings settings) => settings.Asr.SecretFingerprint.Length > 0 && settings.Evidence.AsrFingerprint == AsrFingerprint(settings);
-    public bool CanStart(AppSettings settings) => IsAiVerified(settings) && IsAsrVerified(settings);
+    public bool CanStart(AppSettings settings)
+    {
+        try { return IsAiVerified(settings) && IsAsrVerified(settings) && CanUseInAuxiliary(settings,ModelCatalog.Default(settings)); }
+        catch(Exception error) when(error is ArgumentException or InvalidOperationException) { return false; }
+    }
+    public bool CanUseInAuxiliary(AppSettings settings,ModelSelection selection)
+    {
+        try
+        {
+            settings = AiProfileCatalog.Normalize(settings);
+            var p = settings.AiProfiles!.Value.FirstOrDefault(p => p.Id == selection.ProfileId);
+            var m = p?.Models?.FirstOrDefault(m => m.Id == selection.ModelId);
+            if(p is null || m is null || !ProfileCompleteness.Evaluate(p).Complete || !ThinkingCapability.For(m).Allows(selection.Thinking)) return false;
+            var fingerprint = AiFingerprint(settings with { Ai = p.Settings with { Model = m.Name } });
+            return m.VerifiedFingerprint == fingerprint && m.TextVerifiedFingerprint == fingerprint;
+        }
+        catch(ArgumentException) { return false; }
+    }
+    public AppSettings RecordModelResult(AppSettings settings,Guid profileId,Guid modelId,AiTestKind kind,bool passed,string testedFingerprint)
+    {
+        settings = AiProfileCatalog.Normalize(settings);
+        var profiles = settings.AiProfiles!.Value;
+        var index = Array.FindIndex(profiles.ToArray(),p => p.Id == profileId);
+        if(index < 0) throw new InvalidOperationException("配置已删除，本次测试结果已丢弃。");
+        var p = profiles[index]; var models = p.Models!.Value;
+        var mi = Array.FindIndex(models.ToArray(),m => m.Id == modelId);
+        if(mi < 0) throw new InvalidOperationException("模型已删除，本次测试结果已丢弃。");
+        var m = models[mi];
+        if(p.Settings.SecretFingerprint.Length == 0 || AiFingerprint(settings with { Ai = p.Settings with { Model = m.Name } }) != testedFingerprint)
+            throw new InvalidOperationException("配置已变化，请重新测试。");
+        var evidence = passed ? testedFingerprint : null;
+        m = kind == AiTestKind.Text ? m with { TextVerifiedFingerprint = evidence } : m with { VerifiedFingerprint = evidence };
+        profiles = profiles.SetItem(index,p with { Models = models.SetItem(mi,m) });
+        return AiProfileCatalog.Normalize(settings with { AiProfiles = profiles });
+    }
     public AppSettings RecordAiSuccess(AppSettings settings,string testedFingerprint)
     {
         if (settings.Ai.SecretFingerprint.Length == 0 || AiFingerprint(settings) != testedFingerprint)

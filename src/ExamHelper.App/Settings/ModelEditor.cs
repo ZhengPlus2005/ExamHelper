@@ -11,7 +11,14 @@ public sealed class ModelEditor : ObservableObject
     private ThinkingWireFormat _wire;
     private bool _manual;
     public Guid Id => _template.Id;
-    public string Name { get => _name; set { if(Set(ref _name,value)) Changed(); } }
+    public string Name { get => _name; set { if(Set(ref _name,value)) { InvalidateVerification(); Changed(); } } }
+    public string? TextVerifiedFingerprint { get => _template.TextVerifiedFingerprint; set { _template = _template with { TextVerifiedFingerprint = value }; Notify(); } }
+    public void InvalidateVerification()
+    {
+        if(_template.TextVerifiedFingerprint is null && _template.VerifiedFingerprint is null) return;
+        _template = _template with { TextVerifiedFingerprint = null,VerifiedFingerprint = null };
+        Notify(nameof(TextVerifiedFingerprint)); Notify(nameof(VerifiedFingerprint));
+    }
     public string? VerifiedFingerprint { get => _template.VerifiedFingerprint; set { _template = _template with { VerifiedFingerprint = value }; Notify(); } }
     public ThinkingChoice DefaultThinking { get => _thinking; set => Set(ref _thinking,value); }
     public bool ManualCapability { get => _manual; set { if(Set(ref _manual,value)) Changed(); } }

@@ -21,11 +21,12 @@ public class EntryEligibilityTests
         return Verification.RecordAsrSuccess(Verification.RecordAiSuccess(settings,Verification.AiFingerprint(settings)),Verification.AsrFingerprint(settings));
     }
     [Fact]
-    public async Task UnverifiedCannotStartAuxiliaryButCanOpenHistoryAtHome()
+    public async Task UnverifiedCanEnterAuxiliaryAndReturnToHistory()
     {
         await using var rig = new Rig(new()); await rig.Home.StartAsync(default);
+        Assert.False(rig.Home.HomeVisible); Assert.Equal(1,rig.Host.OpenCalls); await rig.Home.ReturnedAsync(default);
         var saved = new SessionSnapshot { Draft = new("home",[],1) }; await rig.Store.SaveAsync(saved,default); await rig.Home.SelectAsync(saved.Id,default);
-        Assert.True(rig.Home.HomeVisible); Assert.Equal(0,rig.Host.OpenCalls); Assert.Equal(saved.Id,rig.Home.SelectedConversationId);
+        Assert.True(rig.Home.HomeVisible); Assert.Equal(1,rig.Host.OpenCalls); Assert.Equal(saved.Id,rig.Home.SelectedConversationId);
     }
     [Fact]
     public async Task ProtectionFailureKeepsHomeVisibleAndDoesNotCreateEmptyHistory()

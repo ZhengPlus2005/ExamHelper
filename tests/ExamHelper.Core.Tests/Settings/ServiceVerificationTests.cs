@@ -9,6 +9,8 @@ public class ServiceVerificationTests
     {
         var settings = TestSettings.Configured(new() { BaseUri = new("https://api.moonshot.cn/v1"),SecretFingerprint = _verification.SecretDigest("ai-key") },new() { SecretFingerprint = _verification.SecretDigest("asr-key") });
         settings = _verification.RecordAiSuccess(settings,_verification.AiFingerprint(settings));
+        var p = settings.AiProfiles!.Value[0]; var m = p.Models!.Value[0];
+        settings = _verification.RecordModelResult(settings,p.Id,m.Id,AiTestKind.Text,true,_verification.AiFingerprint(settings));
         return _verification.RecordAsrSuccess(settings,_verification.AsrFingerprint(settings));
     }
     [Fact]

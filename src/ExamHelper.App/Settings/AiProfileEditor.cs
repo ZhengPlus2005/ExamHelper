@@ -20,14 +20,15 @@ public sealed class AiProfileEditor : ObservableObject
     public ModelEditor? SelectedModel { get => _selectedModel; set { if(Set(ref _selectedModel,value)) { Notify(nameof(Model)); Changed(); } } }
     public Guid? DefaultModelId { get => _defaultModelId; set { if(Set(ref _defaultModelId,value)) Changed(); } }
     public string Name { get => _name; set { if(Set(ref _name,value)) Changed(); } }
-    public string BaseAddress { get => _baseAddress; set { if(Set(ref _baseAddress,value)) { DiscoveredModels.Clear(); Changed(); } } }
+    public string BaseAddress { get => _baseAddress; set { if(Set(ref _baseAddress,value)) { DiscoveredModels.Clear(); foreach(var model in Models) model.InvalidateVerification(); Changed(); } } }
     public string Model { get => SelectedModel?.Name ?? ""; set { if(SelectedModel is { } m) m.Name = value; } }
-    public string ApiKey { get => _apiKey; set { if(Set(ref _apiKey,value)) { DiscoveredModels.Clear(); Changed(); } } }
+    public string ApiKey { get => _apiKey; set { if(Set(ref _apiKey,value)) { DiscoveredModels.Clear(); foreach(var model in Models) model.InvalidateVerification(); Changed(); } } }
     public ProviderKind ProviderKind { get => _kind; set { if(Set(ref _kind,value)) Changed(); } }
     public bool IsActive { get => _active; set { if(Set(ref _active,value)) Changed(); } }
     public string? VerifiedFingerprint { get => SelectedModel?.VerifiedFingerprint; set { if(SelectedModel is { } m) m.VerifiedFingerprint = value; Changed(); } }
     public bool IsVerified { get { try { return _verification.IsAiVerified(TestSettings()); } catch { return false; } } }
-    public string Status => (IsActive ? "启用 · " : "") + (IsVerified ? "图片已验证" : "未验证");
+    public bool IsTextVerified { get { try { var s = TestSettings(); return s.Ai.SecretFingerprint.Length > 0 && SelectedModel?.TextVerifiedFingerprint == _verification.AiFingerprint(s); } catch { return false; } } }
+    public string Status => (IsActive ? "启用 · " : "") + (IsTextVerified ? "文字已验证" : "文字未验证") + " · " + (IsVerified ? "图片已验证" : "图片未验证");
     public AiProfileEditor(AiServiceProfile profile,string key,ServiceVerification verification)
     {
         Id = profile.Id; _secretId = profile.Settings.SecretId; _name = profile.Name; _template = profile.Settings; _verification = verification;
@@ -52,5 +53,5 @@ public sealed class AiProfileEditor : ObservableObject
     public AiServiceProfile BuildProfile() => new() { Id = Id,Name = Name.Trim(),BaseAddress = BaseAddress,Settings = BuildSettings(),Models = Models.Select(m => m.Build()).ToImmutableArray(),DefaultModelId = DefaultModelId,VerifiedFingerprint = VerifiedFingerprint };
     public AppSettings TestSettings() => new() { Ai = BuildSettings(),AiProfiles = [BuildProfile()],ActiveAiProfileId = Id,Evidence = new(VerifiedFingerprint) };
     internal void RebaseSecretId(string id) { _secretId = id; Changed(); }
-    private void Changed() { Notify(nameof(IsVerified)); Notify(nameof(Status)); }
+    private void Changed() { Notify(nameof(IsTextVerified)); Notify(nameof(IsVerified)); Notify(nameof(Status)); }
 }

@@ -67,7 +67,7 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
     public string ResultText { get => _result; private set => Set(ref _result,value); }
     public string VerificationSummary
     {
-        get { try { var c = BuildCandidate(); return $"AI 图片：{(_verification.IsAiVerified(c) ? "已验证" : "未验证")}　语音：{(_verification.IsAsrVerified(c) ? "已验证" : "未验证")}"; } catch { return "配置尚未完整"; } }
+        get { try { var c = BuildCandidate(); return $"AI：{SelectedAiProfile?.Status ?? "未配置"}　语音：{(_verification.IsAsrVerified(c) ? "已验证" : "未验证")}"; } catch { return "配置尚未完整"; } }
     }
     public SettingsViewModel(AppSettings initial,string aiKey,string asrKey,ISettingsStore store,ISecretStore secrets,ServiceVerification verification,
         ServiceTestRunner runner,RecordingController recording,Action<AppSettings> saved,Action<Action>? dispatch = null,IReadOnlyDictionary<string,string>? aiKeys = null,ExamHelper.Windows.Providers.IModelDiscovery? discovery = null)
@@ -147,16 +147,10 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
             Status = $"正在测试 {profile.Name} 的" + (image ? "图片识别……" : "文字连接……");
             var result = image ? await _runner.TestImageAsync(tested,key,linked.Token) : await _runner.TestTextAsync(tested,key,linked.Token);
             if(_disposed) return;
+            if(!result.WasAttempted) { Status = result.Error ?? "测试未开始。"; return; }
             ResultText = result.Text;
             if(!AiProfiles.Contains(profile) || !profile.Models.Any(m => m.Id == testedModelId)) { Status = "配置已删除，本次测试结果已丢弃。"; return; }
-            if(image && result.Passed)
-            {
-                try { var originalModel = profile.Models.Single(m => m.Id == testedModelId);
-                    var current = profile.BuildSettings() with { Model = originalModel.Name.Trim() };
-                    _verification.RecordAiSuccess(new() { Ai = current },result.Fingerprint); }
-                catch(Exception error) when(error is InvalidOperationException or ArgumentException) { Status = "配置已变化，本次结果不计入验证资格，请重新测试。"; return; }
-                if(!await PersistAiTestAsync(profile,snapshot,testedModelId!.Value,key,result.Fingerprint,linked.Token)) return;
-            }
+            if(!await PersistAiTestAsync(profile,snapshot,testedModelId!.Value,key,image ? AiTestKind.Image : AiTestKind.Text,result.Passed,result.Fingerprint,linked.Token)) return;
             Status = result.Passed ? $"{profile.Name} 测试通过（{result.Elapsed.TotalSeconds:F1} 秒）。" : result.Error ?? "测试未通过。";
         }
         catch(OperationCanceledException) { if(!_disposed) Status = "测试已取消。"; }

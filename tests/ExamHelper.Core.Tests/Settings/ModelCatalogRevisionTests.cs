@@ -32,7 +32,7 @@ public class ModelCatalogRevisionTests
         var choice = new ModelSelection(p.Id,a.Id,new(ThinkingKind.Effort,"high"));
         Assert.Throws<InvalidOperationException>(() => ModelCatalog.Resolve(s,choice,true,_verification));
         var proof = _verification.AiFingerprint(s with { Ai = p.Settings with { Model = a.Name } });
-        p = p with { Models = [a with { VerifiedFingerprint = proof },b] };
+        p = p with { Models = [a with { TextVerifiedFingerprint = proof,VerifiedFingerprint = proof },b] };
         s = s with { AiProfiles = [p] };
         Assert.Equal("kimi-k3",ModelCatalog.Resolve(s,choice,true,_verification).Model);
         Assert.Throws<InvalidOperationException>(() => ModelCatalog.Resolve(s,choice with { ModelId = b.Id },true,_verification));

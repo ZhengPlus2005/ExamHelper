@@ -192,8 +192,12 @@ public class SessionCoordinatorTests
     {
         public DeferredAiClient Ai { get; } = new(); public InMemorySessionStore Store { get; } = new();
         public SessionCoordinator Coordinator { get; }
-        private readonly AppSettings _settings = TestSettings.Configured();
-        public Rig() => Coordinator = new(Ai,new Asr(),new Microphone(),new Screen(),new Images(),() => _settings,Store,new ManualTimeProvider());
+        private readonly AppSettings _settings;
+        public Rig()
+        {
+            var proof = new ServiceVerification(new byte[32]); _settings = TestSettings.Qualified(proof);
+            Coordinator = new(Ai,new Asr(),new Microphone(),new Screen(),new Images(),() => _settings,Store,new ManualTimeProvider(),verification:proof);
+        }
         public async Task Start(string text) { await Coordinator.StartNewAsync(default); await Voice(text); }
         public Task Voice(string text) => Coordinator.AppendSpeechResultAsync(new(Coordinator.State.Id,Coordinator.State.SpeechGeneration,Guid.NewGuid(),text),default);
         public ValueTask DisposeAsync() => Coordinator.DisposeAsync();

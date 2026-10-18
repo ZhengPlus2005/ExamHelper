@@ -88,8 +88,22 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
         finally { _gate.Release(); }
     }
     public bool CanExecute(AppCommand command) => Availability(command).Allowed;
-    private CommandAvailability Availability(AppCommand command) => _commandsSuspended?.Invoke() == true ? new(false,"软件正在退出，草稿会保留。") : command is AppCommand.Send or AppCommand.RetryRequest or AppCommand.CaptureAndSend && _generationGate.IsBusy
-        ? new(false,"正在生成回答或进行服务测试，请先等待或停止。") : _policy.Evaluate(command,_state);
+    private CommandAvailability Availability(AppCommand command)
+    {
+        if(_commandsSuspended?.Invoke() == true) return new(false,"软件正在退出，草稿会保留。");
+        var policy = _policy.Evaluate(command,_state);
+        if(!policy.Allowed) return policy;
+        if(command is AppCommand.Send or AppCommand.RetryRequest or AppCommand.CaptureAndSend)
+        {
+            if(_generationGate.IsBusy) return new(false,"正在生成回答或进行服务测试，请先等待或停止。");
+            try { ResolveAi(_settings()); }
+            catch(InvalidOperationException error) { return new(false,error.Message); }
+            catch(ArgumentException) { return new(false,"AI 配置尚未完整。"); }
+        }
+        if(command == AppCommand.RetrySpeech || command == AppCommand.ToggleRecording && _state.SpeechState == SpeechState.Idle)
+            if(_verification is null || !_verification.IsAsrVerified(_settings())) return new(false,"请先完成语音识别测试。");
+        return policy;
+    }
     public Task WaitForIdleAsync(CancellationToken ct) => _background.WaitAsync(ct);
 
     public async Task ExecuteAsync(AppCommand command,CancellationToken ct)

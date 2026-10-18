@@ -2,6 +2,14 @@ using ExamHelper.Core.Settings;
 namespace ExamHelper.TestSupport;
 public static class TestSettings
 {
+    public static AppSettings Qualified(ServiceVerification proof)
+    {
+        var settings = Configured(new() { SecretFingerprint=proof.SecretDigest("ai") },new() { SecretFingerprint=proof.SecretDigest("asr") });
+        var p = settings.AiProfiles!.Value[0]; var m = p.Models!.Value[0]; var fp = proof.AiFingerprint(settings);
+        settings = proof.RecordModelResult(settings,p.Id,m.Id,AiTestKind.Text,true,fp);
+        settings = proof.RecordModelResult(settings,p.Id,m.Id,AiTestKind.Image,true,fp);
+        return proof.RecordAsrSuccess(settings,proof.AsrFingerprint(settings));
+    }
     public static AppSettings Configured() => Configured(new AiSettings());
     public static AppSettings Configured(AiSettings ai,AsrSettings? asr = null)
     {

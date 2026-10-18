@@ -79,7 +79,6 @@ public sealed class HomeViewModel : ObservableObject
         try
         {
             var settings = await _entrySettings(); SettingsSnapshot = settings; AreServicesVerified = _verification.CanStart(settings);
-            if(!AreServicesVerified) { Status = "请先在设置中通过默认模型的图片测试和语音识别测试。"; return; }
             auxiliary = await Workspace.NewAsync(true,ct); _overlay.Bind(auxiliary);
             var protection = await _overlay.OpenAsync(ct);
             if(!protection.Success) throw new InvalidOperationException($"捕获保护初始化失败（代码 {protection.ErrorCode}，读回 0x{protection.EffectiveAffinity:X}）。");

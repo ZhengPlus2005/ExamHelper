@@ -30,6 +30,7 @@
 <TextBlock Text="支持类型"/><ComboBox ItemsSource="{Binding ThinkingControls}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.Control}"/>
 <TextBlock Text="请求方式"/><ComboBox ItemsSource="{Binding ThinkingFormats}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.WireFormat}"/>
 <TextBlock Text="合法强度（逗号分隔，如 low,high,max）"/><TextBox Text="{Binding SelectedAiProfile.SelectedModel.Levels,UpdateSourceTrigger=PropertyChanged}"/>
+      <TextBlock Text="{Binding SelectedAiProfile.Status}" Margin="0,8"/>
       <WrapPanel><Button Content="文字测试" Click="TextTestClick"/><Button Content="图片测试" Click="ImageTestClick"/></WrapPanel>
       <TextBlock Text="测试仅针对选中项，不会自动启用。每项图片资格独立保存；新增、编辑、启用或删除后请保存并返回。" TextWrapping="Wrap" Foreground="#526174" Margin="0,12"/>
      </StackPanel></ScrollViewer>

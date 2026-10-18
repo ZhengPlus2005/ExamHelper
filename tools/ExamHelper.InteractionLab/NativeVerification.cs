@@ -32,7 +32,7 @@ internal static class NativeVerification
         if(overlay.FindName("AuxiliaryModels") is ModelSelector selector)
         {
             var foreground=GetForegroundWindow(); selector.OpenHoverMenu(ModelSelectorPart.Model); overlay.UpdateLayout();
-            var choices=Descendants(selector).OfType<Button>().Where(b => b.Tag is AiModelProfile).ToArray();
+            var choices=Descendants(selector).OfType<Button>().Where(b => b.Tag is ModelChoice).ToArray();
             results["ModelChoicesUseProtectedHwnd"]=choices.Length>0 && choices.All(b => ReferenceEquals(PresentationSource.FromVisual(b),HwndSource.FromHwnd(hwnd)));
             results["ModelChoicesDoNotTakeFocus"]=choices.All(b => !b.Focusable && !b.IsKeyboardFocusWithin) && GetForegroundWindow()==foreground;
             results["NoEditableControlsInProtectedWindow"]=!Descendants(overlay).OfType<TextBox>().Any(b => b.IsVisible);
