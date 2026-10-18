@@ -40,11 +40,17 @@ public sealed class HomeDraftController(Func<SessionCoordinator?> selected,IImag
     public Task ImportFilesAsync(IEnumerable<string> files,CancellationToken ct)
     { var target=Target(); return TrackImport(ImportFilesCoreAsync(target,files.ToArray(),ct)); }
     private async Task ImportFilesCoreAsync(SessionCoordinator target,string[] files,CancellationToken ct)
-    { var imported=await importer.ImportFilesAsync(files,ct).ConfigureAwait(false); await target.AppendImagesAsync(imported,ct).ConfigureAwait(false); }
+    { var imported=await importer.ImportFilesAsync(files,ct).ConfigureAwait(false); await AcceptImportedAsync(target,imported,ct).ConfigureAwait(false); }
     public Task ImportBitmapAsync(BitmapSource bitmap,CancellationToken ct)
     { var target=Target(); return TrackImport(ImportBitmapCoreAsync(target,bitmap,ct)); }
     private async Task ImportBitmapCoreAsync(SessionCoordinator target,BitmapSource bitmap,CancellationToken ct)
-    { var imported=await importer.ImportBitmapAsync(bitmap,ct).ConfigureAwait(false); await target.AppendImagesAsync(imported,ct).ConfigureAwait(false); }
+    { var imported=await importer.ImportBitmapAsync(bitmap,ct).ConfigureAwait(false); await AcceptImportedAsync(target,imported,ct).ConfigureAwait(false); }
+    private async Task AcceptImportedAsync(SessionCoordinator target,IReadOnlyList<ExamHelper.Core.Drafts.ImageRef> imported,CancellationToken ct)
+    {
+        var accepted=false;
+        try { await target.AppendImportedImagesAsync(imported,()=>accepted=true,ct).ConfigureAwait(false); }
+        catch { if(!accepted) await importer.AbandonAsync(imported,CancellationToken.None).ConfigureAwait(false);throw; }
+    }
     private Task TrackImport(Task task)
     {
         lock(_sync) _imports.Add(task);

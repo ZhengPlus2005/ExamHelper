@@ -49,6 +49,10 @@ public sealed class FileImageStore : IImageStore
         }
         finally { _snapshotGate.Release(); }
     }
+    public Task AbandonAsync(IReadOnlyList<ImageRef> images,CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();_pending?.Release(images.Select(i=>i.Id));return Task.CompletedTask;
+    }
     public async Task DeleteUnreferencedAsync(IReadOnlySet<Guid> liveIds, CancellationToken ct)
     {
         await _snapshotGate.WaitAsync(ct);

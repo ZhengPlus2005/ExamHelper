@@ -28,6 +28,7 @@ public static class ModelCatalog
         var m = p.Models?.FirstOrDefault(m => m.Id == p.DefaultModelId) ?? throw new InvalidOperationException("请为此配置指定默认模型。");
         return Select(p,m,m.DefaultThinking);
     }
+    public static ModelSelection Pending(AiServiceProfile p) => new(p.Id,Guid.Empty,new()) { ProfileName=p.Name };
     public static ModelSelection Select(AiServiceProfile p,AiModelProfile m,ThinkingChoice? thinking = null) => new(p.Id,m.Id,thinking ?? m.DefaultThinking) { ProfileName = p.Name,ModelName = m.Name };
     public static AiSettings Resolve(AppSettings settings,ModelSelection selection,bool requireAuxiliaryVerified,ServiceVerification verification)
     {

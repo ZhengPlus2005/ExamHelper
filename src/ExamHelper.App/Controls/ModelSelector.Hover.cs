@@ -58,6 +58,7 @@ public partial class ModelSelector
         if(item is ModelChoice { IsEnabled:false }) return;
         if(item is AiServiceProfile candidate && RequireAuxiliaryVerified && (candidate.Models?.FirstOrDefault(m => m.Id==candidate.DefaultModelId) is not { } defaultModel || !Qualified(candidate,defaultModel)))
         {
+            Request(ModelCatalog.Pending(candidate));
             CloseHoverMenu(); OpenHoverMenu(ModelSelectorPart.Model,candidate);
             if(Window.GetWindow(this) is { } window) DwellBehavior.InvalidateWindow(window);
             return;

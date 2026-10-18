@@ -66,7 +66,7 @@ public class OverlayRevision03Tests
             var window=new Window { Content=selector,Width=480,Height=360 };try {
                 window.Show();StaTest.Pump();selector.OpenHoverMenu(ModelSelectorPart.Profile);StaTest.Pump();
                 var b=Nodes(selector).OfType<Button>().Single(x=>x.Tag is AiServiceProfile p && p.Id==pb.Id);DwellBehavior.GetCommand(b)!.Execute(null);StaTest.Pump();
-                Assert.Null(request);Assert.True(selector.IsMenuOpen);
+                Assert.Equal(pb.Id,request!.ProfileId);Assert.Equal(Guid.Empty,request.ModelId);Assert.True(selector.IsMenuOpen);
                 var model=Nodes(selector).OfType<Button>().Single(x=>x.Tag is ModelChoice m && m.Model.Id==allowed.Id);Assert.False(Nodes(selector).OfType<Button>().Single(x=>x.Tag is ModelChoice m && m.Model.Id==blocked.Id).IsEnabled);
                 DwellBehavior.GetCommand(model)!.Execute(null);Assert.Equal(pb.Id,request!.ProfileId);Assert.Equal(allowed.Id,request.ModelId);Assert.False(selector.IsMenuOpen);
             } finally { window.Close(); }

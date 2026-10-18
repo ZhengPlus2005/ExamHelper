@@ -19,6 +19,7 @@ public partial class ModelSelector : UserControl
     public void Configure(AppSettings settings,ModelSelection? selection,bool auxiliary,ServiceVerification verification)
     {
         if(ReferenceEquals(settings,_lastInput) && Equals(selection,_lastSelection) && auxiliary == RequireAuxiliaryVerified) return;
+        var reopen=IsMenuOpen && _browsingProfile?.Id==selection?.ProfileId && selection?.ModelId==Guid.Empty;
         CloseHoverMenu();
         _lastInput = settings; _lastSelection = selection; _selection = selection; _verification = verification; RequireAuxiliaryVerified = auxiliary;
         _settings = AiProfileCatalog.Normalize(settings); _sync = true;
@@ -36,6 +37,7 @@ public partial class ModelSelector : UserControl
             Unavailable.Visibility = unavailable ? Visibility.Visible : Visibility.Collapsed;
         }
         finally { _sync = false; RefreshHoverLabels(); }
+        if(reopen && ProfileChoices.FirstOrDefault(p=>p.Id==selection?.ProfileId) is { } browsing) OpenHoverMenu(ModelSelectorPart.Model,browsing);
     }
     private bool Qualified(AiServiceProfile p,AiModelProfile m) => _settings is not null && _verification?.CanUseInAuxiliary(_settings,ModelCatalog.Select(p,m)) == true;
     private ModelChoice Wrap(AiServiceProfile p,AiModelProfile m)
@@ -47,7 +49,8 @@ public partial class ModelSelector : UserControl
     private void ProfileChanged(object sender,SelectionChangedEventArgs e)
     {
         if(_sync || Profiles.SelectedItem is not AiServiceProfile p) return;
-        try { Request(ModelCatalog.Default(p)); } catch(InvalidOperationException error) { Failed?.Invoke(error.Message); }
+        if(!ProfileCompleteness.Evaluate(p).Complete) { Request(ModelCatalog.Pending(p)); return; }
+        try { Request(ModelCatalog.Default(p)); } catch(InvalidOperationException error) { Request(ModelCatalog.Pending(p)); Failed?.Invoke(error.Message); }
     }
     private void ModelChanged(object sender,SelectionChangedEventArgs e)
     { if(!_sync && Profiles.SelectedItem is AiServiceProfile p && Models.SelectedItem is ModelChoice { IsEnabled:true } m) Request(ModelCatalog.Select(p,m.Model)); }

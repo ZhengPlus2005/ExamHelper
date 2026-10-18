@@ -9,5 +9,6 @@ public interface IImageStore
         foreach(var image in images.DistinctBy(i => i.Id)) result.Add(image.Id,await ReadAsync(image,ct));
         return result;
     }
+    Task AbandonAsync(IReadOnlyList<ImageRef> images,CancellationToken ct) => Task.CompletedTask;
     Task DeleteUnreferencedAsync(IReadOnlySet<Guid> liveIds, CancellationToken ct);
 }

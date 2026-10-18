@@ -11,10 +11,18 @@ public sealed partial class SessionCoordinator
             if(current == text) return; _undo.Invalidate(); _draft.ReplaceText(text); Publish(); ScheduleDraftSave(); }
         finally { _gate.Release(); }
     }
-    public async Task AppendImagesAsync(IReadOnlyList<ImageRef> images,CancellationToken ct)
+    public Task AppendImagesAsync(IReadOnlyList<ImageRef> images,CancellationToken ct) => AppendImagesCoreAsync(images,null,ct);
+    public Task AppendImportedImagesAsync(IReadOnlyList<ImageRef> images,Action accepted,CancellationToken ct) => AppendImagesCoreAsync(images,accepted,ct);
+    private async Task AppendImagesCoreAsync(IReadOnlyList<ImageRef> images,Action? accepted,CancellationToken ct)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try { ObjectDisposedException.ThrowIf(_disposed,this); foreach(var image in images) if(!_draft.Snapshot().Images.Any(i => i.Id == image.Id)) _draft.AppendImage(image); Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed,this);
+            foreach(var image in images) if(!_draft.Snapshot().Images.Any(i=>i.Id==image.Id)) _draft.AppendImage(image);
+            // Ownership transfers before persistence, so a failed save must retain live draft images.
+            accepted?.Invoke();Publish();await SaveLockedAsync(ct).ConfigureAwait(false);
+        }
         finally { _gate.Release(); }
     }
     public async Task SelectModelAsync(ModelSelection selection,CancellationToken ct)
@@ -24,9 +32,15 @@ public sealed partial class SessionCoordinator
         {
             ObjectDisposedException.ThrowIf(_disposed,this); var settings = AiProfileCatalog.Normalize(_settings());
             if(_state.IsAuxiliaryMode && _verification is null) throw new InvalidOperationException("服务验证不可用，请返回主页重试。");
-            ModelCatalog.Resolve(settings,selection,_state.IsAuxiliaryMode,_verification ?? new(new byte[32]));
-            var p = settings.AiProfiles!.Value.Single(p => p.Id == selection.ProfileId); var m = p.Models!.Value.Single(m => m.Id == selection.ModelId);
-            _state = _state with { Selection = ModelCatalog.Select(p,m,selection.Thinking) }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false);
+            var p=settings.AiProfiles!.Value.FirstOrDefault(p=>p.Id==selection.ProfileId) ?? throw new InvalidOperationException("配置不可用，请重新选择。");
+            ModelSelection next;
+            if(selection.ModelId==Guid.Empty) next=ModelCatalog.Pending(p);
+            else
+            {
+                ModelCatalog.Resolve(settings,selection,_state.IsAuxiliaryMode,_verification ?? new(new byte[32]));
+                var m=p.Models!.Value.Single(m=>m.Id==selection.ModelId);next=ModelCatalog.Select(p,m,selection.Thinking);
+            }
+            _state = _state with { Selection = next }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false);
         }
         finally { _gate.Release(); }
     }
