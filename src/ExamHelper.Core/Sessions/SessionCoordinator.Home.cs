@@ -6,7 +6,7 @@ public sealed partial class SessionCoordinator
     public async Task UpdateDraftTextAsync(string text,CancellationToken ct)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try { ObjectDisposedException.ThrowIf(_disposed,this); _undo.Invalidate(); _draft.ReplaceText(text); Publish(); await SaveLockedAsync(ct).ConfigureAwait(false); }
+        try { ObjectDisposedException.ThrowIf(_disposed,this); if(_draft.Snapshot().Text == text) return; _undo.Invalidate(); _draft.ReplaceText(text); Publish(); ScheduleDraftSave(); }
         finally { _gate.Release(); }
     }
     public async Task AppendImagesAsync(IReadOnlyList<ImageRef> images,CancellationToken ct)

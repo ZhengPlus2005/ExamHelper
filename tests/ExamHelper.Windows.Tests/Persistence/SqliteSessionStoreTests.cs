@@ -51,13 +51,13 @@ public class SqliteSessionStoreTests
         var root = NewRoot(); var path = Path.Combine(root,"history.db");
         try
         {
-            var store = new SqliteSessionStore(path); var session = new SessionSnapshot();
+            var store = new SqliteSessionStore(path); var session = new SessionSnapshot { Draft = new("original",[],1) };
             await store.SaveAsync(session,default);
             File.SetAttributes(path,FileAttributes.ReadOnly);
             var error = await Assert.ThrowsAsync<ServiceFailure>(() => store.SaveAsync(session with { Draft = new("must not save",[],1) },default));
             Assert.Equal(FailureCategory.Storage,error.Category);
             File.SetAttributes(path,FileAttributes.Normal);
-            Assert.False((await store.LoadAsync(session.Id,default))!.Draft.HasContent);
+            Assert.Equal("original",(await store.LoadAsync(session.Id,default))!.Draft.Text);
         }
         finally { if(File.Exists(path)) File.SetAttributes(path,FileAttributes.Normal); Directory.Delete(root,true); }
     }

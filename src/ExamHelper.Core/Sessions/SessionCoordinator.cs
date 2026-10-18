@@ -361,7 +361,7 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
     }
     private async Task SaveLockedAsync(CancellationToken ct)
     {
-        try { await _store.SaveAsync(_state,ct).ConfigureAwait(false); }
+        try { await _store.SaveAsync(_state,ct).ConfigureAwait(false); DraftSaved(); }
         catch(Exception error)
         {
             Error = SafeError(error); StateChanged?.Invoke(_state); throw;
@@ -396,7 +396,7 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
         try
         {
             if(_disposed) return; _disposed = true; _generationGate.Changed -= GlobalGenerationChanged; _lifetime.Cancel(); StopAnswerLocked(); CancelCaptureLocked();
-            _state = _state with { IsAuxiliaryMode = false }; _undo.Dispose();
+            _state = _state with { IsAuxiliaryMode = false }; _draftSaveTimer?.Dispose(); _undo.Dispose();
             _speech.TranscriptReady -= OnTranscript; _speech.StateChanged -= OnSpeechStateChanged;
         }
         finally { _gate.Release(); }

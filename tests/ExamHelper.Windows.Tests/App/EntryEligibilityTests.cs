@@ -37,7 +37,7 @@ public class EntryEligibilityTests
     [Fact]
     public async Task DeleteRequiresConfirmation()
     {
-        await using var rig = new Rig(new()); var session = new SessionSnapshot(); await rig.Store.SaveAsync(session,default);
+        await using var rig = new Rig(new()); var session = new SessionSnapshot { Draft = new("saved draft",[],1) }; await rig.Store.SaveAsync(session,default);
         await rig.Home.DeleteAsync(session.Id,() => Task.FromResult(false),default);
         Assert.NotNull(await rig.Store.LoadAsync(session.Id,default));
         await rig.Home.DeleteAsync(session.Id,() => Task.FromResult(true),default);

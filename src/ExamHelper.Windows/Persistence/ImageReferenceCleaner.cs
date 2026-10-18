@@ -1,9 +1,7 @@
 using ExamHelper.Core.Drafts;
 using ExamHelper.Core.Sessions;
 namespace ExamHelper.Windows.Persistence;
-// Run before opening an overlay, or after a confirmed deletion while at home.
-// Never run concurrently with a capture awaiting its first database reference.
-public sealed class ImageReferenceCleaner(ISessionStore sessions,IImageStore images)
+public sealed class ImageReferenceCleaner(ISessionStore sessions,IImageStore images,ImageReferenceRegistry? pending = null,Func<IReadOnlySet<Guid>>? inMemory = null)
 {
     public async Task ReconcileAsync(CancellationToken ct)
     {
@@ -13,6 +11,9 @@ public sealed class ImageReferenceCleaner(ISessionStore sessions,IImageStore ima
             var session = await sessions.LoadAsync(summary.Id,ct).ConfigureAwait(false);
             if(session is not null) live.UnionWith(SqliteSessionStore.ImageReferences(session).Select(i => i.Id));
         }
+        pending?.Release(live);
+        if(inMemory is not null) live.UnionWith(inMemory());
+        if(pending is not null) live.UnionWith(pending.Snapshot());
         await images.DeleteUnreferencedAsync(live,ct).ConfigureAwait(false);
     }
 }

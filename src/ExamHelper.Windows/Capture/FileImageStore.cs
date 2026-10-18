@@ -4,15 +4,17 @@ namespace ExamHelper.Windows.Capture;
 public sealed class FileImageStore : IImageStore
 {
     private readonly string _root;
-    public FileImageStore(string root)
+    private readonly ImageReferenceRegistry? _pending;
+    public FileImageStore(string root,ImageReferenceRegistry? pending = null)
     {
-        _root = Path.GetFullPath(root); Directory.CreateDirectory(_root); CheckRoot();
+        _pending = pending; _root = Path.GetFullPath(root); Directory.CreateDirectory(_root); CheckRoot();
     }
     public async Task<ImageRef> AddAsync(CapturedImage image, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); CheckRoot();
         if (image.Width <= 0 || image.Height <= 0 || image.PngBytes.Length == 0) throw new ArgumentException("图片为空或尺寸无效。", nameof(image));
         var id = Guid.NewGuid(); var name = id.ToString("N") + ".png";
+        _pending?.Protect(id);
         var path = Path.Combine(_root, name); var temporary = Path.Combine(_root, id.ToString("N") + ".tmp");
         try
         {
@@ -23,6 +25,7 @@ public sealed class FileImageStore : IImageStore
             ct.ThrowIfCancellationRequested(); File.Move(temporary, path);
             return new(id, name, image.Width, image.Height);
         }
+        catch { _pending?.Release([id]); throw; }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
     public Task<byte[]> ReadAsync(ImageRef image, CancellationToken ct)
@@ -41,7 +44,7 @@ public sealed class FileImageStore : IImageStore
         {
             ct.ThrowIfCancellationRequested();
             var name = Path.GetFileNameWithoutExtension(path);
-            if (Guid.TryParseExact(name, "N", out var id) && !liveIds.Contains(id)) File.Delete(path);
+            if (Guid.TryParseExact(name, "N", out var id) && !liveIds.Contains(id) && _pending?.Contains(id) != true) File.Delete(path);
         }
         return Task.CompletedTask;
     }

@@ -6,7 +6,7 @@ using ExamHelper.Core.Drafts;
 using ExamHelper.Core.Sessions;
 using Microsoft.Data.Sqlite;
 namespace ExamHelper.Windows.Persistence;
-public sealed class SqliteSessionStore(string path) : ISessionStore
+public sealed class SqliteSessionStore(string path,ImageReferenceRegistry? pendingImages = null) : ISessionStore
 {
     private readonly string _path = Path.GetFullPath(path);
     private readonly SemaphoreSlim _gate = new(1);
@@ -17,10 +17,7 @@ public sealed class SqliteSessionStore(string path) : ISessionStore
         try
         {
             await connection.OpenAsync(ct).ConfigureAwait(false);
-            using var schema = connection.CreateCommand(); schema.CommandText = DatabaseSchema.Create; await schema.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-            using var version = connection.CreateCommand(); version.CommandText = "SELECT Version FROM SchemaVersion";
-            if (Convert.ToInt32(await version.ExecuteScalarAsync(ct).ConfigureAwait(false)) != 1)
-                throw new ServiceFailure(FailureCategory.Storage,"历史数据库版本不受支持，原文件已保留。");
+            await SessionMigration.EnsureAsync(connection,_path,ct).ConfigureAwait(false);
             return connection;
         }
         catch { await connection.DisposeAsync().ConfigureAwait(false); throw; }
@@ -32,10 +29,15 @@ public sealed class SqliteSessionStore(string path) : ISessionStore
         {
             await using var connection = await OpenAsync(ct).ConfigureAwait(false);
             using var transaction = connection.BeginTransaction();
+            if(ConversationTitle.IsEmpty(snapshot))
+            {
+                await ExecuteAsync(connection,transaction,"DELETE FROM Sessions WHERE Id=$id",ct,("$id",snapshot.Id.ToString())).ConfigureAwait(false);
+                transaction.Commit(); return;
+            }
             await ExecuteAsync(connection,transaction,"""
                 INSERT INTO Sessions(Id,Title,UpdatedAt,HasSavedDraft,SnapshotJson) VALUES($id,$title,$updated,$draft,$json)
                 ON CONFLICT(Id) DO UPDATE SET Title=$title,UpdatedAt=$updated,HasSavedDraft=$draft,SnapshotJson=$json;
-                """,ct,("$id",snapshot.Id.ToString()),("$title",Title(snapshot)),("$updated",snapshot.UpdatedAt.ToString("O")),("$draft",snapshot.Draft.HasContent ? 1 : 0),("$json",JsonSerializer.Serialize(snapshot))).ConfigureAwait(false);
+                """,ct,("$id",snapshot.Id.ToString()),("$title",ConversationTitle.Get(snapshot)),("$updated",snapshot.UpdatedAt.ToString("O")),("$draft",snapshot.Draft.HasContent ? 1 : 0),("$json",JsonSerializer.Serialize(snapshot))).ConfigureAwait(false);
             foreach(var table in new[] { "Messages","Requests","Drafts","ImageLinks" })
                 await ExecuteAsync(connection,transaction,$"DELETE FROM {table} WHERE SessionId=$id",ct,("$id",snapshot.Id.ToString())).ConfigureAwait(false);
             for(int index = 0;index < snapshot.Messages.Length;index++)
@@ -53,7 +55,7 @@ public sealed class SqliteSessionStore(string path) : ISessionStore
                 await ExecuteAsync(connection,transaction,"INSERT OR IGNORE INTO Images VALUES($id,$path,$width,$height)",ct,("$id",image.Id.ToString()),("$path",image.RelativePath),("$width",image.Width),("$height",image.Height)).ConfigureAwait(false);
                 await ExecuteAsync(connection,transaction,"INSERT INTO ImageLinks VALUES($session,$image)",ct,("$session",snapshot.Id.ToString()),("$image",image.Id.ToString())).ConfigureAwait(false);
             }
-            transaction.Commit();
+            transaction.Commit(); pendingImages?.Release(ImageReferences(snapshot).Select(i => i.Id));
         }
         catch(Exception error) when(IsStorageFailure(error)) { throw Storage("历史保存失败，内存中的内容仍应保留。",error); }
         finally { _gate.Release(); }
@@ -111,13 +113,6 @@ public sealed class SqliteSessionStore(string path) : ISessionStore
     public static IEnumerable<ImageRef> ImageReferences(SessionSnapshot snapshot) =>
         snapshot.Messages.SelectMany(m => m.Images).Concat(snapshot.Draft.Images)
             .Concat(snapshot.Requests.SelectMany(r => r.Images)).Concat(snapshot.PendingRequest?.Images ?? []);
-    private static string Title(SessionSnapshot snapshot)
-    {
-        var first = snapshot.Messages.FirstOrDefault(m => m.Role == MessageRole.User);
-        if(first is not null && !string.IsNullOrWhiteSpace(first.Text) && !snapshot.Requests.Any(r => r.RequestId == first.RequestId && r.IsDirectCapture))
-            return string.Concat(first.Text.Trim().EnumerateRunes().Take(40).Select(r => r.ToString()));
-        return "截图对话 " + snapshot.UpdatedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm");
-    }
     private static async Task ExecuteAsync(SqliteConnection connection,SqliteTransaction transaction,string sql,CancellationToken ct,params (string Name,object Value)[] parameters)
     {
         using var command = connection.CreateCommand(); command.Transaction = transaction; command.CommandText = sql;

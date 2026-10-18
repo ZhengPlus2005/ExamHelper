@@ -9,9 +9,9 @@ public sealed class InMemorySessionStore : ISessionStore
     {
         ct.ThrowIfCancellationRequested();
         if(FailWrites) throw new ServiceFailure(FailureCategory.Storage,"模拟磁盘写入失败。");
-        _sessions[snapshot.Id] = snapshot; return Task.CompletedTask;
+        if(ConversationTitle.IsEmpty(snapshot)) _sessions.TryRemove(snapshot.Id,out _); else _sessions[snapshot.Id] = snapshot; return Task.CompletedTask;
     }
     public Task<SessionSnapshot?> LoadAsync(Guid id,CancellationToken ct) => Task.FromResult(_sessions.GetValueOrDefault(id));
-    public Task<IReadOnlyList<SessionSummary>> ListAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<SessionSummary>>(_sessions.Values.Select(s => new SessionSummary(s.Id,"会话",s.UpdatedAt,s.Draft.HasContent)).ToArray());
+    public Task<IReadOnlyList<SessionSummary>> ListAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<SessionSummary>>(_sessions.Values.Select(s => new SessionSummary(s.Id,ConversationTitle.Get(s),s.UpdatedAt,s.Draft.HasContent)).ToArray());
     public Task DeleteAsync(Guid id,CancellationToken ct) { _sessions.TryRemove(id,out _); return Task.CompletedTask; }
 }
