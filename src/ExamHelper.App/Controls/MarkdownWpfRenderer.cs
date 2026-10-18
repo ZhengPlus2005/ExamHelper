@@ -47,7 +47,7 @@ public static partial class MarkdownWpfRenderer
         var source=block.Lines.ToString(); var stack=new StackPanel { Focusable=false }; var header=new DockPanel { Margin=new Thickness(0,0,0,5),Focusable=false };
         var copy=new Button { Content="复制",FontSize=11,Focusable=!auxiliary,Padding=new Thickness(8,3,8,3),Margin=new Thickness(4,0,0,3) };
         var command=new AsyncDelegateCommand(() => { Clipboard.SetText(source); copy.Content="已复制"; return Task.CompletedTask; },() => true,_ => copy.Content="复制失败，请重试");
-        copy.Command=command; if(auxiliary) DwellBehavior.SetCommand(copy,command);
+        copy.Command=command; if(auxiliary) { copy.SetResourceReference(FrameworkElement.StyleProperty,"AuxiliaryDwellButtonStyle");DwellBehavior.SetCommand(copy,command); }
         DockPanel.SetDock(copy,Dock.Right); header.Children.Add(copy); var label=Text(auxiliary); label.Text=language.Length>0 ? language : "代码"; label.FontSize=11; header.Children.Add(label); stack.Children.Add(header);
         var code=Text(auxiliary); code.TextWrapping=TextWrapping.NoWrap; code.FontFamily=new FontFamily("Consolas"); code.LineHeight=20; code.Margin=new Thickness(0);
         foreach(var run in CodeHighlighter.Highlight(source,language,auxiliary)) code.Inlines.Add(run);

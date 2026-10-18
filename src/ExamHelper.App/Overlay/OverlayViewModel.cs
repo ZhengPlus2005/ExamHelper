@@ -10,7 +10,8 @@ namespace ExamHelper.App.Overlay;
 public sealed class AnswerMessageViewModel(Guid id) : ObservableObject
 {
     public Guid Id { get; } = id;
-    private string _text = "",_title = "";
+    private string _text = "",_title = "",_timing="";
+    public string TimingText { get=>_timing;set=>Set(ref _timing,value); }
     private bool _final,_assistant;
     public bool IsAssistant { get => _assistant; set => Set(ref _assistant,value); }
     public string Text { get => _text; set => Set(ref _text,value); }
@@ -102,12 +103,14 @@ public sealed class OverlayViewModel : ObservableObject,IDisposable
             }
             _shown = state; Notify(nameof(Selection)); DraftText = state.Draft.Text; Notify(nameof(CanUndo)); Notify(nameof(HasSpeechFailure)); Notify(nameof(HasRequestFailure));
         }
+        var presentation=_coordinator.SnapshotForPresentation();
+        foreach(var message in presentation.Messages)if(Messages.FirstOrDefault(view=>view.Id==message.Id) is { } view)view.TimingText=ResponseTimingFormatter.Format(message.Timing);
         foreach(var command in _commands.Values) command.Raise();
         if(_localError is not null) Status = _localError;
         else if(_coordinator.Error is not null) Status = _coordinator.Error;
-        else if(state.SpeechState == SpeechState.Recognizing) Status = "识别结果将追加到草稿，不自动发送。";
+        else if(state.SpeechState == SpeechState.Recognizing) Status = "正在识别……";
         else if(state.CaptureInProgress) Status = "正在截取辅助窗口所在屏幕……";
-        else if(state.AnswerState == AnswerState.Generating) Status = "AI 正在回答，可继续准备下一份草稿。";
+        else if(state.AnswerState == AnswerState.Generating) Status = "AI 正在回答……";
         else Status = state.Draft.HasContent ? "草稿可发送。" : "通过截图或麦克风准备问题。";
     }
     private async Task LoadThumbnailAsync(ThumbnailViewModel view,ImageRef image)

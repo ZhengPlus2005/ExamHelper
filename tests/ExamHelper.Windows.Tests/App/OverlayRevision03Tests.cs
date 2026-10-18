@@ -20,7 +20,7 @@ public class OverlayRevision03Tests
             using var rig=new Rig(); var window=rig.Host.CurrentWindow!; window.Show(); window.UpdateLayout(); StaTest.Pump();
             Assert.DoesNotContain(Nodes(window).OfType<TextBlock>(),t => t.Text=="悬停操作 · 主页／隐藏两秒");
             var fold=Assert.IsType<Button>(window.FindName("FoldButton")); Assert.Equal("折叠",fold.Content); window.ToggleCollapse(); Assert.Equal("展开",fold.Content); window.ToggleCollapse(); Assert.Equal("折叠",fold.Content);
-            var buttons=Assert.IsType<WrapPanel>(window.FindName("ActionButtons"));
+            var buttons=Assert.IsType<System.Windows.Controls.Primitives.UniformGrid>(window.FindName("ActionButtons"));
             Assert.Equal(new[] { "DirectButton","CaptureButton","RecordButton","ClearButton","SendButton" },buttons.Children.OfType<Button>().Take(5).Select(b => b.Name));
             window.Width=480; window.Height=360; window.UpdateLayout(); StaTest.Pump();
             var send=Assert.IsType<Button>(window.FindName("SendButton")); var bottom=send.TranslatePoint(new Point(0,send.ActualHeight),window).Y; Assert.InRange(bottom,1,window.ActualHeight-5);

@@ -43,7 +43,8 @@ public partial class ModelSelector
         foreach(var item in choices)
         {
             var label=item switch { AiServiceProfile p => string.IsNullOrWhiteSpace(p.Name) ? "未命名配置" : p.Name,ModelChoice m => m.Model.Name,ThinkingChoice thinking => thinking.ToString(),_ => "" };
-            var button=new Button { Content=new TextBlock { Text=label,TextWrapping=TextWrapping.Wrap,FontSize=11 },Tag=item,HorizontalContentAlignment=HorizontalAlignment.Left,Focusable=false,Margin=new Thickness(1,2,1,2),Padding=new Thickness(7,5,7,5) };
+            var button=new Button { Content=new TextBlock { Text=label,TextWrapping=TextWrapping.Wrap,FontSize=11 },Tag=item,HorizontalContentAlignment=HorizontalAlignment.Left,Focusable=false,Margin=new Thickness(3),Padding=new Thickness(7,5,7,5) };
+            button.SetResourceReference(StyleProperty,"AuxiliaryDwellButtonStyle");
             if(item is ModelChoice model) { button.IsEnabled=model.IsEnabled; button.ToolTip=model.Reason;
                 if(!model.IsEnabled) { button.Foreground=System.Windows.Media.Brushes.Gray; button.Opacity=0.55; } }
             HoverModelSelectorBehavior.Attach(button,() => Choose(item),() => !_hoverSuspended && button.IsEnabled); MenuItems.Children.Add(button);

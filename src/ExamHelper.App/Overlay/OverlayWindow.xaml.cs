@@ -78,8 +78,9 @@ public partial class OverlayWindow : Window
     private void AdaptLayout()
     {
         var compact=Height<500; Surface.Padding=new Thickness(compact ? 8 : 10);
-        DraftScroll.MinHeight=compact ? 24 : 30; DraftScroll.MaxHeight=compact ? 44 : 82;
-        DraftImages.ScrollViewer.MaxHeight=compact ? 58 : 90; StatusScroll.MaxHeight=compact ? 22 : 32;
+        DraftScroll.MinHeight=compact ? 24 : 30; DraftScroll.MaxHeight=compact ? 36 : 82;
+        ConditionalActionsScroll.MaxHeight=compact ? 54 : 72;
+        DraftImages.ScrollViewer.MaxHeight=compact ? 50 : 90; StatusScroll.MaxHeight=compact ? 22 : 32;
     }
     private void Bind(Button button,AppCommand command) { button.Command = _viewModel.Command(command); DwellBehavior.SetCommand(button,button.Command); }
     private void OnSourceInitialized(object? sender,EventArgs args)
