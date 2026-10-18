@@ -21,12 +21,13 @@ public partial class HomeWindow : Window
     private CancellationTokenSource? _selection;
     private bool _closing,_closePending,_syncSelection,_syncInput;
     private readonly HomeInputBehavior _inputBehavior;
+    private readonly HomePasteBehavior _pasteBehavior;
     private DateTime _lastHistoryRefresh;
     public HomeDraftController DraftController { get; }
     public HomeWindow(AppComposition services) : this(services.Home,services.CreateSettingsViewModelAsync,
         async () => { await services.Workspace.ExitAsync(CancellationToken.None); await services.DisposeAsync(); },services.ImageImporter)
     { AttachLifecycle(services.StartLifecycle(new ExamHelper.App.Lifecycle.TrayIconService(),() => _settingsWindow?.TryCloseAsync() ?? Task.FromResult(true),() => DraftController.DrainAllAsync(CancellationToken.None))); }
-    public HomeWindow(HomeViewModel viewModel,Func<Task<SettingsViewModel>> settings,Func<Task> shutdown,IImageImporter? importer = null)
+    public HomeWindow(HomeViewModel viewModel,Func<Task<SettingsViewModel>> settings,Func<Task> shutdown,IImageImporter? importer = null,IClipboardAccess? clipboard = null)
     {
         _viewModel=viewModel; _settings=settings; _shutdown=shutdown;
         DraftController = new(() => viewModel.Workspace.Selected,importer ?? new ImageImportService(viewModel.ImageStore));
@@ -35,11 +36,11 @@ public partial class HomeWindow : Window
         HomeModels.SelectionRequested += async choice => { await RunAsync(() => viewModel.SelectModelAsync(choice,CancellationToken.None)); HomeModels.Configure(viewModel.SettingsSnapshot,viewModel.Workspace.Selected?.State.Selection,false,viewModel.Verification); };
         HomeModels.Failed += message => viewModel.Status=message;
         _inputBehavior = new HomeInputBehavior(HomeDraftInput,() => DraftController.SendAsync(CancellationToken.None),error => viewModel.Status=Common.ObservableObject.Explain(error));
-        DataObject.AddPastingHandler(HomeDraftInput,Paste);
+        _pasteBehavior=new(HomeDraftInput,DraftController,clipboard ?? new WindowsClipboardAccess(),error=>viewModel.Status=Common.ObservableObject.Explain(error));
         Loaded += async (_,_) => { if(viewModel.Workspace.Selected is null) await viewModel.NewConversationAsync(CancellationToken.None); await viewModel.RefreshAsync(CancellationToken.None); Render(true); _refresh.Start(); };
         _refresh.Tick += (_,_) => { _=viewModel.Workspace.Selected?.RefreshUndoAsync(); Render(false); if(viewModel.HistoryNeedsRefresh && DateTime.UtcNow-_lastHistoryRefresh>TimeSpan.FromMilliseconds(500)) { _lastHistoryRefresh=DateTime.UtcNow; _=viewModel.RefreshAsync(CancellationToken.None); } };
         Closing += OnClosing;
-        Closed += (_,_) => { _refresh.Stop(); _selection?.Cancel(); viewModel.VisibilityChanged-=VisibilityChanged; };
+        Closed += (_,_) => { _refresh.Stop(); _selection?.Cancel(); _pasteBehavior.Dispose(); viewModel.VisibilityChanged-=VisibilityChanged; };
     }
     public void AttachLifecycle(ExamHelper.App.Lifecycle.AppLifecycle lifecycle)
     {
@@ -86,17 +87,10 @@ public partial class HomeWindow : Window
             await _viewModel.RefreshAsync(CancellationToken.None); Render(true);
         });
     }
-    private async void Paste(object sender,DataObjectPastingEventArgs e)
-    {
-        if(e.DataObject.GetDataPresent(DataFormats.Bitmap) && e.DataObject.GetData(DataFormats.Bitmap) is BitmapSource bitmap)
-        { e.CancelCommand(); await RunAsync(() => DraftController.ImportBitmapAsync(bitmap,CancellationToken.None)); }
-        else if(e.DataObject.GetDataPresent(DataFormats.FileDrop) && e.DataObject.GetData(DataFormats.FileDrop) is string[] paths)
-        { e.CancelCommand(); await RunAsync(() => DraftController.ImportFilesAsync(paths,CancellationToken.None)); }
-    }
     private void DraftDragOver(object sender,DragEventArgs e)
-    { if(!e.Data.GetDataPresent(DataFormats.FileDrop)) return; e.Effects=DragDropEffects.Copy; e.Handled=true; }
+    { if(!_viewModel.CanEditDraft) { e.Effects=DragDropEffects.None;e.Handled=true;return; } if(!e.Data.GetDataPresent(DataFormats.FileDrop)) return; e.Effects=DragDropEffects.Copy; e.Handled=true; }
     private async void DraftDrop(object sender,DragEventArgs e)
-    { if(e.Data.GetData(DataFormats.FileDrop) is string[] paths) { e.Handled=true; await RunAsync(() => DraftController.ImportFilesAsync(paths,CancellationToken.None)); } }
+    { if(!_viewModel.CanEditDraft) { e.Handled=true;return; } if(e.Data.GetData(DataFormats.FileDrop) is string[] paths) { e.Handled=true; await RunAsync(() => DraftController.ImportFilesAsync(paths,CancellationToken.None)); } }
     private async void OnClosing(object? sender,CancelEventArgs e)
     {
         if(_closing || _lifecycle?.IsExitCommitted==true) return;

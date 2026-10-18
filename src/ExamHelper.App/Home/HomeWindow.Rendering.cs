@@ -5,6 +5,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ExamHelper.App.Images;
+using ExamHelper.App.Controls;
+using ExamHelper.App.Common;
 using ExamHelper.Core.Drafts;
 namespace ExamHelper.App.Home;
 public partial class HomeWindow
@@ -60,27 +62,30 @@ public partial class HomeWindow
         try { HomeDraftInput.Text=_viewModel.DraftText; HomeDraftInput.CaretIndex=caret; DraftController.ObserveText(id,HomeDraftInput.Text); }
         finally { _syncInput=false; }
     }
-    private Button Thumbnail(ImageRef image,bool draft)
+    private FrameworkElement Thumbnail(ImageRef image,bool draft)
     {
-        var preview=new Image { Width=144,Height=90,Stretch=Stretch.UniformToFill,Clip=new RectangleGeometry(new Rect(0,0,144,90),9,9) };
-        var grid=new Grid { Width=144,Height=90 }; grid.Children.Add(preview);
-        if(draft) grid.Children.Add(new TextBlock { Text="×",Background=Brushes.White,Foreground=Brushes.DarkRed,Padding=new Thickness(5,0,5,1),HorizontalAlignment=HorizontalAlignment.Right,VerticalAlignment=VerticalAlignment.Top,FontSize=18 });
-        var button=new Button { Content=grid,Padding=new Thickness(0),BorderThickness=new Thickness(0),Background=Brushes.Transparent,Margin=new Thickness(0,3,8,7),ToolTip=draft ? "点击删除待发送图片" : "点击查看原图" };
-        var target=_viewModel.Workspace.Selected; var session=_renderedSession;
-        button.Click+=async (_,_) => await RunAsync(async () =>
+        var session=_renderedSession;var target=_viewModel.Workspace.Selected;
+        if(draft)
         {
-            if(draft) { if(target is not null) await target.RemoveImageAsync(image.Id,CancellationToken.None); }
-            else { var bitmap=await LoadBitmapAsync(image,false); var viewer=new ImageViewerWindow(bitmap) { Owner=this }; viewer.Show(); }
-        });
-        _=RunAsync(async () => { var bitmap=await LoadBitmapAsync(image,true); if(_renderedSession==session) preview.Source=bitmap; });
-        return button;
+            var tile=new DraftImageTile { Tag=image.Id,Margin=new Thickness(0,3,8,7),
+                PreviewCommand=new AsyncDelegateCommand(()=>OpenImageAsync(image),()=>true,error=>_viewModel.Status=Common.ObservableObject.Explain(error)),
+                RemoveCommand=new AsyncDelegateCommand(()=>target?.RemoveImageAsync(image.Id,CancellationToken.None) ?? Task.CompletedTask,()=>target is not null,error=>_viewModel.Status=Common.ObservableObject.Explain(error)) };
+            _=RunAsync(async()=> { var bitmap=await LoadBitmapAsync(image,true);if(_renderedSession==session)tile.PreviewSource=bitmap; });return tile;
+        }
+        var preview=new Image { Width=144,Height=90,Stretch=Stretch.UniformToFill,Clip=new RectangleGeometry(new Rect(0,0,144,90),9,9) };
+        var frame=new Grid();frame.Children.Add(preview);
+        var button=new Button { Content=frame,Padding=new Thickness(0),BorderThickness=new Thickness(0),Background=Brushes.Transparent,Margin=new Thickness(0,3,8,7),ToolTip="查看原图" };
+        button.Click+=async(_,_)=>await RunAsync(()=>OpenImageAsync(image));
+        _=RunAsync(async()=> { var bitmap=await LoadBitmapAsync(image,true);if(_renderedSession==session)preview.Source=bitmap; });return button;
     }
+    private async Task OpenImageAsync(ImageRef image)
+    { var bitmap=await LoadBitmapAsync(image,false);var viewer=new ImageViewerWindow(bitmap) { Owner=this };viewer.Show(); }
     private async Task<BitmapSource> LoadBitmapAsync(ImageRef image,bool thumbnail)
     {
         if(thumbnail && _thumbnails.TryGetValue(image.Id,out var cached)) return cached;
-        var bytes=await _viewModel.ReadImageAsync(image,CancellationToken.None);
+        var session=_renderedSession;var bytes=await _viewModel.ReadImageAsync(image,CancellationToken.None);
         using var stream=new MemoryStream(bytes); var bitmap=new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption=BitmapCacheOption.OnLoad;
         if(thumbnail) bitmap.DecodePixelWidth=320;
-        bitmap.StreamSource=stream; bitmap.EndInit(); bitmap.Freeze(); if(thumbnail) _thumbnails[image.Id]=bitmap; return bitmap;
+        bitmap.StreamSource=stream; bitmap.EndInit(); bitmap.Freeze(); if(thumbnail && session==_renderedSession) _thumbnails[image.Id]=bitmap; return bitmap;
     }
 }

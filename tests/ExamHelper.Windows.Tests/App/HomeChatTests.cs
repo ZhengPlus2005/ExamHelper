@@ -41,6 +41,25 @@ public class HomeChatTests
         importer.Release.TrySetResult(); await import;
         Assert.Single(a.State.Draft.Images); Assert.Empty(a.State.Messages); Assert.Empty(b.State.Draft.Images); Assert.Equal("B",b.State.Draft.Text);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BitmapImportRemainsBoundToOriginalAndDoesNotReviveDeletedConversation(bool deleted)
+    {
+        await using var rig=new ConversationWorkspaceRig();var a=await rig.Workspace.NewAsync(false,default);await a.UpdateDraftTextAsync("A",default);
+        var importer=new Importer();var draft=new HomeDraftController(()=>rig.Workspace.Selected,importer);
+        var bitmap=await BitmapForImportAsync();var importing=draft.ImportBitmapAsync(bitmap,default);await importer.Entered.Task;
+        var b=await rig.Workspace.NewAsync(false,default);await b.UpdateDraftTextAsync("B",default);
+        if(deleted)await rig.Workspace.DeleteAsync(a.State.Id,default);
+        importer.Release.TrySetResult();
+        if(deleted) { await Assert.ThrowsAnyAsync<Exception>(()=>importing);Assert.Null(await rig.Store.LoadAsync(a.State.Id,default)); }
+        else { await importing;Assert.Single(a.State.Draft.Images);Assert.Empty(a.State.Messages); }
+        Assert.Empty(b.State.Draft.Images);Assert.Equal("B",b.State.Draft.Text);
+    }
+    private static async Task<System.Windows.Media.Imaging.BitmapSource> BitmapForImportAsync()
+    {
+        System.Windows.Media.Imaging.BitmapSource? result=null;await StaTest.RunAsync(()=>result=ClipboardPaste04Tests.Bitmap());return result!;
+    }
     [Fact] public async Task HomeMessagesKeepPicturesInsideTheirOwningMessage()
     {
         await using var rig = new ConversationWorkspaceRig(); var image = new ImageRef(Guid.NewGuid(),"image.png",20,10);
