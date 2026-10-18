@@ -15,9 +15,17 @@
      </ListBox>
      <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto"><StackPanel IsEnabled="{Binding HasSelectedAiProfile}">
       <TextBlock Text="配置名称"/><TextBox Text="{Binding SelectedAiProfile.Name,UpdateSourceTrigger=PropertyChanged}"/>
-      <TextBlock Text="服务类型"/><ComboBox ItemsSource="{Binding Providers}" DisplayMemberPath="Name" SelectedValuePath="Kind" SelectedValue="{Binding AiProviderKind}" Margin="0,4,0,12"/>
       <TextBlock Text="API 地址"/><TextBox Text="{Binding AiBaseAddress,UpdateSourceTrigger=PropertyChanged}"/>
-      <TextBlock Text="模型名称"/><TextBox Text="{Binding AiModel,UpdateSourceTrigger=PropertyChanged}"/>
+      <TextBlock Text="模型（每项独立测试）"/>
+<ComboBox ItemsSource="{Binding SelectedAiProfile.Models}" SelectedItem="{Binding SelectedAiProfile.SelectedModel}" DisplayMemberPath="Name" Margin="0,4,0,8"/>
+<WrapPanel><Button Content="添加模型" Click="AddModelClick"/><Button Content="删除模型" Click="DeleteModelClick"/><Button Content="设为默认" Click="DefaultModelClick"/></WrapPanel>
+<TextBlock Text="真实模型 ID"/><TextBox Text="{Binding SelectedAiProfile.SelectedModel.Name,UpdateSourceTrigger=PropertyChanged}"/>
+<TextBlock Text="默认模型"/><ComboBox ItemsSource="{Binding SelectedAiProfile.Models}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding SelectedAiProfile.DefaultModelId}" Margin="0,4,0,12"/>
+<TextBlock Text="默认思考设置"/><ComboBox ItemsSource="{Binding SelectedAiProfile.SelectedModel.ThinkingOptions}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.DefaultThinking}" Margin="0,4,0,12"/>
+<CheckBox Content="手动指定思考能力（仅在了解接口协议时填写）" IsChecked="{Binding SelectedAiProfile.SelectedModel.ManualCapability}"/>
+<TextBlock Text="支持类型"/><ComboBox ItemsSource="{Binding ThinkingControls}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.Control}"/>
+<TextBlock Text="请求方式"/><ComboBox ItemsSource="{Binding ThinkingFormats}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.WireFormat}"/>
+<TextBlock Text="合法强度（逗号分隔，如 low,high,max）"/><TextBox Text="{Binding SelectedAiProfile.SelectedModel.Levels,UpdateSourceTrigger=PropertyChanged}"/>
       <TextBlock Text="API 密钥（仅为当前 Windows 用户加密保存）"/><PasswordBox x:Name="AiKey" PasswordChanged="AiPasswordChanged"/>
       <WrapPanel><Button Content="文字测试" Click="TextTestClick"/><Button Content="图片测试" Click="ImageTestClick"/></WrapPanel>
       <TextBlock Text="测试仅针对选中项，不会自动启用。每项图片资格独立保存；新增、编辑、启用或删除后请保存并返回。" TextWrapping="Wrap" Foreground="#526174" Margin="0,12"/>

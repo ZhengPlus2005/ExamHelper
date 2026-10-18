@@ -36,6 +36,8 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
         get => _selectedAiProfile;
         set { if(Set(ref _selectedAiProfile,value)) { NotifyAiFields(); Notify(nameof(HasSelectedAiProfile)); } }
     }
+    public IReadOnlyList<ThinkingControl> ThinkingControls { get; } = Enum.GetValues<ThinkingControl>();
+    public IReadOnlyList<ThinkingWireFormat> ThinkingFormats { get; } = Enum.GetValues<ThinkingWireFormat>();
     public bool HasSelectedAiProfile => SelectedAiProfile is not null;
     public string AiBaseAddress { get => SelectedAiProfile?.BaseAddress ?? ""; set { if(SelectedAiProfile is { } p) p.BaseAddress = value; } }
     public string AiModel { get => SelectedAiProfile?.Model ?? ""; set { if(SelectedAiProfile is { } p) p.Model = value; } }
@@ -79,7 +81,7 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
         SelectedAiProfile = AiProfiles.FirstOrDefault(p => p.Id == _activeAiProfileId) ?? AiProfiles.FirstOrDefault();
         AsrBaseAddress = initial.Asr.BaseUri.ToString(); AsrModel = initial.Asr.Model; AsrApiKey = asrKey; DeviceId = initial.Asr.DeviceId;
         DefaultCodeLanguage = initial.DefaultCodeLanguage; DirectCapturePrompt = initial.DirectCapturePrompt; Opacity = initial.Ui.Opacity;
-        foreach(var command in Enum.GetValues<ExamHelper.Core.Interaction.AppCommand>())
+        foreach(var command in Enum.GetValues<ExamHelper.Core.Interaction.AppCommand>().Where(c => c != ExamHelper.Core.Interaction.AppCommand.HideOverlay && c != ExamHelper.Core.Interaction.AppCommand.Exit))
             Hotkeys.Add(new(command,HotkeyEditor.Format(initial.Hotkeys.Bindings.FirstOrDefault(b => b.Command == command))));
         _initial = BuildCandidate();
         _recording.Stopped += OnClip; _recording.Failed += OnRecordingFailed;
@@ -140,17 +142,20 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct,_lifetime.Token);
         try
         {
+            var testedModelId = profile.SelectedModel?.Id;
             var tested = profile.TestSettings(); var key = profile.ApiKey; var snapshot = profile.BuildProfile();
             Status = $"正在测试 {profile.Name} 的" + (image ? "图片识别……" : "文字连接……");
             var result = image ? await _runner.TestImageAsync(tested,key,linked.Token) : await _runner.TestTextAsync(tested,key,linked.Token);
             if(_disposed) return;
             ResultText = result.Text;
-            if(!AiProfiles.Contains(profile)) { Status = "配置已删除，本次测试结果已丢弃。"; return; }
+            if(!AiProfiles.Contains(profile) || !profile.Models.Any(m => m.Id == testedModelId)) { Status = "配置已删除，本次测试结果已丢弃。"; return; }
             if(image && result.Passed)
             {
-                try { _verification.RecordAiSuccess(profile.TestSettings(),result.Fingerprint); }
+                try { var originalModel = profile.Models.Single(m => m.Id == testedModelId);
+                    var current = profile.BuildSettings() with { Model = originalModel.Name.Trim() };
+                    _verification.RecordAiSuccess(new() { Ai = current },result.Fingerprint); }
                 catch(Exception error) when(error is InvalidOperationException or ArgumentException) { Status = "配置已变化，本次结果不计入验证资格，请重新测试。"; return; }
-                if(!await PersistAiTestAsync(profile,snapshot,key,result.Fingerprint,linked.Token)) return;
+                if(!await PersistAiTestAsync(profile,snapshot,testedModelId!.Value,key,result.Fingerprint,linked.Token)) return;
             }
             Status = result.Passed ? $"{profile.Name} 测试通过（{result.Elapsed.TotalSeconds:F1} 秒）。" : result.Error ?? "测试未通过。";
         }
@@ -211,3 +216,4 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
         await _recording.DisposeAsync(); _lifetime.Dispose();
     }
 }
+

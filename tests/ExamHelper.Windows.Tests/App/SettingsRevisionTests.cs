@@ -39,7 +39,7 @@ public class SettingsRevisionTests
         var candidate = rig.Vm.BuildCandidate();
         Assert.Equal(first.Id,candidate.ActiveAiProfileId);
         Assert.Equal("model-B",rig.SentModel); Assert.Equal("key-B",rig.SentKey);
-        Assert.True(second.IsVerified); Assert.False(first.IsVerified);
+        Assert.True(second.IsVerified,rig.Vm.Status); Assert.False(first.IsVerified);
         rig.Vm.ActivateSelectedAiProfile(); await rig.Vm.SaveAsync(default);
         Assert.True(rig.Verification.IsAiVerified(rig.Store.Value));
         rig.Vm.SelectedAiProfile = first; Assert.Equal("ai",rig.Vm.AiApiKey);
@@ -54,7 +54,7 @@ public class SettingsRevisionTests
         var second = rig.Vm.AddAiProfile(); second.ApiKey = "key-B";
         rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
         rig.Vm.SelectedAiProfile = first; rig.Release.TrySetResult(); await running;
-        Assert.True(second.IsVerified); Assert.False(first.IsVerified);
+        Assert.True(second.IsVerified,rig.Vm.Status); Assert.False(first.IsVerified);
     }
     [Fact]
     public async Task DeletedProfileCannotBeResurrectedByLateTest()
@@ -159,8 +159,8 @@ public class SettingsRevisionTests
         first.Model = "uncommitted-A"; rig.Vm.Opacity = 0.45;
         rig.Release.TrySetResult(); await running;
         Assert.Equal(oldModel,rig.Store.Value.AiProfiles!.Value.Single(p => p.Id == first.Id).Settings.Model);
-        Assert.Equal(0.85,rig.Store.Value.Ui.Opacity); Assert.True(rig.Vm.HasUnsavedChanges);
-        Assert.True(second.IsVerified);
+        Assert.Equal(0.5,rig.Store.Value.Ui.Opacity); Assert.True(rig.Vm.HasUnsavedChanges);
+        Assert.True(second.IsVerified,rig.Vm.Status);
     }
     [Fact]
     public async Task InvalidUnrelatedDraftDoesNotPreventIndependentTest()
@@ -169,7 +169,7 @@ public class SettingsRevisionTests
         var second = rig.Vm.AddAiProfile(); second.ApiKey = "B"; second.Model = "model-B";
         first.BaseAddress = "not a valid URI";
         await rig.Vm.RunImageTestAsync(default);
-        Assert.Equal("model-B",rig.SentModel); Assert.True(second.IsVerified); Assert.True(rig.Vm.HasUnsavedChanges);
+        Assert.Equal("model-B",rig.SentModel); Assert.True(second.IsVerified,rig.Vm.Status); Assert.True(rig.Vm.HasUnsavedChanges);
     }
     [Fact]
     public async Task FailedSaveThenDiscardDoesNotAlterPreviouslyWorkingSecret()
@@ -254,6 +254,33 @@ public class SettingsRevisionTests
         var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
         encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
         using var output = File.Create(Path.Combine(directory,name)); encoder.Save(output);
+    }
+    [Fact]
+    public async Task ModelTestBindsOriginalModelWhileSelectionAndOtherDraftsChange()
+    {
+        await using var rig = new Rig(); var profile = rig.Vm.SelectedAiProfile!;
+        var original = profile.SelectedModel!;
+        var b = profile.AddModel(new() { Name = "kimi-k3" });
+        rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
+        profile.SelectedModel = original; original.Name = "unsaved-other-model";
+        rig.Release.TrySetResult(); await running;
+        var stored = rig.Store.Value.AiProfiles!.Value.Single();
+        Assert.Equal("kimi-k2.6",stored.Models!.Value.Single(m => m.Id == original.Id).Name);
+        Assert.NotNull(stored.Models.Value.Single(m => m.Id == b.Id).VerifiedFingerprint);
+        Assert.Null(stored.Models.Value.Single(m => m.Id == original.Id).VerifiedFingerprint);
+        Assert.Equal(original.Id,stored.DefaultModelId);
+        profile.SelectedModel = b; Assert.True(profile.IsVerified,rig.Vm.Status);
+        Assert.True(rig.Vm.HasUnsavedChanges);
+    }
+    [Fact]
+    public async Task DeletedModelCannotBeResurrectedByLateTest()
+    {
+        await using var rig = new Rig(); var profile = rig.Vm.SelectedAiProfile!;
+        var b = profile.AddModel(new() { Name = "kimi-k3" });
+        rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
+        profile.DeleteSelectedModel(); await rig.Vm.SaveAsync(default);
+        rig.Release.TrySetResult(); await running;
+        Assert.DoesNotContain(rig.Store.Value.AiProfiles!.Value.Single().Models!.Value,m => m.Id == b.Id);
     }
     private sealed class Rig : IAsyncDisposable
     {

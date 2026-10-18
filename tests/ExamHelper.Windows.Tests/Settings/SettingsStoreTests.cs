@@ -20,7 +20,7 @@ public class SettingsStoreTests
             var settings = new AppSettings { Ai = new() { SecretFingerprint = verification.SecretDigest(secret) } };
             var store = new JsonSettingsStore(Path.Combine(root,"settings.json"));
             await store.SaveAsync(settings,default); var loaded = await store.LoadAsync(default);
-            Assert.Equal(settings.Ai,loaded.Ai); Assert.Equal(settings.DirectCapturePrompt,loaded.DirectCapturePrompt);
+            Assert.Equal(AiProfileCatalog.Normalize(settings).Ai,loaded.Ai); Assert.Equal(settings.DirectCapturePrompt,loaded.DirectCapturePrompt);
             foreach (var path in Directory.EnumerateFiles(root,"*",SearchOption.AllDirectories))
                 Assert.DoesNotContain(secret,Encoding.UTF8.GetString(await File.ReadAllBytesAsync(path)));
         }

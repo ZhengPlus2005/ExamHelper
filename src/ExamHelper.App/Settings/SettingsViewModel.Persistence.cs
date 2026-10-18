@@ -71,23 +71,28 @@ public sealed partial class SettingsViewModel
 
     // Tests commit only the immutable configuration actually used by their request.
     // Other form edits remain drafts, including changes made while I/O is pending.
-    private async Task<bool> PersistAiTestAsync(AiProfileEditor editor,AiServiceProfile snapshot,string key,string fingerprint,CancellationToken ct)
+    private async Task<bool> PersistAiTestAsync(AiProfileEditor editor,AiServiceProfile snapshot,Guid modelId,string key,string fingerprint,CancellationToken ct)
     {
         if(!await MayCommitTestAsync(ct)) return false;
         await _saveGate.WaitAsync(ct);
         try
         {
             if(_closingAccepted || _closeDecision is not null || !AiProfiles.Contains(editor)) return false;
-            if(_verification.AiFingerprint(editor.TestSettings()) != fingerprint)
+            var model = editor.Models.FirstOrDefault(m => m.Id == modelId);
+            if(model is null || _verification.AiFingerprint(new() { Ai = editor.BuildSettings() with { Model = model.Name.Trim() } }) != fingerprint)
             { Status = "配置已变化，本次结果不计入验证资格，请重新测试。"; return false; }
             var profiles = _initial.AiProfiles!.Value;
-            var tested = snapshot with { VerifiedFingerprint = fingerprint };
-            var index = Array.FindIndex(profiles.ToArray(),p => p.Id == tested.Id);
+            var index = Array.FindIndex(profiles.ToArray(),p => p.Id == snapshot.Id);
+            var testedModel = snapshot.Models!.Value.Single(m => m.Id == modelId) with { VerifiedFingerprint = fingerprint };
+            var savedModels = index < 0 ? ImmutableArray<AiModelProfile>.Empty : profiles[index].Models!.Value;
+            var modelIndex = Array.FindIndex(savedModels.ToArray(),m => m.Id == modelId);
+            savedModels = modelIndex < 0 ? savedModels.Add(testedModel) : savedModels.SetItem(modelIndex,testedModel);
+            var tested = snapshot with { Models = savedModels,DefaultModelId = index < 0 ? modelId : profiles[index].DefaultModelId,VerifiedFingerprint = fingerprint };
             profiles = index < 0 ? profiles.Add(tested) : profiles.SetItem(index,tested);
             var candidate = AiProfileCatalog.Normalize(_initial with { AiProfiles = profiles });
             await CommitAsync(candidate,new Dictionary<string,string> { [snapshot.Settings.SecretId] = key },ct);
             var committed = _initial.AiProfiles!.Value.Single(p => p.Id == snapshot.Id);
-            editor.VerifiedFingerprint = committed.VerifiedFingerprint;
+            model.VerifiedFingerprint = committed.Models!.Value.Single(m => m.Id == modelId).VerifiedFingerprint;
             return true;
         }
         finally { _saveGate.Release(); }
@@ -128,12 +133,14 @@ public sealed partial class SettingsViewModel
             {
                 var profile = profiles[i];
                 if(!keys.TryGetValue(profile.Settings.SecretId,out var key)) continue;
-                var oldSettings = new AppSettings { Ai = profile.Settings,Evidence = new(profile.VerifiedFingerprint) };
-                var qualified = _verification.IsAiVerified(oldSettings);
                 var id = await StageSecretAsync(profile.Settings.SecretId,key,"ai",staged,ct);
-                profile = profile with { Settings = profile.Settings with { SecretId = id } };
-                if(qualified)
-                    profile = profile with { VerifiedFingerprint = _verification.AiFingerprint(new() { Ai = profile.Settings }) };
+                var original = profile.Settings;
+                var models = profile.Models!.Value.Select(m =>
+                {
+                    var old = new AppSettings { Ai = original with { Model = m.Name },Evidence = new(m.VerifiedFingerprint) };
+                    return _verification.IsAiVerified(old) ? m with { VerifiedFingerprint = _verification.AiFingerprint(old with { Ai = old.Ai with { SecretId = id } }) } : m;
+                }).ToImmutableArray();
+                profile = profile with { Settings = profile.Settings with { SecretId = id },Models = models };
                 profiles[i] = profile;
             }
             var asrQualified = _verification.IsAsrVerified(candidate);
@@ -186,3 +193,4 @@ public sealed partial class SettingsViewModel
     private static HashSet<string> SecretIds(AppSettings settings) =>
         (settings.AiProfiles ?? []).Select(p => p.Settings.SecretId).Append(settings.Asr.SecretId).ToHashSet();
 }
+

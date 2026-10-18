@@ -25,7 +25,7 @@ public sealed class ServiceVerification
         return settings with
         {
             Evidence = settings.Evidence with { AiFingerprint = testedFingerprint },
-            AiProfiles = settings.AiProfiles?.Select(p => p.Id == settings.ActiveAiProfileId ? p with { VerifiedFingerprint = testedFingerprint } : p).ToImmutableArray()
+            AiProfiles = settings.AiProfiles?.Select(p => p.Id == settings.ActiveAiProfileId ? p with { VerifiedFingerprint = testedFingerprint,Models = p.Models?.Select(m => m.Name == settings.Ai.Model ? m with { VerifiedFingerprint = testedFingerprint } : m).ToImmutableArray() } : p).ToImmutableArray()
         };
     }
     public AppSettings RecordAsrSuccess(AppSettings settings,string testedFingerprint)

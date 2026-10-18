@@ -4,12 +4,12 @@ namespace ExamHelper.Core.Tests.Settings;
 public class AiProfileCatalogTests
 {
     [Fact]
-    public void LegacyExitHotkeyMigratesToHideWithoutRenumberingStoredCommands()
+    public void LegacyExitHotkeyIsRemovedWithoutRenumberingStoredCommands()
     {
-        var legacy = new AppSettings { Hotkeys = new() { Bindings = [new(ExamHelper.Core.Interaction.AppCommand.Exit,3,0x7B)] } };
+        var legacy = new AppSettings { FormatVersion = 1,Hotkeys = new() { Bindings = [new(ExamHelper.Core.Interaction.AppCommand.Exit,3,0x7B)] } };
         var migrated = AiProfileCatalog.Normalize(legacy);
-        Assert.Equal(2,migrated.FormatVersion);
-        Assert.Equal(ExamHelper.Core.Interaction.AppCommand.HideOverlay,Assert.Single(migrated.Hotkeys.Bindings).Command);
+        Assert.Equal(3,migrated.FormatVersion);
+        Assert.Empty(migrated.Hotkeys.Bindings);
         Assert.Equal(10,(int)ExamHelper.Core.Interaction.AppCommand.Exit);
         var current = migrated with { Hotkeys = legacy.Hotkeys };
         Assert.Equal(ExamHelper.Core.Interaction.AppCommand.Exit,Assert.Single(AiProfileCatalog.Normalize(current).Hotkeys.Bindings).Command);

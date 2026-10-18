@@ -54,6 +54,9 @@ public partial class SettingsWindow : Window
         catch(Exception error) { _viewModel.Status = Common.ObservableObject.Explain(error); }
         finally { _closing = false; }
     }
+    private void AddModelClick(object sender,RoutedEventArgs args) => _viewModel.SelectedAiProfile?.AddModel();
+    private void DeleteModelClick(object sender,RoutedEventArgs args) => _viewModel.SelectedAiProfile?.DeleteSelectedModel();
+    private void DefaultModelClick(object sender,RoutedEventArgs args) { if(_viewModel.SelectedAiProfile is { SelectedModel: { } model } p) p.DefaultModelId = model.Id; }
     private void AddProfileClick(object sender,RoutedEventArgs args) => _viewModel.AddAiProfile();
     private void ActivateProfileClick(object sender,RoutedEventArgs args) => _viewModel.ActivateSelectedAiProfile();
     private void DeleteProfileClick(object sender,RoutedEventArgs args)
@@ -76,3 +79,4 @@ public partial class SettingsWindow : Window
         catch(Exception error) { _viewModel.Status = Common.ObservableObject.Explain(error); }
     }
 }
+

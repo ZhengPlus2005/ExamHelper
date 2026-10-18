@@ -3,6 +3,8 @@ namespace ExamHelper.Core.Settings;
 public enum ProviderKind { Kimi, Compatible }
 public sealed record AiSettings
 {
+    public ThinkingChoice Thinking { get; init; } = new();
+    public ThinkingCapability ThinkingCapability { get; init; } = new();
     public Uri BaseUri { get; init; } = new("https://api.moonshot.cn/v1");
     public string Model { get; init; } = "kimi-k2.6";
     public string SecretId { get; init; } = "ai";
@@ -21,7 +23,7 @@ public sealed record PhysicalWindowPlacement(int X,int Y,int Width,int Height);
 public sealed record UiSettings
 {
     public PhysicalWindowPlacement? Placement { get; init; }
-    public double Opacity { get; init; } = 0.85;
+    public double Opacity { get; init; } = 0.5;
     public double Width { get; init; } = 640;
     public double Height { get; init; } = 720;
     public double? Left { get; init; }
@@ -33,7 +35,7 @@ public sealed record HotkeySettings
 }
 public sealed record AppSettings
 {
-    public int FormatVersion { get; init; } = 1;
+    public int FormatVersion { get; init; } = 3;
     public AiSettings Ai { get; init; } = new();
     // null identifies the legacy single-provider format; [] is an intentionally empty list.
     public ImmutableArray<AiServiceProfile>? AiProfiles { get; init; }

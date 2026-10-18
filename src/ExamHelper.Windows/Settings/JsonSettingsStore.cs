@@ -13,8 +13,16 @@ public sealed class JsonSettingsStore(string path) : ISettingsStore
         if(!File.Exists(_path)) return new();
         try
         {
-            var settings = JsonSerializer.Deserialize<AppSettings>(await File.ReadAllBytesAsync(_path,ct).ConfigureAwait(false))
+            var bytes = await File.ReadAllBytesAsync(_path,ct).ConfigureAwait(false);
+            using var document = JsonDocument.Parse(bytes);
+            var settings = JsonSerializer.Deserialize<AppSettings>(bytes)
                 ?? throw new JsonException();
+            var root = document.RootElement;
+            var oldFormat = !root.TryGetProperty("FormatVersion",out var version) || version.GetInt32() < 3;
+            if(oldFormat) {
+                settings = settings with { FormatVersion = version.ValueKind == JsonValueKind.Number ? version.GetInt32() : 1 };
+                if(!root.TryGetProperty("Ui",out var ui) || !ui.TryGetProperty("Opacity",out _)) settings = settings with { Ui = settings.Ui with { Opacity = 0.85 } };
+            }
             settings = AiProfileCatalog.Normalize(settings); Validate(settings); return settings;
         }
         catch(Exception error) when (error is JsonException or ArgumentException or IOException or UnauthorizedAccessException)
@@ -41,10 +49,11 @@ public sealed class JsonSettingsStore(string path) : ISettingsStore
             foreach(var profile in profiles)
             {
                 ProviderEndpoint.ChatCompletions(profile.Settings.BaseUri);
+                if(profile.Models is not { IsDefaultOrEmpty: false } models || !models.Any(m => m.Id == profile.DefaultModelId) || models.Any(m => m.Id == Guid.Empty || string.IsNullOrWhiteSpace(m.Name) || !ThinkingCapability.For(m).Allows(m.DefaultThinking)) || models.GroupBy(m => m.Id).Any(g => g.Count() > 1) || models.GroupBy(m => m.Name,StringComparer.Ordinal).Any(g => g.Count() > 1)) throw new ArgumentException("模型列表、默认模型或思考选项无效。");
                 if(string.IsNullOrWhiteSpace(profile.Settings.Model)) throw new ArgumentException("AI 模型名称不能为空。");
             }
         }
-        if(settings.FormatVersion is < 1 or > 2 || settings.Ui.Placement is { } placement && (placement.Width <= 0 || placement.Height <= 0))
+        if(settings.FormatVersion is < 1 or > 3 || settings.Ui.Placement is { } placement && (placement.Width <= 0 || placement.Height <= 0))
             throw new ArgumentException("设置格式或窗口物理尺寸无效。");
         ProviderEndpoint.ChatCompletions(settings.Ai.BaseUri); ProviderEndpoint.ChatCompletions(settings.Asr.BaseUri);
         if(!ProviderEndpoint.IsBeijingAsr(settings.Asr.BaseUri)) throw new ArgumentException("语音地址必须位于阿里云北京地域。");
