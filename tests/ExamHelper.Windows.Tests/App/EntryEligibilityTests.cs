@@ -17,7 +17,7 @@ public class EntryEligibilityTests
     private static readonly ServiceVerification Verification = new(new byte[32]);
     private static AppSettings Verified()
     {
-        var settings = new AppSettings { Ai = new() { SecretFingerprint = Verification.SecretDigest("ai") },Asr = new() { SecretFingerprint = Verification.SecretDigest("asr") } };
+        var settings = TestSettings.Configured(new() { SecretFingerprint = Verification.SecretDigest("ai") },new() { SecretFingerprint = Verification.SecretDigest("asr") });
         return Verification.RecordAsrSuccess(Verification.RecordAiSuccess(settings,Verification.AiFingerprint(settings)),Verification.AsrFingerprint(settings));
     }
     [Fact]
@@ -62,7 +62,7 @@ public class EntryEligibilityTests
         using var http = new HttpClient(handler); var secrets = new InMemorySecretStore(); var store = new InMemorySettingsStore();
         var services = new StubServices(); await using var recording = new RecordingController(services,new ManualTimeProvider());
         var runner = new ServiceTestRunner(http,secrets,Verification,[1]);
-        await using var settings = new SettingsViewModel(new(),"ai","asr",store,secrets,Verification,runner,recording,_ => { });
+        await using var settings = new SettingsViewModel(TestSettings.Configured(),"ai","asr",store,secrets,Verification,runner,recording,_ => { });
         var running = settings.RunImageTestAsync(default); await entered.Task;
         settings.AiModel = "changed-while-testing";
         response.SetResult(new(HttpStatusCode.OK) { Content = new StringContent("data: {\"choices\":[{\"delta\":{\"content\":\"EH7Q9\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",Encoding.UTF8,"text/event-stream") });

@@ -137,7 +137,7 @@ public sealed partial class SettingsViewModel
                 var original = profile.Settings;
                 var models = profile.Models!.Value.Select(m =>
                 {
-                    var old = new AppSettings { Ai = original with { Model = m.Name },Evidence = new(m.VerifiedFingerprint) };
+                    var old = new AppSettings { Ai = original with { Model = m.Name },AiProfiles = [profile],ActiveAiProfileId = profile.Id,Evidence = new(m.VerifiedFingerprint) };
                     return _verification.IsAiVerified(old) ? m with { VerifiedFingerprint = _verification.AiFingerprint(old with { Ai = old.Ai with { SecretId = id } }) } : m;
                 }).ToImmutableArray();
                 profile = profile with { Settings = profile.Settings with { SecretId = id },Models = models };

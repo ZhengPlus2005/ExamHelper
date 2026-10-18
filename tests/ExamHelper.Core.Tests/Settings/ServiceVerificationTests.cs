@@ -1,4 +1,5 @@
 using ExamHelper.Core.Settings;
+using ExamHelper.TestSupport;
 using Xunit;
 namespace ExamHelper.Core.Tests.Settings;
 public class ServiceVerificationTests
@@ -6,7 +7,7 @@ public class ServiceVerificationTests
     private readonly ServiceVerification _verification = new(Enumerable.Range(0,32).Select(x => (byte)x).ToArray());
     private AppSettings Verified()
     {
-        var settings = new AppSettings { Ai = new() { SecretFingerprint = _verification.SecretDigest("ai-key") }, Asr = new() { SecretFingerprint = _verification.SecretDigest("asr-key") } };
+        var settings = TestSettings.Configured(new() { BaseUri = new("https://api.moonshot.cn/v1"),SecretFingerprint = _verification.SecretDigest("ai-key") },new() { SecretFingerprint = _verification.SecretDigest("asr-key") });
         settings = _verification.RecordAiSuccess(settings,_verification.AiFingerprint(settings));
         return _verification.RecordAsrSuccess(settings,_verification.AsrFingerprint(settings));
     }

@@ -20,7 +20,7 @@ public partial class App : Application
             if(!WindowsPlatform.IsSupported(WindowsPlatform.Current()))
                 throw new InvalidOperationException("仅支持 Windows 11 x64 工作站，不支持 Windows 10、ARM 或 Windows Server。");
             var identity = WindowsIdentity.GetCurrent().User?.Value ?? Environment.UserName;
-            _instance = new Mutex(true,"Local\\ExamHelper-" + identity,out _ownsMutex);
+            _instance = new Mutex(true,"Local\\ExamHelper-0.4-" + identity,out _ownsMutex);
             if(!_ownsMutex) { MessageBox.Show("ExamHelper 已在运行。","ExamHelper"); Shutdown(); return; }
             var services = await AppComposition.CreateAsync();
             var home = new HomeWindow(services); MainWindow = home; home.Show();

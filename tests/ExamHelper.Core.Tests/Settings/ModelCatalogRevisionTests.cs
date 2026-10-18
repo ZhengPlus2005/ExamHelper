@@ -5,30 +5,29 @@ namespace ExamHelper.Core.Tests.Settings;
 public class ModelCatalogRevisionTests
 {
     private readonly ServiceVerification _verification = new(new byte[32]);
-    [Fact] public void FreshDefaultsAndLegacyCommandMigrationAreDistinct()
+    [Fact] public void FreshDefaultsExposeOnlyCurrentHotkeysAndNoProvider()
     {
-        Assert.Equal(0.5,new AppSettings().Ui.Opacity);
-        var old = new AppSettings { FormatVersion = 2,Hotkeys = new() { Bindings = [new(AppCommand.HideOverlay,3,0x7B),new(AppCommand.Send,2,0x7B),new(AppCommand.ToggleVisibility,3,0x78)] } };
-        var migrated = AiProfileCatalog.Normalize(old);
-        Assert.Equal(3,migrated.FormatVersion);
-        Assert.DoesNotContain(migrated.Hotkeys.Bindings,b => b.Command == AppCommand.HideOverlay);
-        Assert.Contains(migrated.Hotkeys.Bindings,b => b.Command == AppCommand.Send && b.VirtualKey == 0x7B);
-        Assert.Contains(migrated.Hotkeys.Bindings,b => b.Command == AppCommand.ToggleVisibility);
+        var settings = AiProfileCatalog.Normalize(new());
+        Assert.Equal(0.5,settings.Ui.Opacity);
+        Assert.Equal(4,settings.FormatVersion);
+        Assert.DoesNotContain(settings.Hotkeys.Bindings,b => b.Command == AppCommand.HideOverlay);
+        Assert.Contains(settings.Hotkeys.Bindings,b => b.Command == AppCommand.ToggleVisibility && b.VirtualKey == 0x78);
+        Assert.Empty(settings.AiProfiles!.Value);
     }
-    [Fact] public void LegacyImportsOneModelWithOldThinkingButNewModelUsesServiceDefault()
+    [Fact] public void EmptyModelCatalogDoesNotImportOldModelOrProof()
     {
-        var old = new AppSettings { FormatVersion = 2,Ai = new() { SecretFingerprint = "test" } };
-        old = old with { Evidence = new(_verification.AiFingerprint(old)) };
-        var migrated = AiProfileCatalog.Normalize(old);
-        var p = Assert.Single(migrated.AiProfiles!.Value); var m = Assert.Single(p.Models!.Value);
-        Assert.Equal(p.DefaultModelId,m.Id); Assert.Equal(ThinkingKind.Disabled,m.DefaultThinking.Kind);
-        Assert.Equal(old.Evidence.AiFingerprint,m.VerifiedFingerprint);
+        var profile = new AiServiceProfile { Settings = new() { Model = "kimi-k2.6",SecretFingerprint = "test" },VerifiedFingerprint = "old-proof" };
+        var settings = AiProfileCatalog.Normalize(new() { AiProfiles = [profile],ActiveAiProfileId = profile.Id });
+        Assert.Empty(settings.AiProfiles!.Value[0].Models!.Value);
+        Assert.Null(settings.AiProfiles.Value[0].DefaultModelId);
+        Assert.Null(settings.Evidence.AiFingerprint);
+        Assert.Equal("",settings.Ai.Model);
         Assert.Equal(ThinkingKind.ServiceDefault,new AiModelProfile().DefaultThinking.Kind);
     }
     [Fact] public void ResolveRequiresMatchingModelProofAndNeverFallsBack()
     {
         var a = new AiModelProfile { Name = "kimi-k3" }; var b = new AiModelProfile { Name = "kimi-k2.6" };
-        var p = new AiServiceProfile { Models = [a,b],DefaultModelId = a.Id,Settings = new() { SecretFingerprint = "test" } };
+        var p = new AiServiceProfile { Name = "P",BaseAddress = "https://example.invalid/v1",Models = [a,b],DefaultModelId = a.Id,Settings = new() { BaseUri = new("https://example.invalid/v1"),SecretFingerprint = "test" } };
         var s = AiProfileCatalog.Normalize(new() { AiProfiles = [p],ActiveAiProfileId = p.Id });
         var choice = new ModelSelection(p.Id,a.Id,new(ThinkingKind.Effort,"high"));
         Assert.Throws<InvalidOperationException>(() => ModelCatalog.Resolve(s,choice,true,_verification));

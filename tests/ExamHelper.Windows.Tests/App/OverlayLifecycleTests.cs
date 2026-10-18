@@ -178,7 +178,7 @@ public class OverlayLifecycleTests
         public int HomeCalls,ExitCalls;
         public Rig()
         {
-            var services = new StubServices(); var settings = new AppSettings();
+            var services = new StubServices(); var settings = TestSettings.Configured();
             Coordinator = new(Ai,services,services,services,services,() => settings,Store,new ManualTimeProvider());
             Host = new(Coordinator,services,() => settings,_ => Task.CompletedTask,
                 () => { HomeCalls++; return Task.CompletedTask; },() => { ExitCalls++; return Task.CompletedTask; },Protection,Keys);

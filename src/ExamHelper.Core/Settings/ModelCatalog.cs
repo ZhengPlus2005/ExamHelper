@@ -3,7 +3,7 @@ namespace ExamHelper.Core.Settings;
 public sealed record AiModelProfile
 {
     public Guid Id { get; init; } = Guid.NewGuid();
-    public string Name { get; init; } = "kimi-k2.6";
+    public string Name { get; init; } = "";
     public ThinkingChoice DefaultThinking { get; init; } = new();
     public ThinkingCapability? CapabilityOverride { get; init; }
     public ModelMetadata? DiscoveryMetadata { get; init; }
@@ -33,6 +33,8 @@ public static class ModelCatalog
         settings = AiProfileCatalog.Normalize(settings);
         var p = settings.AiProfiles!.Value.FirstOrDefault(p => p.Id == selection.ProfileId) ?? throw new InvalidOperationException($"配置不可用：{selection.ProfileName}，请重新选择。");
         var m = p.Models?.FirstOrDefault(m => m.Id == selection.ModelId) ?? throw new InvalidOperationException($"模型不可用：{selection.ModelName}，请重新选择。");
+        var readiness = ProfileCompleteness.Evaluate(p);
+        if(!readiness.Complete) throw new InvalidOperationException(readiness.Reason);
         var capability = ThinkingCapability.For(m);
         if(!capability.Allows(selection.Thinking)) throw new InvalidOperationException("此模型不支持所选思考设置，请重新选择。");
         var ai = p.Settings with { Model = m.Name,Thinking = selection.Thinking,ThinkingCapability = capability };

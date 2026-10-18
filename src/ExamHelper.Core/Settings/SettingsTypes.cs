@@ -5,11 +5,11 @@ public sealed record AiSettings
 {
     public ThinkingChoice Thinking { get; init; } = new();
     public ThinkingCapability ThinkingCapability { get; init; } = new();
-    public Uri BaseUri { get; init; } = new("https://api.moonshot.cn/v1");
-    public string Model { get; init; } = "kimi-k2.6";
+    public Uri? BaseUri { get; init; }
+    public string Model { get; init; } = "";
     public string SecretId { get; init; } = "ai";
     public string SecretFingerprint { get; init; } = "";
-    public ProviderKind ProviderKind { get; init; } = ProviderKind.Kimi;
+    public ProviderKind ProviderKind { get; init; } = ProviderKind.Compatible;
 }
 public sealed record AsrSettings
 {
@@ -35,10 +35,9 @@ public sealed record HotkeySettings
 }
 public sealed record AppSettings
 {
-    public int FormatVersion { get; init; } = 3;
+    public int FormatVersion { get; init; } = 4;
     public AiSettings Ai { get; init; } = new();
-    // null identifies the legacy single-provider format; [] is an intentionally empty list.
-    public ImmutableArray<AiServiceProfile>? AiProfiles { get; init; }
+    public ImmutableArray<AiServiceProfile>? AiProfiles { get; init; } = [];
     public Guid? ActiveAiProfileId { get; init; }
     public AsrSettings Asr { get; init; } = new();
     public UiSettings Ui { get; init; } = new();

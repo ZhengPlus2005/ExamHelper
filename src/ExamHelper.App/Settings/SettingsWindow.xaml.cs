@@ -63,7 +63,12 @@ public partial class SettingsWindow : Window
     }
     private async void FetchModelsClick(object sender,RoutedEventArgs args) => await _viewModel.FetchModelsAsync(CancellationToken.None);
     private void AddDiscoveredModelsClick(object sender,RoutedEventArgs args) => _viewModel.AddDiscoveredModels();
-    private void AddModelClick(object sender,RoutedEventArgs args) => _viewModel.SelectedAiProfile?.AddModel();
+    private void AddModelClick(object sender,RoutedEventArgs args)
+    {
+        if(_viewModel.SelectedAiProfile is not { } profile) return;
+        try { profile.AddModel(profile.NewModelId); profile.NewModelId = ""; }
+        catch(ArgumentException error) { _viewModel.Status = error.Message; }
+    }
     private void DeleteModelClick(object sender,RoutedEventArgs args) => _viewModel.SelectedAiProfile?.DeleteSelectedModel();
     private void DefaultModelClick(object sender,RoutedEventArgs args) { if(_viewModel.SelectedAiProfile is { SelectedModel: { } model } p) p.DefaultModelId = model.Id; }
     private void AddProfileClick(object sender,RoutedEventArgs args) => _viewModel.AddAiProfile();

@@ -59,7 +59,7 @@ public class OverlayRevision03Tests
         await StaTest.RunAsync(() =>
         {
             var proof=new ServiceVerification(new byte[32]);var a=new AiModelProfile { Name="a" };var blocked=new AiModelProfile { Name="blocked" };var allowed=new AiModelProfile { Name="allowed" };
-            var endpoint=new AiSettings { SecretFingerprint="digest" };a=a with { VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=a.Name } }) };allowed=allowed with { VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=allowed.Name } }) };
+            var endpoint=new AiSettings { BaseUri=new("https://example.invalid/v1"),SecretFingerprint="digest" };a=a with { VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=a.Name } }) };allowed=allowed with { VerifiedFingerprint=proof.AiFingerprint(new() { Ai=endpoint with { Model=allowed.Name } }) };
             var pa=new AiServiceProfile { Name="A",Settings=endpoint,Models=[a],DefaultModelId=a.Id };var pb=new AiServiceProfile { Name="B",Settings=endpoint,Models=[blocked,allowed],DefaultModelId=blocked.Id };
             var settings=AiProfileCatalog.Normalize(new() { AiProfiles=[pa,pb],ActiveAiProfileId=pa.Id });var selector=new ModelSelector { AuxiliaryInteraction=true };ModelSelection? request=null;
             selector.SelectionRequested+=choice=>request=choice;selector.Configure(settings,ModelCatalog.Select(pa,a),true,proof);
@@ -124,9 +124,9 @@ public class OverlayRevision03Tests
         {
             var stub=new StubServices(); var store=new InMemorySessionStore();
             var a=new AiModelProfile { Name="model-a" }; var b=new AiModelProfile { Name="unverified" }; var c=new AiModelProfile { Name="kimi-k3" };
-            var endpoint=new AiSettings { Model=a.Name,SecretFingerprint="digest" };
+            var endpoint=new AiSettings { BaseUri=new("https://example.invalid/v1"),Model=a.Name,SecretFingerprint="digest" };
             a=a with { VerifiedFingerprint=Verification.AiFingerprint(new() { Ai=endpoint }) }; c=c with { VerifiedFingerprint=Verification.AiFingerprint(new() { Ai=endpoint with { Model=c.Name } }) };
-            var p=new AiServiceProfile { Models=[a,b,c],DefaultModelId=a.Id,Settings=endpoint };
+            var p=new AiServiceProfile { Name="测试配置",Models=[a,b,c],DefaultModelId=a.Id,Settings=endpoint };
             var settings=AiProfileCatalog.Normalize(new() { AiProfiles=[p],ActiveAiProfileId=p.Id });
             Workspace=new(store,() => new SessionCoordinator(Ai,asr ?? stub,new StubServices(),stub,stub,() => settings,store,new ManualTimeProvider()));
             Coordinator=Workspace.NewAsync(true,default).GetAwaiter().GetResult();

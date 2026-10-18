@@ -22,7 +22,7 @@ public class ProductWindowTests
         await StaTest.RunAsync(() =>
         {
             var stub = new StubServices(); var verification = new ServiceVerification(new byte[32]);
-            var settings = new AppSettings(); var sessions = new InMemorySessionStore();
+            var settings = TestSettings.Configured(); var sessions = new InMemorySessionStore();
             var coordinator = new SessionCoordinator(stub,stub,stub,stub,stub,() => settings,sessions,new ManualTimeProvider());
             var home = new HomeViewModel(new ConversationWorkspace(sessions,() => coordinator),sessions,stub,() => Task.FromResult(settings),verification,new Host(),() => Task.CompletedTask);
             using var http = new HttpClient(new FakeHttpHandler((_,_) => throw new InvalidOperationException("UI smoke must not call services")));

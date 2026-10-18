@@ -88,7 +88,7 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
     }
     public AiProfileEditor AddAiProfile()
     {
-        var profile = new AiServiceProfile { Name = "新配置 " + (AiProfiles.Count + 1),Settings = new() { ProviderKind = ProviderKind.Compatible,SecretId = "ai-" + Guid.NewGuid().ToString("N") } };
+        var profile = new AiServiceProfile { Name = "",Settings = new() { ProviderKind = ProviderKind.Compatible,SecretId = "ai-" + Guid.NewGuid().ToString("N") } };
         var editor = AddEditor(profile,""); SelectedAiProfile = editor; Notify(nameof(HasUnsavedChanges)); return editor;
     }
     public void DeleteSelectedAiProfile()

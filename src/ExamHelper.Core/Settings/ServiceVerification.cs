@@ -52,8 +52,9 @@ public sealed class ServiceVerification
     }
 
     private string Hash<T>(T value) => Convert.ToHexString(HMACSHA256.HashData(_hmac,JsonSerializer.SerializeToUtf8Bytes(value)));
-    private static string Endpoint(Uri uri)
+    private static string Endpoint(Uri? uri)
     {
+        if(uri is null) return "";
         var text = uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
         return text.EndsWith("/chat/completions",StringComparison.OrdinalIgnoreCase) ? text[..^"/chat/completions".Length] : text;
     }

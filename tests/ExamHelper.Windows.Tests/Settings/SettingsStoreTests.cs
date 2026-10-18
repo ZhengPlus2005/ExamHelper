@@ -3,6 +3,7 @@ using System.Text;
 using ExamHelper.Core.Common;
 using ExamHelper.Core.Settings;
 using ExamHelper.Windows.Settings;
+using ExamHelper.TestSupport;
 using Xunit;
 namespace ExamHelper.Windows.Tests.Settings;
 public class SettingsStoreTests
@@ -17,7 +18,7 @@ public class SettingsStoreTests
             const string secret = "test-sensitive-secret-请勿明文";
             await secretStore.SetAsync("ai",secret,default); Assert.Equal(secret,await secretStore.GetAsync("ai",default));
             var verification = new ServiceVerification(new byte[32]);
-            var settings = new AppSettings { Ai = new() { SecretFingerprint = verification.SecretDigest(secret) } };
+            var settings = TestSettings.Configured(new() { SecretFingerprint = verification.SecretDigest(secret) });
             var store = new JsonSettingsStore(Path.Combine(root,"settings.json"));
             await store.SaveAsync(settings,default); var loaded = await store.LoadAsync(default);
             Assert.Equal(AiProfileCatalog.Normalize(settings).Ai,loaded.Ai); Assert.Equal(settings.DirectCapturePrompt,loaded.DirectCapturePrompt);
@@ -47,7 +48,7 @@ public class SettingsStoreTests
         {
             var path = Path.Combine(root,"settings.json"); var store = new JsonSettingsStore(path);
             await store.SaveAsync(new(),default); var original = await File.ReadAllTextAsync(path);
-            await Assert.ThrowsAsync<ArgumentException>(() => store.SaveAsync(new AppSettings { Ai = new() { BaseUri = new("https://example.com/api?key=unsafe") } },default));
+            await Assert.ThrowsAsync<ArgumentException>(() => store.SaveAsync(TestSettings.Configured(new() { BaseUri = new("https://example.com/api?key=unsafe") }),default));
             Assert.Equal(original,await File.ReadAllTextAsync(path));
         }
         finally { if(Directory.Exists(root)) Directory.Delete(root,true); }

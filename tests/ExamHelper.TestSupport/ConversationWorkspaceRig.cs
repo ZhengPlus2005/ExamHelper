@@ -11,7 +11,7 @@ public sealed class ConversationWorkspaceRig : IAsyncDisposable
     public InMemorySessionStore Store { get; } = new();
     public AiGenerationGate Generation { get; } = new();
     public ManualTimeProvider Clock { get; } = new();
-    public AppSettings Settings { get; set; } = new();
+    public AppSettings Settings { get; set; } = TestSettings.Configured();
     public ConversationWorkspace Workspace { get; }
     public IAsrClient Asr { get; set; } = new StubServices();
     public ConversationWorkspaceRig()

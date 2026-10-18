@@ -3,7 +3,8 @@ using System.Text.RegularExpressions;
 namespace ExamHelper.Windows.Persistence;
 public static class AppDataPaths
 {
-    public static string Root => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"ExamHelper");
+    public static AppDataLayout Resolve(string localAppData) => new(Path.Combine(Path.GetFullPath(localAppData),"ExamHelper","0.4"));
+    public static string Root => Resolve(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)).Root;
     public static string Images => Path.Combine(Root,"Images");
     public static string TempAudio => Path.Combine(Root,"TempAudio");
     public static string Settings => Path.Combine(Root,"settings.json");

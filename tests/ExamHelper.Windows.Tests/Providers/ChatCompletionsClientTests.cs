@@ -23,7 +23,7 @@ public class ChatCompletionsClientTests
             "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n" +
             "data: {\"choices\":[],\"usage\":{\"total_tokens\":1}}\n\ndata: [DONE]\n\n")));
         using var http = new HttpClient(handler); var secrets = await Secrets();
-        var chunks = await Collect(new ChatCompletionsClient(http,secrets,new Images()).StreamAsync(Request(),new(),default));
+        var chunks = await Collect(new ChatCompletionsClient(http,secrets,new Images()).StreamAsync(Request(),TestSettings.Configured().Ai,default));
         Assert.Equal("答案😀",string.Concat(chunks.Select(c => c.Text)));
         Assert.True(chunks[^1].IsFinal); Assert.True(chunks[^1].IsComplete); Assert.Equal(1,handler.Calls);
     }
@@ -35,7 +35,7 @@ public class ChatCompletionsClientTests
         using var handler = new FakeHttpHandler((_,_) => Task.FromResult(Sse(body)));
         using var http = new HttpClient(handler);
         var client = new ChatCompletionsClient(http,await Secrets(),new Images());
-        var error = await Assert.ThrowsAsync<ServiceFailure>(() => Collect(client.StreamAsync(Request(),new(),default)));
+        var error = await Assert.ThrowsAsync<ServiceFailure>(() => Collect(client.StreamAsync(Request(),TestSettings.Configured().Ai,default)));
         Assert.Equal(FailureCategory.Transport,error.Category);
     }
     [Theory]
@@ -66,7 +66,7 @@ public class ChatCompletionsClientTests
     {
         using var handler = new FakeHttpHandler((_,_) => Task.FromResult(FakeHttpHandler.Json("{}",HttpStatusCode.TooManyRequests)));
         using var http = new HttpClient(handler); var client = new ChatCompletionsClient(http,await Secrets(),new Images());
-        var error = await Assert.ThrowsAsync<ServiceFailure>(() => Collect(client.StreamAsync(Request(),new(),default)));
+        var error = await Assert.ThrowsAsync<ServiceFailure>(() => Collect(client.StreamAsync(Request(),TestSettings.Configured().Ai,default)));
         Assert.Equal(FailureCategory.RateLimit,error.Category); Assert.Equal(1,handler.Calls);
     }
     [Fact]
@@ -75,8 +75,8 @@ public class ChatCompletionsClientTests
         using var handler = new FakeHttpHandler(async (_,ct) => { await Task.Delay(Timeout.InfiniteTimeSpan,ct); return Sse(""); });
         using var http = new HttpClient(handler); var client = new ChatCompletionsClient(http,await Secrets(),new Images(),TimeSpan.FromMilliseconds(30));
         using var cancel = new CancellationTokenSource(); cancel.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Collect(client.StreamAsync(Request(),new(),cancel.Token)));
-        var error = await Assert.ThrowsAsync<ServiceFailure>(() => Collect(client.StreamAsync(Request(),new(),default)));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Collect(client.StreamAsync(Request(),TestSettings.Configured().Ai,cancel.Token)));
+        var error = await Assert.ThrowsAsync<ServiceFailure>(() => Collect(client.StreamAsync(Request(),TestSettings.Configured().Ai,default)));
         Assert.Equal(FailureCategory.Timeout,error.Category);
     }
     private static HttpResponseMessage Sse(string body) => new(HttpStatusCode.OK) { Content = new StreamContent(new ChunkedReadStream(Encoding.UTF8.GetBytes(body),1)) };

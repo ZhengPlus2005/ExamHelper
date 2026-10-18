@@ -1,35 +1,36 @@
 using ExamHelper.Core.Settings;
+using ExamHelper.TestSupport;
 using Xunit;
 namespace ExamHelper.Core.Tests.Settings;
 public class AiProfileCatalogTests
 {
     [Fact]
-    public void LegacyExitHotkeyIsRemovedWithoutRenumberingStoredCommands()
+    public void CurrentCustomCommandsAreNotReinterpretedAsLegacyCommands()
     {
-        var legacy = new AppSettings { FormatVersion = 1,Hotkeys = new() { Bindings = [new(ExamHelper.Core.Interaction.AppCommand.Exit,3,0x7B)] } };
-        var migrated = AiProfileCatalog.Normalize(legacy);
-        Assert.Equal(3,migrated.FormatVersion);
-        Assert.Empty(migrated.Hotkeys.Bindings);
+        var settings = new AppSettings { Hotkeys = new() { Bindings = [new(ExamHelper.Core.Interaction.AppCommand.Exit,3,0x7B)] } };
+        var normalized = AiProfileCatalog.Normalize(settings);
+        Assert.Equal(4,normalized.FormatVersion);
         Assert.Equal(10,(int)ExamHelper.Core.Interaction.AppCommand.Exit);
-        var current = migrated with { Hotkeys = legacy.Hotkeys };
-        Assert.Equal(ExamHelper.Core.Interaction.AppCommand.Exit,Assert.Single(AiProfileCatalog.Normalize(current).Hotkeys.Bindings).Command);
+        Assert.Equal(ExamHelper.Core.Interaction.AppCommand.Exit,Assert.Single(normalized.Hotkeys.Bindings).Command);
     }
     private readonly ServiceVerification _verification = new(new byte[32]);
     [Fact]
-    public void LegacyMigrationRetainsEndpointSecretIdentityAndEvidence()
+    public void AbsentCatalogNeverImportsSingleProviderOrItsEvidence()
     {
-        var old = new AppSettings { Ai = new() { SecretId = "ai",Model = "old-model",SecretFingerprint = "digest" },Evidence = new("verified-ai","verified-asr") };
-        var migrated = AiProfileCatalog.Normalize(old);
-        var profile = Assert.Single(migrated.AiProfiles!.Value);
-        Assert.Equal(old.Ai,profile.Settings); Assert.Equal("verified-ai",profile.VerifiedFingerprint);
-        Assert.Equal(profile.Id,migrated.ActiveAiProfileId);
-        Assert.Equal(migrated,AiProfileCatalog.Normalize(migrated));
+        var old = new AppSettings { AiProfiles = null,Ai = new() { Model = "old-model",SecretFingerprint = "digest" },Evidence = new("verified-ai","verified-asr") };
+        var normalized = AiProfileCatalog.Normalize(old);
+        Assert.Empty(normalized.AiProfiles!.Value);
+        Assert.Null(normalized.ActiveAiProfileId);
+        Assert.Null(normalized.Ai.BaseUri);
+        Assert.False(_verification.IsAiVerified(normalized));
+        Assert.Equal("verified-asr",normalized.Evidence.AsrFingerprint);
+        Assert.Equal(normalized,AiProfileCatalog.Normalize(normalized));
     }
     [Fact]
     public void SelectionKeepsIndependentEvidenceAndInactiveEditsDoNotInvalidateActive()
     {
-        var a = new AiServiceProfile { Name = "A",Settings = new() { SecretFingerprint = "a" } };
-        var b = new AiServiceProfile { Name = "B",Settings = new() { SecretId = "b",SecretFingerprint = "b",Model = "other" } };
+        var a = TestSettings.Configured(new() { SecretFingerprint = "a" }).AiProfiles!.Value[0] with { Name = "A" };
+        var b = TestSettings.Configured(new() { SecretId = "b",SecretFingerprint = "b",Model = "other" }).AiProfiles!.Value[0] with { Name = "B" };
         var settings = AiProfileCatalog.Normalize(new() { AiProfiles = [a,b],ActiveAiProfileId = a.Id });
         settings = _verification.RecordAiSuccess(settings,_verification.AiFingerprint(settings));
         Assert.True(_verification.IsAiVerified(settings));

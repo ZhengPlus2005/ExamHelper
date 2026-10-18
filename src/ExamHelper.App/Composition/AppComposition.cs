@@ -25,8 +25,9 @@ public sealed class AppComposition : IAsyncDisposable
     private readonly HttpClient _http = new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = Timeout.InfiniteTimeSpan };
     public AppLifecycle? Lifecycle { get; private set; }
     public AppSettings CurrentSettings => _settings.Current;
-    public JsonSettingsStore SettingsStore { get; } = new(AppDataPaths.Settings);
-    public ISecretStore Secrets { get; } = new SynchronizedSecretStore(new UserSecretStore(AppDataPaths.Secrets));
+    public AppDataLayout Paths { get; }
+    public JsonSettingsStore SettingsStore { get; }
+    public ISecretStore Secrets { get; }
     public SqliteSessionStore Sessions { get; }
     public FileImageStore Images { get; }
     public ImageImportService ImageImporter { get; }
@@ -39,20 +40,21 @@ public sealed class AppComposition : IAsyncDisposable
     public IOverlayHost Overlay { get; private set; } = null!;
     public HomeViewModel Home { get; private set; } = null!;
     private readonly List<MicrophoneRecorder> _microphones = [];
-    private AppComposition()
+    private AppComposition(AppDataLayout paths)
     {
-        Sessions=new(AppDataPaths.Database,ImageReferences); Images=new(AppDataPaths.Images,ImageReferences); ImageImporter=new(Images);
+        Paths = paths; SettingsStore = new(paths.Settings); Secrets = new SynchronizedSecretStore(new UserSecretStore(paths.Secrets));
+        Sessions=new(paths.Database,ImageReferences); Images=new(paths.Images,ImageReferences); ImageImporter=new(Images);
     }
     private SessionCoordinator CreateCoordinator()
     {
-        var microphone=new MicrophoneRecorder(AppDataPaths.TempAudio); _microphones.Add(microphone);
+        var microphone=new MicrophoneRecorder(Paths.TempAudio); _microphones.Add(microphone);
         return new(new ChatCompletionsClient(_http,Secrets,Images),new AliyunAsrClient(_http,Secrets),new ExclusiveMicrophoneRecorder(microphone,CaptureAudioGate),
             new FullScreenCapture(windowHandle: () => (Overlay as OverlayHost)?.CurrentWindow?.NativeHandle ?? 0),Images,() => CurrentSettings,Sessions,TimeProvider.System,GenerationGate,Verification,() => Lifecycle?.IsExiting==true);
     }
     private ImageReferenceCleaner _cleaner = null!;
-    public static async Task<AppComposition> CreateAsync(Func<AppComposition,IOverlayHost>? overlayFactory = null)
+    public static async Task<AppComposition> CreateAsync(Func<AppComposition,IOverlayHost>? overlayFactory = null,AppDataLayout? paths = null)
     {
-        var result = new AppComposition(); var warnings = new List<string>();
+        var result = new AppComposition(paths ?? AppDataPaths.Resolve(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))); var warnings = new List<string>();
         try
         {
             var key = await result.Secrets.GetAsync("verification-hmac",CancellationToken.None);
@@ -64,7 +66,7 @@ public sealed class AppComposition : IAsyncDisposable
             try
             {
                 await result.Sessions.RecoverInterruptedAsync(CancellationToken.None);
-                AppDataPaths.CleanTemporaryAudio(AppDataPaths.TempAudio);
+                AppDataPaths.CleanTemporaryAudio(result.Paths.TempAudio);
                 await result._cleaner.ReconcileAsync(CancellationToken.None);
             }
             catch(Exception error) { warnings.Add(ObservableMessage(error)); }
@@ -105,7 +107,7 @@ public sealed class AppComposition : IAsyncDisposable
         }
         try { ai = await Secrets.GetAsync(initial.Ai.SecretId,CancellationToken.None) ?? ""; } catch(ServiceFailure error) { warning += error.Message; }
         try { asr = await Secrets.GetAsync(initial.Asr.SecretId,CancellationToken.None) ?? ""; } catch(ServiceFailure error) { warning += error.Message; }
-        var microphone = new MicrophoneRecorder(AppDataPaths.TempAudio);
+        var microphone = new MicrophoneRecorder(Paths.TempAudio);
         var recording = new RecordingController(new ExclusiveMicrophoneRecorder(microphone,CaptureAudioGate),TimeProvider.System);
         var resource = Application.GetResourceStream(new Uri("pack://application:,,,/ExamHelper.App;component/Assets/service-test.png"));
         using var marker = new MemoryStream(); using(resource.Stream) await resource.Stream.CopyToAsync(marker);

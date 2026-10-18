@@ -106,7 +106,7 @@ public class HomeChatTests
         await StaTest.RunAsync(() =>
         {
             var model=new AiModelProfile { Name="kimi-k3",DefaultThinking=new(ThinkingKind.Effort,"low") };
-            var other=new AiModelProfile { Name="other" }; var profile=new AiServiceProfile { Name="A",Models=[model,other],DefaultModelId=model.Id };
+            var other=new AiModelProfile { Name="other" }; var profile=new AiServiceProfile { Name="A",BaseAddress="https://example.invalid/v1",Settings=new() { SecretFingerprint="test-digest" },Models=[model,other],DefaultModelId=model.Id };
             var settings=AiProfileCatalog.Normalize(new() { AiProfiles=[profile],ActiveAiProfileId=profile.Id });
             var selector=new ExamHelper.App.Controls.ModelSelector(); ModelSelection? requested=null; selector.SelectionRequested+=choice => requested=choice;
             selector.Configure(settings,ModelCatalog.Select(profile,model,new(ThinkingKind.Effort,"high")),false,new(new byte[32]));

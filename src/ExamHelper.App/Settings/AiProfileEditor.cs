@@ -12,6 +12,8 @@ public sealed class AiProfileEditor : ObservableObject
     private bool _active;
     private ModelEditor? _selectedModel;
     private Guid? _defaultModelId;
+    private string _newModelId = "";
+    public string NewModelId { get => _newModelId; set => Set(ref _newModelId,value); }
     public Guid Id { get; }
     public ObservableCollection<DiscoveredModelEditor> DiscoveredModels { get; } = [];
     public ObservableCollection<ModelEditor> Models { get; } = [];
@@ -29,22 +31,26 @@ public sealed class AiProfileEditor : ObservableObject
     public AiProfileEditor(AiServiceProfile profile,string key,ServiceVerification verification)
     {
         Id = profile.Id; _secretId = profile.Settings.SecretId; _name = profile.Name; _template = profile.Settings; _verification = verification;
-        _baseAddress = _template.BaseUri.ToString(); _kind = _template.ProviderKind; _apiKey = key;
+        _baseAddress = profile.BaseAddress; _kind = _template.ProviderKind; _apiKey = key;
         var normalized = AiProfileCatalog.Normalize(new() { AiProfiles = [profile],ActiveAiProfileId = profile.Id }).AiProfiles!.Value[0];
         _defaultModelId = normalized.DefaultModelId;
         foreach(var model in normalized.Models!.Value) AddModel(model);
         SelectedModel = Models.FirstOrDefault(m => m.Id == DefaultModelId);
     }
-    public ModelEditor AddModel(AiModelProfile? model = null)
+    public ModelEditor AddModel(string modelId) => AddModel(new AiModelProfile { Name = modelId });
+    public ModelEditor AddModel(AiModelProfile model)
     {
-        var editor = new ModelEditor(model ?? new() { Name = "" });
+        var name = model.Name.Trim();
+        if(name.Length == 0) throw new ArgumentException("请先填写模型 ID。");
+        if(Models.FirstOrDefault(m => m.Name.Trim() == name) is { } existing) { SelectedModel = existing; return existing; }
+        var editor = new ModelEditor(model with { Name = name });
         editor.PropertyChanged += (_,_) => { if(ReferenceEquals(editor,SelectedModel)) Notify(nameof(Model)); Changed(); };
         Models.Add(editor); SelectedModel = editor; Changed(); return editor;
     }
     public void DeleteSelectedModel() { if(SelectedModel is not { } m) return; Models.Remove(m); if(DefaultModelId == m.Id) DefaultModelId = null; SelectedModel = Models.FirstOrDefault(); Changed(); }
-    public AiSettings BuildSettings() => _template with { SecretId = _secretId,BaseUri = new(BaseAddress.Trim()),Model = Model.Trim(),ProviderKind = ProviderKind,SecretFingerprint = _verification.SecretDigest(ApiKey),Thinking = SelectedModel?.DefaultThinking ?? new(),ThinkingCapability = SelectedModel is { } m ? ThinkingCapability.For(m.Build()) : new() };
-    public AiServiceProfile BuildProfile() => new() { Id = Id,Name = Name.Trim(),Settings = BuildSettings(),Models = Models.Select(m => m.Build()).ToImmutableArray(),DefaultModelId = DefaultModelId,VerifiedFingerprint = VerifiedFingerprint };
-    public AppSettings TestSettings() => new() { Ai = BuildSettings(),Evidence = new(VerifiedFingerprint) };
+    public AiSettings BuildSettings() => _template with { SecretId = _secretId,BaseUri = Uri.TryCreate(BaseAddress.Trim(),UriKind.Absolute,out var endpoint) ? endpoint : null,Model = Model.Trim(),ProviderKind = ProviderKind,SecretFingerprint = _verification.SecretDigest(ApiKey),Thinking = SelectedModel?.DefaultThinking ?? new(),ThinkingCapability = SelectedModel is { } m ? ThinkingCapability.For(m.Build()) : new() };
+    public AiServiceProfile BuildProfile() => new() { Id = Id,Name = Name.Trim(),BaseAddress = BaseAddress,Settings = BuildSettings(),Models = Models.Select(m => m.Build()).ToImmutableArray(),DefaultModelId = DefaultModelId,VerifiedFingerprint = VerifiedFingerprint };
+    public AppSettings TestSettings() => new() { Ai = BuildSettings(),AiProfiles = [BuildProfile()],ActiveAiProfileId = Id,Evidence = new(VerifiedFingerprint) };
     internal void RebaseSecretId(string id) { _secretId = id; Changed(); }
     private void Changed() { Notify(nameof(IsVerified)); Notify(nameof(Status)); }
 }

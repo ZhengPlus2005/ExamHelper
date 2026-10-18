@@ -28,7 +28,7 @@ public sealed partial class SettingsViewModel
     {
         if(SelectedAiProfile is not { } p) return;
         foreach(var row in p.DiscoveredModels.Where(m => m.IsSelected))
-            if(!p.Models.Any(m => m.Name.Trim() == row.Name)) p.AddModel(new() { Name = row.Name,DiscoveryMetadata = row.Metadata });
+            if(!string.IsNullOrWhiteSpace(row.Name) && !p.Models.Any(m => m.Name.Trim() == row.Name.Trim())) p.AddModel(new AiModelProfile { Name = row.Name,DiscoveryMetadata = row.Metadata });
         Status = "已加入勾选模型；默认模型不变，保存后生效。";
     }
 }

@@ -29,7 +29,7 @@ public class BackgroundConversationTests
     [Fact] public async Task ModelSwitchAffectsNextRequestAndNeverChangesPersistedDefaults()
     {
         await using var rig = new ConversationWorkspaceRig(); var first = new AiModelProfile { Name = "kimi-k3" }; var second = new AiModelProfile { Name = "other" };
-        var profile = new AiServiceProfile { Models = [first,second],DefaultModelId = first.Id };
+        var profile = new AiServiceProfile { Name = "测试配置",BaseAddress = "https://example.invalid/v1",Settings = new() { SecretFingerprint = "test-digest" },Models = [first,second],DefaultModelId = first.Id };
         rig.Settings = AiProfileCatalog.Normalize(new() { AiProfiles = [profile],ActiveAiProfileId = profile.Id });
         var a = await rig.Workspace.NewAsync(false,default); await a.UpdateDraftTextAsync("q",default);
         var answer = rig.Ai.QueueAttempt(); await a.ExecuteAsync(AppCommand.Send,default); await answer.Started.Task;

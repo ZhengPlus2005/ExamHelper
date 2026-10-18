@@ -14,7 +14,7 @@ public class SettingsConcurrencyTests
         var store = new DelayedStore(); var secrets = new InMemorySecretStore(); var verification = new ServiceVerification(new byte[32]);
         using var http = new HttpClient(new FakeHttpHandler((_,_) => throw new NotSupportedException()));
         await using var recording = new RecordingController(new StubServices(),new ManualTimeProvider());
-        await using var vm = new SettingsViewModel(new(),"ai","asr",store,secrets,verification,new(http,secrets,verification,[1]),recording,_ => { });
+        await using var vm = new SettingsViewModel(TestSettings.Configured(),"ai","asr",store,secrets,verification,new(http,secrets,verification,[1]),recording,_ => { });
         vm.DirectCapturePrompt = "自动保存的提示词";
         var automatic = vm.AutoSavePromptAsync(default); await store.FirstStarted.Task;
         vm.AiModel = "new-model";

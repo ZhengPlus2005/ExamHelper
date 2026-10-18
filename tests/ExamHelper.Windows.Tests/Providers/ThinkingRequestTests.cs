@@ -20,7 +20,7 @@ public class ThinkingRequestTests
     [InlineData("unknown",ThinkingKind.ServiceDefault,null,null,null)]
     public async Task ExplicitThinkingUsesOnlyItsSupportedProtocol(string model,ThinkingKind kind,string? effort,string? field,string? expected)
     {
-        var ai = new AiSettings { Model = model,Thinking = new(kind,effort),ThinkingCapability = ThinkingCapability.For(new() { Name = model }) };
+        var ai = new AiSettings { BaseUri = new("https://example.invalid/v1"),Model = model,Thinking = new(kind,effort),ThinkingCapability = ThinkingCapability.For(new() { Name = model }) };
         using var http = new HttpClient(new FakeHttpHandler(async (r,ct) =>
         {
             using var json = JsonDocument.Parse(await r.Content!.ReadAsStringAsync(ct)); var root = json.RootElement;
@@ -44,9 +44,9 @@ public class ThinkingRequestTests
         }));
         var secrets = new InMemorySecretStore(); await secrets.SetAsync("ai","old-key",default);
         IAiClient original = new ChatCompletionsClient(http,secrets,new StubServices());
-        var prepared = await original.PrepareAsync(new(),default); await secrets.SetAsync("ai","new-key",default);
+        var prepared = await original.PrepareAsync(TestSettings.Configured().Ai,default); await secrets.SetAsync("ai","new-key",default);
         var chunks = new List<AiChunk>();
-        await foreach(var chunk in prepared.StreamAsync(new(Guid.NewGuid(),[new(MessageRole.Assistant,"previous answer",[],"previous reasoning")]),new(),default)) chunks.Add(chunk);
+        await foreach(var chunk in prepared.StreamAsync(new(Guid.NewGuid(),[new(MessageRole.Assistant,"previous answer",[],"previous reasoning")]),TestSettings.Configured().Ai,default)) chunks.Add(chunk);
         Assert.Equal("internal",string.Concat(chunks.Select(c => c.ReasoningContent)));
         Assert.Equal("answer",string.Concat(chunks.Select(c => c.Text)));
     }
@@ -54,7 +54,7 @@ public class ThinkingRequestTests
     {
         using var http = new HttpClient(new FakeHttpHandler((_,_) => Task.FromResult(FakeHttpHandler.Json("{\"error\":{\"code\":\"invalid_model\",\"message\":\"bad model for test-key\"}}",HttpStatusCode.BadRequest))));
         var secrets = new InMemorySecretStore(); await secrets.SetAsync("ai","test-key",default);
-        var error = await Assert.ThrowsAsync<ServiceFailure>(async () => { await foreach(var _ in new ChatCompletionsClient(http,secrets,new StubServices()).StreamAsync(new(Guid.NewGuid(),[]),new(),default)) { } });
+        var error = await Assert.ThrowsAsync<ServiceFailure>(async () => { await foreach(var _ in new ChatCompletionsClient(http,secrets,new StubServices()).StreamAsync(new(Guid.NewGuid(),[]),TestSettings.Configured().Ai,default)) { } });
         Assert.Contains("400",error.Message); Assert.Contains("invalid_model",error.Message); Assert.DoesNotContain("test-key",error.Message);
     }
     [Fact] public async Task ServiceTestsUseTheSameNonQueuedGenerationLease()
@@ -63,7 +63,7 @@ public class ThinkingRequestTests
         using var handler = new FakeHttpHandler((_,_) => throw new InvalidOperationException("network must not start"));
         using var http = new HttpClient(handler); var verification = new ServiceVerification(new byte[32]);
         var runner = new ExamHelper.Windows.Settings.ServiceTestRunner(http,new InMemorySecretStore(),verification,[1],gate);
-        var result = await runner.TestTextAsync(new(),"test-key",default);
+        var result = await runner.TestTextAsync(TestSettings.Configured(),"test-key",default);
         Assert.False(result.Passed); Assert.Equal(0,handler.Calls); Assert.True(gate.IsBusy);
     }
     [Theory] [InlineData(false)] [InlineData(true)]

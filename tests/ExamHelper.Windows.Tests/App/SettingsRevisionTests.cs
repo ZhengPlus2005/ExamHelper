@@ -34,7 +34,7 @@ public class SettingsRevisionTests
     public async Task ProfilesTestWithoutActivationAndKeepIndependentKeysAndEvidence()
     {
         await using var rig = new Rig(); var first = rig.Vm.SelectedAiProfile!;
-        var second = rig.Vm.AddAiProfile(); second.Name = "兼容 B"; rig.Vm.AiApiKey = "key-B"; rig.Vm.AiModel = "model-B";
+        var second = rig.Vm.AddAiProfile(); Configure(second); second.Name = "兼容 B"; rig.Vm.AiApiKey = "key-B"; rig.Vm.AiModel = "model-B";
         await rig.Vm.RunImageTestAsync(default);
         var candidate = rig.Vm.BuildCandidate();
         Assert.Equal(first.Id,candidate.ActiveAiProfileId);
@@ -51,7 +51,7 @@ public class SettingsRevisionTests
     public async Task SwitchingSelectionDuringTestRecordsOnlyOriginalProfile()
     {
         await using var rig = new Rig(); var first = rig.Vm.SelectedAiProfile!;
-        var second = rig.Vm.AddAiProfile(); second.ApiKey = "key-B";
+        var second = rig.Vm.AddAiProfile(); Configure(second); second.ApiKey = "key-B";
         rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
         rig.Vm.SelectedAiProfile = first; rig.Release.TrySetResult(); await running;
         Assert.True(second.IsVerified,rig.Vm.Status); Assert.False(first.IsVerified);
@@ -59,7 +59,7 @@ public class SettingsRevisionTests
     [Fact]
     public async Task DeletedProfileCannotBeResurrectedByLateTest()
     {
-        await using var rig = new Rig(); var second = rig.Vm.AddAiProfile(); second.ApiKey = "key-B";
+        await using var rig = new Rig(); var second = rig.Vm.AddAiProfile(); Configure(second); second.ApiKey = "key-B";
         rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
         rig.Vm.DeleteSelectedAiProfile(); await rig.Vm.SaveAsync(default); rig.Release.TrySetResult(); await running;
         Assert.DoesNotContain(rig.Vm.AiProfiles,p => p.Id == second.Id);
@@ -122,7 +122,7 @@ public class SettingsRevisionTests
         await StaTest.RunAsync(() =>
         {
             var rig = new Rig(); var first = rig.Vm.SelectedAiProfile!;
-            var second = rig.Vm.AddAiProfile(); second.Name = "B"; second.ApiKey = "key-B"; second.Model = "model-B";
+            var second = rig.Vm.AddAiProfile(); Configure(second); second.Name = "B"; second.ApiKey = "key-B"; second.Model = "model-B";
             rig.Vm.SaveAsync(default).GetAwaiter().GetResult(); var prompts = 0;
             var window = new SettingsWindow(rig.Vm,() => { prompts++; return Task.FromResult(SettingsCloseChoice.Discard); });
             window.Show(); StaTest.Pump();
@@ -154,7 +154,7 @@ public class SettingsRevisionTests
     public async Task ImageTestDoesNotCommitOtherProfilesOrFormEdits()
     {
         await using var rig = new Rig(); var first = rig.Vm.SelectedAiProfile!;
-        var oldModel = first.Model; var second = rig.Vm.AddAiProfile(); second.ApiKey = "B";
+        var oldModel = first.Model; var second = rig.Vm.AddAiProfile(); Configure(second); second.ApiKey = "B";
         rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
         first.Model = "uncommitted-A"; rig.Vm.Opacity = 0.45;
         rig.Release.TrySetResult(); await running;
@@ -166,7 +166,7 @@ public class SettingsRevisionTests
     public async Task InvalidUnrelatedDraftDoesNotPreventIndependentTest()
     {
         await using var rig = new Rig(); var first = rig.Vm.SelectedAiProfile!;
-        var second = rig.Vm.AddAiProfile(); second.ApiKey = "B"; second.Model = "model-B";
+        var second = rig.Vm.AddAiProfile(); Configure(second); second.ApiKey = "B"; second.Model = "model-B";
         first.BaseAddress = "not a valid URI";
         await rig.Vm.RunImageTestAsync(default);
         Assert.Equal("model-B",rig.SentModel); Assert.True(second.IsVerified,rig.Vm.Status); Assert.True(rig.Vm.HasUnsavedChanges);
@@ -209,7 +209,7 @@ public class SettingsRevisionTests
     [InlineData(SettingsCloseChoice.Cancel,true)]
     public async Task TestCompletionWaitsForDirtyCloseDecision(SettingsCloseChoice choice,bool persists)
     {
-        await using var rig = new Rig(); var tested = rig.Vm.AddAiProfile(); tested.ApiKey = "B";
+        await using var rig = new Rig(); var tested = rig.Vm.AddAiProfile(); Configure(tested); tested.ApiKey = "B";
         rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
         var asked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var answer = new TaskCompletionSource<SettingsCloseChoice>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -260,7 +260,7 @@ public class SettingsRevisionTests
     {
         await using var rig = new Rig(); var profile = rig.Vm.SelectedAiProfile!;
         var original = profile.SelectedModel!;
-        var b = profile.AddModel(new() { Name = "kimi-k3" });
+        var b = profile.AddModel(new AiModelProfile { Name = "kimi-k3" });
         rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
         profile.SelectedModel = original; original.Name = "unsaved-other-model";
         rig.Release.TrySetResult(); await running;
@@ -276,7 +276,7 @@ public class SettingsRevisionTests
     public async Task DeletedModelCannotBeResurrectedByLateTest()
     {
         await using var rig = new Rig(); var profile = rig.Vm.SelectedAiProfile!;
-        var b = profile.AddModel(new() { Name = "kimi-k3" });
+        var b = profile.AddModel(new AiModelProfile { Name = "kimi-k3" });
         rig.Delay = true; var running = rig.Vm.RunImageTestAsync(default); await rig.Entered.Task;
         profile.DeleteSelectedModel(); await rig.Vm.SaveAsync(default);
         rig.Release.TrySetResult(); await running;
@@ -306,9 +306,14 @@ public class SettingsRevisionTests
     }
     [Fact] public async Task OnlyHideCommandIsRemovedAndAnotherCommandMayKeepItsCustomF12()
     {
-        var initial=new AppSettings { FormatVersion=2,Hotkeys=new() { Bindings=[new(ExamHelper.Core.Interaction.AppCommand.Exit,3,0x7B),new(ExamHelper.Core.Interaction.AppCommand.ToggleVisibility,3,0x78)] } };
+        var initial=new AppSettings { FormatVersion=4,Hotkeys=new() { Bindings=[new(ExamHelper.Core.Interaction.AppCommand.Exit,3,0x7B),new(ExamHelper.Core.Interaction.AppCommand.ToggleVisibility,3,0x78)] } };
         await using var rig=new Rig(initial: initial);
         Assert.Contains(rig.Vm.BuildCandidate().Hotkeys.Bindings,b => b.Command==ExamHelper.Core.Interaction.AppCommand.Exit && b.VirtualKey==0x7B);
+    }
+    private static void Configure(AiProfileEditor profile)
+    {
+        profile.Name = "测试 B"; profile.BaseAddress = "https://example.invalid/v1";
+        var model = profile.AddModel("model-a"); profile.DefaultModelId = model.Id;
     }
     private sealed class Rig : IAsyncDisposable
     {
@@ -329,7 +334,7 @@ public class SettingsRevisionTests
                 return new(HttpStatusCode.OK) { Content = new StringContent("data: {\"choices\":[{\"delta\":{\"content\":\"EH7Q9\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",Encoding.UTF8,"text/event-stream") };
             }));
             var secrets = Secrets; secrets.SetAsync("ai","ai",default).GetAwaiter().GetResult(); secrets.SetAsync("asr","asr",default).GetAwaiter().GetResult(); var recording = new RecordingController(new StubServices(),new ManualTimeProvider());
-            Vm = new(initial ?? new(),"ai","asr",Store,secrets,Verification,new(_http,secrets,Verification,[1]),recording,_ => { },discovery: discovery);
+            Vm = new(initial ?? TestSettings.Configured(new AiSettings { BaseUri = new("https://example.invalid/v1"),Model = "kimi-k2.6" }),"ai","asr",Store,secrets,Verification,new(_http,secrets,Verification,[1]),recording,_ => { },discovery: discovery);
         }
         public async ValueTask DisposeAsync() { await Vm.DisposeAsync(); _http.Dispose(); }
     }
