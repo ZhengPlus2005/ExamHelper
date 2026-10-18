@@ -4,6 +4,7 @@ namespace ExamHelper.Windows.Capture;
 public sealed class FileImageStore : IImageStore
 {
     private readonly string _root;
+    private readonly SemaphoreSlim _snapshotGate=new(1);
     private readonly ImageReferenceRegistry? _pending;
     public FileImageStore(string root,ImageReferenceRegistry? pending = null)
     {
@@ -37,8 +38,21 @@ public sealed class FileImageStore : IImageStore
         if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new ArgumentException("不读取图片符号链接。", nameof(image));
         return File.ReadAllBytesAsync(path, ct);
     }
-    public Task DeleteUnreferencedAsync(IReadOnlySet<Guid> liveIds, CancellationToken ct)
+    public async Task<IReadOnlyDictionary<Guid,byte[]>> ReadSnapshotAsync(IReadOnlyList<ImageRef> images,CancellationToken ct)
     {
+        await _snapshotGate.WaitAsync(ct);
+        try
+        {
+            var result=new Dictionary<Guid,byte[]>();
+            foreach(var image in images.DistinctBy(i => i.Id)) result.Add(image.Id,await ReadAsync(image,ct));
+            return result;
+        }
+        finally { _snapshotGate.Release(); }
+    }
+    public async Task DeleteUnreferencedAsync(IReadOnlySet<Guid> liveIds, CancellationToken ct)
+    {
+        await _snapshotGate.WaitAsync(ct);
+        try {
         CheckRoot();
         foreach (var path in Directory.EnumerateFiles(_root, "*.png", SearchOption.TopDirectoryOnly))
         {
@@ -46,7 +60,8 @@ public sealed class FileImageStore : IImageStore
             var name = Path.GetFileNameWithoutExtension(path);
             if (Guid.TryParseExact(name, "N", out var id) && !liveIds.Contains(id) && _pending?.Contains(id) != true) File.Delete(path);
         }
-        return Task.CompletedTask;
+        }
+        finally { _snapshotGate.Release(); }
     }
     private void CheckRoot()
     {

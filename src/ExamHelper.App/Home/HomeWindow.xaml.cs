@@ -82,6 +82,16 @@ public partial class HomeWindow : Window
         save.Click+=(_,_) => { if(!string.IsNullOrWhiteSpace(input.Text)) dialog.DialogResult=true; }; dialog.Loaded+=(_,_) => { input.Focus(); input.SelectAll(); };
         if(dialog.ShowDialog()==true) await RunAsync(() => _viewModel.RenameAsync(input.Text,CancellationToken.None));
     }
+    private async void ExportClick(object sender,RoutedEventArgs e)
+    {
+        var snapshot=_viewModel.Snapshot; if(snapshot is null) return;
+        var dialog=new Microsoft.Win32.SaveFileDialog { Title="导出此对话",Filter="HTML 文件|*.html",DefaultExt=".html",AddExtension=true,OverwritePrompt=true,FileName=ConversationExportController.DefaultFileName(snapshot) };
+        if(dialog.ShowDialog(this)!=true) return;
+        await RunAsync(async () => {
+            var controller=new ConversationExportController(new(_viewModel.ImageStore,new ExamHelper.Core.Markdown.MarkdownHtmlRenderer()));
+            await controller.WriteAsync(dialog.FileName,snapshot,CancellationToken.None); _viewModel.Status="对话已导出为离线 HTML。";
+        });
+    }
     private void UsageClick(object sender,RoutedEventArgs e) => new ExamHelper.App.Help.UsageWindow(_viewModel.SettingsSnapshot.Hotkeys.Bindings) { Owner=this }.Show();
     private async void SettingsClick(object sender,RoutedEventArgs e)
     {
