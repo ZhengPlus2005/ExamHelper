@@ -60,6 +60,7 @@ public sealed class HomeViewModel : ObservableObject
         if(Workspace.Selected?.Error is { } error) Status = error;
         ViewRevision++; HistoryNeedsRefresh = true; Notify();
     }
+    public SessionSnapshot? SnapshotForPresentation()=>Workspace.Selected?.SnapshotForPresentation();
     public async Task RefreshAsync(CancellationToken ct)
     {
         if(_refreshing) return; _refreshing = true;

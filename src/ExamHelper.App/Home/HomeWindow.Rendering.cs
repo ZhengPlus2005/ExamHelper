@@ -15,11 +15,12 @@ public partial class HomeWindow
     private Guid? _renderedSession;
     private Guid[] _draftImageIds=[];
     private readonly Dictionary<Guid,BitmapSource> _thumbnails=[];
+    private readonly Dictionary<Guid,HomeMessageView> _messageViews=[];
     private void Render(bool force)
     {
         var snapshot=_viewModel.Snapshot; var newSession=_renderedSession!=snapshot?.Id;
         SyncInput(newSession);
-        if(!force && _renderedRevision==_viewModel.ViewRevision) return;
+        if(!force && _renderedRevision==_viewModel.ViewRevision) { UpdateTimings();return; }
         _renderedRevision=_viewModel.ViewRevision; _renderedSession=snapshot?.Id;
         if(newSession) _thumbnails.Clear();
         _syncSelection=true;
@@ -31,18 +32,19 @@ public partial class HomeWindow
         finally { _syncSelection=false; }
         HomeModels.Configure(_viewModel.SettingsSnapshot,snapshot?.Selection,false,_viewModel.Verification);
         var offset=HistoryScroll.VerticalOffset; var atBottom=newSession || HistoryScroll.ScrollableHeight-offset<20;
-        HistoryMessages.Children.Clear();
-        foreach(var message in _viewModel.Messages)
+        if(newSession) { HistoryMessages.Children.Clear();_messageViews.Clear(); }
+        var messageIds=_viewModel.Messages.Select(m=>m.Message.Id).ToHashSet();
+        foreach(var id in _messageViews.Keys.Where(id=>!messageIds.Contains(id)).ToArray()) { HistoryMessages.Children.Remove(_messageViews[id]);_messageViews.Remove(id); }
+        for(var index=0;index<_viewModel.Messages.Count;index++)
         {
-            var panel=new StackPanel { Margin=new Thickness(0,0,0,20),Tag=message.Message.Id };
-            panel.Children.Add(new TextBlock { Text=message.Header,FontWeight=FontWeights.SemiBold,Foreground=new SolidColorBrush(Color.FromRgb(67,89,116)),Margin=new Thickness(0,0,0,7) });
-            if(message.Images.Length>0)
-            {
-                var pictures=new WrapPanel(); foreach(var image in message.Images) pictures.Children.Add(Thumbnail(image,false)); panel.Children.Add(pictures);
-            }
-            panel.Children.Add(message.Message.Role == ExamHelper.Core.Sessions.MessageRole.Assistant ? new ExamHelper.App.Controls.MarkdownView { Text=message.Text } : new TextBlock { Text=message.Text,TextWrapping=TextWrapping.Wrap,FontSize=14,Foreground=new SolidColorBrush(Color.FromRgb(25,35,49)) });
-            HistoryMessages.Children.Add(panel);
+            var message=_viewModel.Messages[index].Message;
+            if(!_messageViews.TryGetValue(message.Id,out var view))
+            { view=new HomeMessageView(image=>Thumbnail(image,false),report:error=>_viewModel.Status=ObservableObject.Explain(error)) { Margin=new Thickness(0,0,0,20) };_messageViews.Add(message.Id,view); }
+            view.Update(message);
+            if(index>=HistoryMessages.Children.Count || !ReferenceEquals(HistoryMessages.Children[index],view))
+            { HistoryMessages.Children.Remove(view);HistoryMessages.Children.Insert(index,view); }
         }
+        UpdateTimings();
         var ids=_viewModel.DraftImages.Select(i => i.Id).ToArray();
         if(newSession || !_draftImageIds.SequenceEqual(ids))
         {
@@ -50,6 +52,11 @@ public partial class HomeWindow
         }
         var session=_renderedSession;
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded,() => { if(_renderedSession!=session) return; if(atBottom) HistoryScroll.ScrollToEnd(); else HistoryScroll.ScrollToVerticalOffset(offset); });
+    }
+    private void UpdateTimings()
+    {
+        var snapshot=_viewModel.SnapshotForPresentation();if(snapshot is null || snapshot.Id!=_renderedSession)return;
+        foreach(var message in snapshot.Messages)if(_messageViews.TryGetValue(message.Id,out var view))view.UpdateTiming(message.Timing);
     }
     private void SyncInput(bool newSession)
     {

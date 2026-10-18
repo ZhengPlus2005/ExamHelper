@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Input;
 using ExamHelper.App.Controls;
 using ExamHelper.Core.Markdown;
 using Xunit;
@@ -71,6 +72,22 @@ public class MarkdownViewTests
                 var user=new AnswerView { IsMarkdown=false,Text="**保留用户原文**" }; Prepare(user); Assert.Contains(Nodes(user).OfType<TextBlock>(),t => TextOf(t)=="**保留用户原文**");
             }
             finally { window.Close(); StaTest.Pump(); rig.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+        });
+    }
+    [Fact] public async Task CodeBlockRoutesActualVerticalWheelToOuterChatAndKeepsHorizontalScrolling()
+    {
+        await StaTest.RunAsync(()=>
+        {
+            var markdown=new MarkdownView { Text="```cpp\n"+new string('x',800)+"\n```\n\n"+string.Join("\n\n",Enumerable.Repeat("paragraph",80)) };
+            var outer=new ScrollViewer { Content=markdown,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled };
+            var window=new Window { Content=outer,Width=500,Height=400 };window.Show();window.UpdateLayout();StaTest.Pump();
+            try
+            {
+                var code=Nodes(markdown).OfType<ScrollViewer>().Single();code.ScrollToHorizontalOffset(70);outer.ScrollToVerticalOffset(200);window.UpdateLayout();StaTest.Pump();var before=outer.VerticalOffset;
+                var source=Assert.IsType<TextBlock>(code.Content);source.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice,0,-120) { RoutedEvent=Mouse.PreviewMouseWheelEvent,Source=source });window.UpdateLayout();StaTest.Pump();
+                Assert.True(outer.VerticalOffset>before);Assert.Equal(70,code.HorizontalOffset);Assert.True(code.ScrollableWidth>100);
+            }
+            finally { window.Close();StaTest.Pump(); }
         });
     }
     private static void Wait(Func<bool> ready)

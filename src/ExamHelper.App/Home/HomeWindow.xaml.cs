@@ -54,7 +54,6 @@ public partial class HomeWindow : Window
     private async void SendClick(object sender,RoutedEventArgs e) => await RunAsync(() => DraftController.SendAsync(CancellationToken.None));
     private async void StopClick(object sender,RoutedEventArgs e) => await RunAsync(() => _viewModel.StopAsync(CancellationToken.None));
     private Task Command(AppCommand command) => RunAsync(() => DraftController.ExecuteAsync(command,CancellationToken.None));
-    private async void ClearClick(object sender,RoutedEventArgs e) => await Command(AppCommand.ClearInput);
     private async void RetryAnswerClick(object sender,RoutedEventArgs e) => await Command(AppCommand.RetryRequest);
     private async void DiscardAnswerClick(object sender,RoutedEventArgs e) => await Command(AppCommand.DiscardRequest);
     private async void UndoSpeechClick(object sender,RoutedEventArgs e) => await Command(AppCommand.UndoSpeech);
@@ -69,7 +68,7 @@ public partial class HomeWindow : Window
     }
     private async void ExportClick(object sender,RoutedEventArgs e)
     {
-        var snapshot=_viewModel.Snapshot; if(snapshot is null) return;
+        var snapshot=_viewModel.SnapshotForPresentation(); if(snapshot is null) return;
         var dialog=new Microsoft.Win32.SaveFileDialog { Title="导出此对话",Filter="HTML 文件|*.html",DefaultExt=".html",AddExtension=true,OverwritePrompt=true,FileName=ConversationExportController.DefaultFileName(snapshot) };
         if(dialog.ShowDialog(this)!=true) return;
         await RunAsync(async () => {

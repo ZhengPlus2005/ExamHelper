@@ -98,9 +98,9 @@ public class HomeChatTests
                 {
                     window.Show(); window.UpdateLayout(); StaTest.Pump();
                     var messages=Assert.IsType<System.Windows.Controls.StackPanel>(window.FindName("HistoryMessages"));
-                    var first=Assert.IsType<System.Windows.Controls.StackPanel>(messages.Children[0]);
-                    var pictures=Assert.IsType<System.Windows.Controls.WrapPanel>(first.Children[1]);
-                    Assert.IsType<System.Windows.Controls.TextBlock>(first.Children[2]);
+                    var first=Assert.IsType<HomeMessageView>(messages.Children[0]);
+                    var pictures=Assert.IsType<System.Windows.Controls.WrapPanel>(first.FindName("Pictures"));
+                    Assert.IsType<System.Windows.Controls.TextBlock>(Assert.IsType<System.Windows.Controls.ContentControl>(first.FindName("Body")).Content);
                     var button=Assert.IsType<System.Windows.Controls.Button>(pictures.Children[0]); var grid=Assert.IsType<System.Windows.Controls.Grid>(button.Content);
                     var preview=Assert.IsType<System.Windows.Controls.Image>(grid.Children[0]); Assert.IsType<System.Windows.Media.RectangleGeometry>(preview.Clip);
                     var input=Assert.IsType<System.Windows.Controls.TextBox>(window.FindName("HomeDraftInput")); input.Text="主窗口正常输入"; StaTest.Pump();

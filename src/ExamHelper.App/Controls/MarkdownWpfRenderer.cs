@@ -51,7 +51,7 @@ public static partial class MarkdownWpfRenderer
         DockPanel.SetDock(copy,Dock.Right); header.Children.Add(copy); var label=Text(auxiliary); label.Text=language.Length>0 ? language : "代码"; label.FontSize=11; header.Children.Add(label); stack.Children.Add(header);
         var code=Text(auxiliary); code.TextWrapping=TextWrapping.NoWrap; code.FontFamily=new FontFamily("Consolas"); code.LineHeight=20; code.Margin=new Thickness(0);
         foreach(var run in CodeHighlighter.Highlight(source,language,auxiliary)) code.Inlines.Add(run);
-        stack.Children.Add(new ScrollViewer { Content=code,HorizontalScrollBarVisibility=ScrollBarVisibility.Auto,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,Focusable=false });
+        var codeScroll=new ScrollViewer { Content=code,HorizontalScrollBarVisibility=ScrollBarVisibility.Auto,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,Focusable=false };ChatWheelRouting.Attach(codeScroll);stack.Children.Add(codeScroll);
         return new Border { Background=auxiliary ? new SolidColorBrush(Color.FromArgb(190,8,17,30)) : new SolidColorBrush(Color.FromRgb(241,244,248)),CornerRadius=new CornerRadius(6),Padding=new Thickness(10),Margin=new Thickness(0,5,0,10),Child=stack,Focusable=false };
     }
     private static FrameworkElement TableView(Table table,bool auxiliary)
