@@ -81,7 +81,7 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
         SelectedAiProfile = AiProfiles.FirstOrDefault(p => p.Id == _activeAiProfileId) ?? AiProfiles.FirstOrDefault();
         AsrBaseAddress = initial.Asr.BaseUri.ToString(); AsrModel = initial.Asr.Model; AsrApiKey = asrKey; DeviceId = initial.Asr.DeviceId;
         DefaultCodeLanguage = initial.DefaultCodeLanguage; DirectCapturePrompt = initial.DirectCapturePrompt; Opacity = initial.Ui.Opacity;
-        foreach(var command in Enum.GetValues<ExamHelper.Core.Interaction.AppCommand>().Where(c => c != ExamHelper.Core.Interaction.AppCommand.HideOverlay && c != ExamHelper.Core.Interaction.AppCommand.Exit))
+        foreach(var command in Enum.GetValues<ExamHelper.Core.Interaction.AppCommand>().Where(c => c != ExamHelper.Core.Interaction.AppCommand.HideOverlay))
             Hotkeys.Add(new(command,HotkeyEditor.Format(initial.Hotkeys.Bindings.FirstOrDefault(b => b.Command == command))));
         _initial = BuildCandidate();
         _recording.Stopped += OnClip; _recording.Failed += OnRecordingFailed;

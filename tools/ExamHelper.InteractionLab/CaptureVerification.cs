@@ -41,13 +41,16 @@ internal static class CaptureVerification
         if (!protection.Success) throw new InvalidOperationException($"Protection failed: {protection}");
         overlay.Show();
         await Task.Delay(500);
+        product?.PrepareProtectedSelectors();
+        await Task.Delay(100);
         product?.SavePreview(directory);
         var after = Capture((int)origin.X + inset, (int)origin.Y + inset, before.PixelWidth, before.PixelHeight);
-        Save(after, Path.Combine(directory, "protected-capture.png"));
+
         var a = new byte[before.PixelWidth * before.PixelHeight * 4];
         var b = new byte[a.Length];
         before.CopyPixels(a, before.PixelWidth * 4, 0); after.CopyPixels(b, after.PixelWidth * 4, 0);
         int differences = 0; for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) differences++;
+        if(differences==0) Save(after,Path.Combine(directory,"protected-capture.png"));
         var nativeChecks = NativeVerification.Run(reference, overlay);
         File.WriteAllText(Path.Combine(directory, "capture-result.json"), JsonSerializer.Serialize(new {
             OS = Environment.OSVersion.VersionString, Protection = protection,

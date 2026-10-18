@@ -38,6 +38,10 @@ public sealed class OverlayViewModel : ObservableObject,IDisposable
     private bool _disposed,_visible;
     public ObservableCollection<AnswerMessageViewModel> Messages { get; } = [];
     public ObservableCollection<ThumbnailViewModel> Thumbnails { get; } = [];
+    public Guid SessionId => _coordinator.State.Id;
+    public ExamHelper.Core.Settings.ModelSelection? Selection => _coordinator.State.Selection;
+    public ExamHelper.Core.Settings.ServiceVerification Verification { get; }
+    public Task SelectModelAsync(ExamHelper.Core.Settings.ModelSelection selection) => _coordinator.SelectModelAsync(selection,_lifetime.Token);
     public string DraftText { get => _draft; private set => Set(ref _draft,value); }
     public string Status { get => _status; set => Set(ref _status,value); }
     public bool CanUndo => _coordinator.State.SpeechUndoAvailable;
@@ -48,11 +52,11 @@ public sealed class OverlayViewModel : ObservableObject,IDisposable
         SpeechState.Recording => $"停止录音（{_coordinator.RecordingElapsed.TotalSeconds:F0}s）",SpeechState.Recognizing => "正在识别……",
         SpeechState.RetryPending => "录音待重试",_ => "开始录音"
     };
-    public OverlayViewModel(SessionCoordinator coordinator,IImageStore images)
+    public OverlayViewModel(SessionCoordinator coordinator,IImageStore images,Func<Task>? newConversation = null,ExamHelper.Core.Settings.ServiceVerification? verification = null)
     {
-        _coordinator = coordinator; _images = images; _latest = _shown = coordinator.State;
+        Verification=verification ?? new(new byte[32]); _coordinator = coordinator; _images = images; _latest = _shown = coordinator.State;
         foreach(var command in Enum.GetValues<AppCommand>())
-            _commands[command] = new(async () => { _localError = null; await coordinator.ExecuteAsync(command,_lifetime.Token); },() => coordinator.CanExecute(command),e => ReportError(Explain(e)));
+            _commands[command] = new(async () => { _localError = null; if(command==AppCommand.NewConversation && newConversation is not null) await newConversation(); else await coordinator.ExecuteAsync(command,CancellationToken.None); },() => coordinator.CanExecute(command),e => ReportError(Explain(e)));
         _timer.Tick += Tick; coordinator.StateChanged += OnState;
         Refresh();
     }
@@ -96,7 +100,7 @@ public sealed class OverlayViewModel : ObservableObject,IDisposable
                 }
                 view.Sequence = i + 1; view.Notify(nameof(view.Sequence));
             }
-            _shown = state; DraftText = state.Draft.Text; Notify(nameof(CanUndo)); Notify(nameof(HasSpeechFailure)); Notify(nameof(HasRequestFailure));
+            _shown = state; Notify(nameof(Selection)); DraftText = state.Draft.Text; Notify(nameof(CanUndo)); Notify(nameof(HasSpeechFailure)); Notify(nameof(HasRequestFailure));
         }
         foreach(var command in _commands.Values) command.Raise();
         if(_localError is not null) Status = _localError;
@@ -104,7 +108,7 @@ public sealed class OverlayViewModel : ObservableObject,IDisposable
         else if(state.SpeechState == SpeechState.Recognizing) Status = "识别结果将追加到草稿，不自动发送。";
         else if(state.CaptureInProgress) Status = "正在截取辅助窗口所在屏幕……";
         else if(state.AnswerState == AnswerState.Generating) Status = "AI 正在回答，可继续准备下一份草稿。";
-        else Status = state.Draft.HasContent ? "草稿可发送；悬停缩略图一秒可删除该图。" : "通过截图或麦克风准备问题。";
+        else Status = state.Draft.HasContent ? "草稿可发送。" : "通过截图或麦克风准备问题。";
     }
     private async Task LoadThumbnailAsync(ThumbnailViewModel view,ImageRef image)
     {

@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using ExamHelper.App.Controls;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -14,10 +16,14 @@ namespace ExamHelper.InteractionLab;
 internal sealed class ProductCaptureFixture(SessionCoordinator coordinator,OverlayWindow window) : IAsyncDisposable
 {
     public OverlayWindow Window { get; } = window;
-    public static async Task<ProductCaptureFixture> CreateAsync()
+    public static async Task<ProductCaptureFixture> CreateAsync(PhysicalWindowPlacement? placement = null)
     {
         var services = new ReferenceServices();
-        var settings = new AppSettings { Hotkeys = new() { Bindings = [] } };
+        var verification=new ServiceVerification(new byte[32]);
+        var endpoint=new AiSettings { SecretFingerprint="synthetic-digest" };
+        var models=Enumerable.Range(0,18).Select(i => { var name=i==0 ? "kimi-k2.6" : $"reference-model-{i}"; return new AiModelProfile { Name=name,VerifiedFingerprint=verification.AiFingerprint(new() { Ai=endpoint with { Model=name } }) }; }).ToImmutableArray();
+        var profile=new AiServiceProfile { Name="受控测试配置",Settings=endpoint,Models=models,DefaultModelId=models[0].Id };
+        var settings=AiProfileCatalog.Normalize(new() { Ui=new() { Placement=placement },Hotkeys=new() { Bindings=[] },AiProfiles=[profile],ActiveAiProfileId=profile.Id });
         var coordinator = new SessionCoordinator(services,services,services,services,services,() => settings,services,TimeProvider.System);
         await coordinator.StartNewAsync(CancellationToken.None);
         await coordinator.AppendSpeechResultAsync(new(coordinator.State.Id,coordinator.State.SpeechGeneration,Guid.NewGuid(),"受控测试：请给出一个 C++ 示例。"),CancellationToken.None);
@@ -25,9 +31,11 @@ internal sealed class ProductCaptureFixture(SessionCoordinator coordinator,Overl
         await coordinator.WaitForIdleAsync(CancellationToken.None);
         await coordinator.AppendSpeechResultAsync(new(coordinator.State.Id,coordinator.State.SpeechGeneration,Guid.NewGuid(),"这是只读语音草稿"),CancellationToken.None);
         var viewModel = new OverlayViewModel(coordinator,services);
-        var overlay = new OverlayWindow(viewModel,settings) { Left = 120,Top = 100,Width = 640,Height = 600 };
+        var overlay = new OverlayWindow(viewModel,settings);
+        if(placement is null) { overlay.Left=120; overlay.Top=100; overlay.Width=640; overlay.Height=600; }
         return new(coordinator,overlay);
     }
+    public void PrepareProtectedSelectors() { var selector=(ModelSelector)Window.FindName("AuxiliaryModels"); selector.OpenHoverMenu(ModelSelectorPart.Model); Window.UpdateLayout(); }
     public void SavePreview(string directory)
     {
         Window.UpdateLayout();

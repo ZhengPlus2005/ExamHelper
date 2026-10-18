@@ -9,6 +9,20 @@ public sealed class ConversationWorkspace(ISessionStore store,Func<SessionCoordi
     public Guid? GeneratingSessionId => Sessions.FirstOrDefault(s => s.State.AnswerState == AnswerState.Generating)?.State.Id;
     public IReadOnlyList<SessionCoordinator> Sessions { get { lock(_sessions) return _sessions.Values.ToArray(); } }
     public event Action? Changed;
+    public async Task<SessionCoordinator> NewAuxiliaryConversationAsync(CancellationToken ct)
+    {
+        await _navigation.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var previous=AuxiliarySessionId is { } id ? Find(id) : null;
+            if(previous is null || !previous.CanExecute(Interaction.AppCommand.NewConversation)) throw new InvalidOperationException("请先处理当前草稿和任务。");
+            await previous.FlushAsync(ct).ConfigureAwait(false); var runtime=factory();
+            try { await runtime.StartNewAsync(ct).ConfigureAwait(false); await previous.SetAuxiliaryModeAsync(false,ct).ConfigureAwait(false); }
+            catch { await runtime.DisposeAsync().ConfigureAwait(false); try { await previous.SetAuxiliaryModeAsync(true,CancellationToken.None).ConfigureAwait(false); } catch { } throw; }
+            Attach(runtime); Selected=runtime; AuxiliarySessionId=runtime.State.Id; Changed?.Invoke(); return runtime;
+        }
+        finally { _navigation.Release(); }
+    }
     public async Task<SessionCoordinator> NewAsync(bool auxiliary,CancellationToken ct)
     {
         await _navigation.WaitAsync(ct).ConfigureAwait(false);

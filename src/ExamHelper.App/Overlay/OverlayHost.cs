@@ -8,6 +8,8 @@ namespace ExamHelper.App.Overlay;
 public sealed class OverlayHost : IOverlayHost
 {
     private SessionCoordinator _coordinator;
+    private readonly ConversationWorkspace? _workspace;
+    private readonly ServiceVerification? _verification;
     private readonly IImageStore _images;
     private readonly Func<AppSettings> _settings;
     private readonly Func<UiSettings,Task> _saveUi;
@@ -18,9 +20,9 @@ public sealed class OverlayHost : IOverlayHost
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     public OverlayWindow? CurrentWindow { get; private set; }
     public OverlayHost(SessionCoordinator coordinator,IImageStore images,Func<AppSettings> settings,Func<UiSettings,Task> saveUi,
-        Func<Task> home,Func<Task> exit,IWindowProtectionApi? protection = null,IHotkeyApi? hotkeys = null,Action<string>? report = null)
+        Func<Task> home,Func<Task> exit,IWindowProtectionApi? protection = null,IHotkeyApi? hotkeys = null,Action<string>? report = null,ConversationWorkspace? workspace = null,ServiceVerification? verification = null)
     {
-        _coordinator = coordinator; _images = images; _settings = settings; _saveUi = saveUi; _home = home; _exit = exit;
+        _workspace=workspace; _verification=verification; _coordinator = coordinator; _images = images; _settings = settings; _saveUi = saveUi; _home = home; _exit = exit;
         _protection = protection; _hotkeys = hotkeys; _report = report ?? (_ => { });
         coordinator.UiCommandRequested += OnUiCommand;
     }
@@ -32,7 +34,7 @@ public sealed class OverlayHost : IOverlayHost
     public Task<ProtectionResult> OpenAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); Close();
-        var viewModel = new OverlayViewModel(_coordinator,_images);
+        var viewModel = new OverlayViewModel(_coordinator,_images,_workspace is null ? null : NewConversationAsync,_verification);
         try
         {
             CurrentWindow = new(viewModel,_settings(),_protection,_hotkeys);
@@ -40,6 +42,22 @@ public sealed class OverlayHost : IOverlayHost
             return Task.FromResult(CurrentWindow.Protection);
         }
         catch { viewModel.Dispose(); throw; }
+    }
+    private async Task NewConversationAsync()
+    {
+        if(_workspace is null) return;
+        if(CurrentWindow is { } current) try { await _saveUi(current.CaptureGeometry()); } catch(Exception error) { _report(Common.ObservableObject.Explain(error)); }
+        var runtime=await _workspace.NewAuxiliaryConversationAsync(CancellationToken.None); Bind(runtime);
+        try
+        {
+            var protection=await OpenAsync(CancellationToken.None);
+            if(!protection.Success) throw new InvalidOperationException("新辅助对话捕获保护初始化失败。");
+            Show();
+        }
+        catch
+        {
+            await runtime.AbortEntryAsync(CancellationToken.None); Close(); await _home(); throw;
+        }
     }
     public void Show()
     {

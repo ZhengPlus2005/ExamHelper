@@ -28,6 +28,10 @@ public partial class OverlayWindow : Window
     {
         _viewModel = viewModel; _settings = settings; _protection = new(protection); _hotkeyApi = hotkeys;
         InitializeComponent(); DataContext = viewModel;
+        AuxiliaryModels.SelectionRequested+=async selection => { try { await viewModel.SelectModelAsync(selection); } catch(Exception error) { viewModel.ReportError(Common.ObservableObject.Explain(error)); } finally { ConfigureModels(); } };
+        AuxiliaryModels.Failed+=viewModel.ReportError;
+        viewModel.PropertyChanged+=ViewModelChanged; ConfigureModels();
+        SizeChanged+=(_,_) => AdaptLayout();
         var area = SystemParameters.WorkArea;
         MinWidth = Math.Min(480,area.Width); MinHeight = Math.Min(360,area.Height);
         Width = Math.Clamp(settings.Ui.Width,MinWidth,Math.Max(MinWidth,area.Width));
@@ -43,6 +47,7 @@ public partial class OverlayWindow : Window
         DwellBehavior.SetCommand(HintButton,new DelegateCommand(ShowHints,() => !_interaction.IsActive));
         _interaction.ActiveChanged += active =>
         {
+            AuxiliaryModels.SetHoverSuspended(active);
             if(_hotkeys?.SetManipulationEscape(active) == false && active) { _interaction.End(); _viewModel.ReportError("Esc 已被占用，本次移动操作已取消。"); }
         };
         SourceInitialized += OnSourceInitialized; new WindowInteropHelper(this).EnsureHandle();
@@ -60,13 +65,21 @@ public partial class OverlayWindow : Window
         Bind(HomeButton,AppCommand.ReturnHome); Bind(HideButton,AppCommand.HideOverlay); Bind(ClearButton,AppCommand.ClearInput); Bind(SendButton,AppCommand.Send);
         Bind(UndoButton,AppCommand.UndoSpeech); Bind(RetrySpeechButton,AppCommand.RetrySpeech); Bind(DiscardSpeechButton,AppCommand.DiscardSpeech);
         Bind(RetryRequestButton,AppCommand.RetryRequest); Bind(DiscardRequestButton,AppCommand.DiscardRequest);
-        IsVisibleChanged += (_,_) => { viewModel.SetVisible(IsVisible); if(IsVisible) DwellBehavior.InvalidateWindow(this); else HintsPanel.Visibility = Visibility.Collapsed; };
+        IsVisibleChanged += (_,_) => { viewModel.SetVisible(IsVisible); if(IsVisible) DwellBehavior.InvalidateWindow(this); else { HintsPanel.Visibility = Visibility.Collapsed; AuxiliaryModels.CloseHoverMenu(); } };
         Closing += OnClosing;
         Closed += (_,_) =>
         {
-            _interaction.Dispose(); _hotkeys?.Dispose(); _nonActivating?.Dispose(); _viewModel.Dispose();
+            viewModel.PropertyChanged-=ViewModelChanged; _interaction.Dispose(); _hotkeys?.Dispose(); _nonActivating?.Dispose(); _viewModel.Dispose();
             if(_source is { IsDisposed: false }) _source.RemoveHook(Hook);
         };
+    }
+    private void ConfigureModels() => AuxiliaryModels.Configure(_settings,_viewModel.Selection,true,_viewModel.Verification);
+    private void ViewModelChanged(object? sender,PropertyChangedEventArgs e) { if(e.PropertyName==nameof(OverlayViewModel.Selection)) ConfigureModels(); }
+    private void AdaptLayout()
+    {
+        var compact=Height<500; Surface.Padding=new Thickness(compact ? 8 : 10);
+        DraftScroll.MinHeight=compact ? 24 : 30; DraftScroll.MaxHeight=compact ? 44 : 82;
+        DraftImages.ScrollViewer.MaxHeight=compact ? 58 : 90; StatusScroll.MaxHeight=compact ? 22 : 32;
     }
     private void Bind(Button button,AppCommand command) { button.Command = _viewModel.Command(command); DwellBehavior.SetCommand(button,button.Command); }
     private void OnSourceInitialized(object? sender,EventArgs args)
@@ -96,11 +109,11 @@ public partial class OverlayWindow : Window
     }
     public void ToggleCollapse()
     {
-        _interaction.End(); HintsPanel.Visibility = Visibility.Collapsed;
+        _interaction.End(); AuxiliaryModels.CloseHoverMenu(); HintsPanel.Visibility = Visibility.Collapsed;
         var workHeight = MonitorGeometry.ForWindow(NativeHandle).WorkArea.Height / VisualTreeHelper.GetDpi(this).DpiScaleY;
         if(!_collapsed) { _expandedHeight = Height; _collapsed = true; Body.Visibility = Visibility.Collapsed; MinHeight = Math.Min(180,workHeight); Height = Math.Min(240,workHeight); }
         else { _collapsed = false; Body.Visibility = Visibility.Visible; MinHeight = Math.Min(360,workHeight); Height = Math.Min(_expandedHeight,workHeight); }
-        DwellBehavior.InvalidateWindow(this);
+        FoldButton.Content=_collapsed ? "展开" : "折叠"; DwellBehavior.InvalidateWindow(this);
     }
     public bool HideWithRecovery()
     {

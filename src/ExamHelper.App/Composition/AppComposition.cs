@@ -70,7 +70,7 @@ public sealed class AppComposition : IAsyncDisposable
             await result.Workspace.NewAsync(false,CancellationToken.None);
             result.Overlay = overlayFactory?.Invoke(result) ?? new OverlayHost(result.Coordinator,result.Images,() => result.CurrentSettings,result.SaveUiAsync,
                 () => result.Home.ReturnedAsync(CancellationToken.None),async () => { await result.DisposeAsync(); Application.Current.Shutdown(); },
-                report: message => result.Home.Status = message);
+                report: message => result.Home.Status = message,workspace: result.Workspace,verification: result.Verification);
             result.Home = new(result.Workspace,result.Sessions,result.Images,() => Task.FromResult(result.CurrentSettings),result.Verification,result.Overlay,
                 () => result._cleaner.ReconcileAsync(CancellationToken.None),result.ReadSettingsForEntryAsync);
             result.Home.Status = string.Join(Environment.NewLine,warnings);

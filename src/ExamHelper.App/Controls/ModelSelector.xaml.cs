@@ -14,7 +14,7 @@ public partial class ModelSelector : UserControl
     public IReadOnlyList<AiServiceProfile> ProfileChoices { get; private set; } = [];
     public IReadOnlyList<AiModelProfile> ModelChoices { get; private set; } = [];
     public IReadOnlyList<ThinkingChoice> ThinkingChoices { get; private set; } = [];
-    public ModelSelector() => InitializeComponent();
+    public ModelSelector() { InitializeComponent(); InitializeHover(); }
     public void Configure(AppSettings settings,ModelSelection? selection,bool requireImageVerified,ServiceVerification verification)
     {
         if(ReferenceEquals(settings,_lastInput) && Equals(selection,_lastSelection) && requireImageVerified == RequireImageVerified) return;
@@ -32,7 +32,7 @@ public partial class ModelSelector : UserControl
             Unavailable.Text = unavailable ? $"选择不可用：{selection!.ProfileName} / {selection.ModelName}。请重新选择。" : "";
             Unavailable.Visibility = unavailable ? Visibility.Visible : Visibility.Collapsed;
         }
-        finally { _sync = false; }
+        finally { _sync = false; RefreshHoverLabels(); }
     }
     private bool Qualified(AiServiceProfile p,AiModelProfile m)
     { try { ModelCatalog.Resolve(_settings!,ModelCatalog.Select(p,m),true,_verification!); return true; } catch(InvalidOperationException) { return false; } }

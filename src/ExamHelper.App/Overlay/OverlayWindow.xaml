@@ -2,39 +2,30 @@
  <Window.Resources>
   <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
   <Style TargetType="Button">
-   <Setter Property="Focusable" Value="False"/><Setter Property="Margin" Value="3"/><Setter Property="Padding" Value="9,6"/>
+   <Setter Property="Focusable" Value="False"/><Setter Property="Margin" Value="3"/><Setter Property="Padding" Value="7,5"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Frame" Background="#FFE0EAF6" CornerRadius="5" Padding="{TemplateBinding Padding}"><Grid><ContentPresenter HorizontalAlignment="Center"/><ProgressBar Height="3" VerticalAlignment="Bottom" Margin="0,0,0,-4" Maximum="1" Foreground="{Binding RelativeSource={RelativeSource TemplatedParent},Path=(beh:DwellBehavior.ProgressBrush)}" Value="{Binding RelativeSource={RelativeSource TemplatedParent},Path=(beh:DwellBehavior.Progress),Mode=OneWay}"/></Grid></Border><ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter TargetName="Frame" Property="Opacity" Value="0.4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
   </Style>
  </Window.Resources>
- <Border x:Name="Surface" CornerRadius="12" BorderBrush="#657C99" BorderThickness="1" Padding="12">
-  <Grid><Grid.RowDefinitions><RowDefinition Height="38"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="24"/></Grid.RowDefinitions>
-   <Border x:Name="MoveHandle" Background="#FF344154" CornerRadius="5"><DockPanel Margin="9,5"><Image Source="/ExamHelper.App;component/Assets/app-icon.png" Width="20" Height="20" Margin="0,0,8,0"/><TextBlock Text="ExamHelper" Foreground="White" FontWeight="SemiBold" FontSize="16"/><TextBlock Text="悬停操作 · 主页／隐藏两秒" Foreground="#BED0E9" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel></Border>
-   <WrapPanel Grid.Row="1" Margin="0,6">
-    <Button x:Name="DirectButton" Content="截图直发"/><Button x:Name="CaptureButton" Content="截图入草稿"/><Button x:Name="RecordButton" Content="{Binding RecordingLabel}"/>
-    <Button x:Name="NewButton" Content="新对话"/><Button x:Name="StopButton" Content="停止回答"/><Button x:Name="FoldButton" Content="折叠／展开"/>
+ <Border x:Name="Surface" CornerRadius="12" BorderBrush="#657C99" BorderThickness="1" Padding="10">
+  <Grid x:Name="RootLayout"><Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/></Grid.RowDefinitions>
+   <Border x:Name="MoveHandle" Background="#FF344154" CornerRadius="5"><DockPanel Margin="8,4"><Image Source="/ExamHelper.App;component/Assets/app-icon.png" Width="20" Height="20" Margin="0,0,8,0"/><TextBlock Text="ExamHelper" Foreground="White" FontWeight="SemiBold" FontSize="15"/></DockPanel></Border>
+   <WrapPanel Grid.Row="1" Margin="0,4"><Button x:Name="NewButton" Content="新对话"/><Button x:Name="StopButton" Content="停止回答"/><Button x:Name="FoldButton" Content="折叠"/>
     <Button x:Name="HomeButton" Content="返回主页" beh:DwellBehavior.Delay="2" beh:DwellBehavior.ProgressBrush="#E45454"/><Button x:Name="HideButton" Content="隐藏" beh:DwellBehavior.Delay="2" beh:DwellBehavior.ProgressBrush="#E45454"/><Button x:Name="HintButton" Content="提示" MouseLeave="HintLeave"/>
    </WrapPanel>
-   <Grid x:Name="Body" Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <ScrollViewer x:Name="AnswerScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#30101827" Padding="10" Margin="0,0,0,8" Focusable="False">
-     <StackPanel>
-      <ItemsControl ItemsSource="{Binding Messages}"><ItemsControl.ItemTemplate><DataTemplate><beh:AnswerView Title="{Binding Title}" Text="{Binding Text}" IsFinal="{Binding IsFinal}" IsMarkdown="{Binding IsAssistant}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-      <beh:ThumbnailStrip x:Name="DraftImages" ItemsSource="{Binding Thumbnails}"/>
-      <StackPanel><TextBlock Text="语音草稿（只读）" Foreground="#B8CDE8" FontSize="11"/><ScrollViewer x:Name="DraftScroll" MaxHeight="82" MinHeight="35" VerticalScrollBarVisibility="Auto" Background="#30101827" Padding="8" Margin="0,5" Focusable="False"><TextBlock x:Name="DraftPreview" Text="{Binding DraftText}" Foreground="White" TextWrapping="Wrap" Focusable="False"/></ScrollViewer></StackPanel>
-     </StackPanel>
-    </ScrollViewer>
-    <WrapPanel Grid.Row="1"><Button x:Name="ClearButton" Content="清空输入"/><Button x:Name="SendButton" Content="发送"/>
+   <beh:ModelSelector x:Name="AuxiliaryModels" Grid.Row="2" AuxiliaryInteraction="True" Panel.ZIndex="80" Margin="0,0,0,5"/>
+   <Grid x:Name="Body" Grid.Row="3"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <ScrollViewer x:Name="AnswerScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#30101827" Padding="8" Margin="0,0,0,6" Focusable="False"><ItemsControl ItemsSource="{Binding Messages}"><ItemsControl.ItemTemplate><DataTemplate><beh:AnswerView Title="{Binding Title}" Text="{Binding Text}" IsFinal="{Binding IsFinal}" IsMarkdown="{Binding IsAssistant}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+    <beh:ThumbnailStrip x:Name="DraftImages" Grid.Row="1" ItemsSource="{Binding Thumbnails}"/>
+    <StackPanel Grid.Row="2"><TextBlock x:Name="DraftLabel" Text="语音草稿（只读）" Foreground="#B8CDE8" FontSize="10"/><ScrollViewer x:Name="DraftScroll" MaxHeight="82" MinHeight="30" VerticalScrollBarVisibility="Auto" Background="#30101827" Padding="6" Margin="0,3" Focusable="False"><TextBlock x:Name="DraftPreview" Text="{Binding DraftText}" Foreground="White" TextWrapping="Wrap" Focusable="False"/></ScrollViewer></StackPanel>
+    <WrapPanel x:Name="ActionButtons" Grid.Row="3"><Button x:Name="DirectButton" Content="截图直发"/><Button x:Name="CaptureButton" Content="截图入草稿"/><Button x:Name="RecordButton" Content="{Binding RecordingLabel}"/><Button x:Name="ClearButton" Content="清空输入"/><Button x:Name="SendButton" Content="发送"/>
      <Button x:Name="UndoButton" Content="撤销本次语音" Visibility="{Binding CanUndo,Converter={StaticResource BoolVisibility}}" MouseEnter="UndoEnter" MouseLeave="UndoLeave"/>
      <Button x:Name="RetrySpeechButton" Content="重试识别" Visibility="{Binding HasSpeechFailure,Converter={StaticResource BoolVisibility}}"/><Button x:Name="DiscardSpeechButton" Content="丢弃录音" Visibility="{Binding HasSpeechFailure,Converter={StaticResource BoolVisibility}}"/>
      <Button x:Name="RetryRequestButton" Content="重试回答" Visibility="{Binding HasRequestFailure,Converter={StaticResource BoolVisibility}}"/><Button x:Name="DiscardRequestButton" Content="丢弃失败请求" Visibility="{Binding HasRequestFailure,Converter={StaticResource BoolVisibility}}"/>
     </WrapPanel>
    </Grid>
-   <ScrollViewer x:Name="StatusScroll" Grid.Row="3" MaxHeight="40" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"><TextBlock Text="{Binding Status}" Foreground="#D2E1F5" TextWrapping="Wrap" FontSize="11" Margin="2,5"/></ScrollViewer>
-   <Border x:Name="ResizeHandle" Grid.Row="4" Width="24" Height="24" Background="#FF526581" HorizontalAlignment="Right"><TextBlock Text="◢" Foreground="White" HorizontalAlignment="Center"/></Border>
-   <Border x:Name="HintsPanel" Grid.RowSpan="5" Panel.ZIndex="20" Visibility="Collapsed" VerticalAlignment="Top" Background="#FF223047" BorderBrush="#839CBA" BorderThickness="1" CornerRadius="7" Padding="10" IsHitTestVisible="False">
-    <StackPanel><TextBlock Text="快捷键提示（移开“提示”立即关闭）" Foreground="White" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,5"/>
-     <ItemsControl x:Name="HintItems"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Foreground="#D9E7FB" FontSize="10" Margin="3,4" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-    </StackPanel>
-   </Border>
+   <ScrollViewer x:Name="StatusScroll" Grid.Row="4" MaxHeight="32" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"><TextBlock Text="{Binding Status}" Foreground="#D2E1F5" TextWrapping="Wrap" FontSize="11" Margin="2,4"/></ScrollViewer>
+   <Border x:Name="ResizeHandle" Grid.Row="5" Width="18" Height="18" Background="#FF526581" HorizontalAlignment="Right"><TextBlock Text="◢" Foreground="White" HorizontalAlignment="Center"/></Border>
+   <Border x:Name="HintsPanel" Grid.RowSpan="6" Panel.ZIndex="200" Visibility="Collapsed" VerticalAlignment="Top" Background="#FF223047" BorderBrush="#839CBA" BorderThickness="1" CornerRadius="7" Padding="10" IsHitTestVisible="False"><StackPanel><TextBlock Text="快捷键提示（移开“提示”立即关闭）" Foreground="White" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,5"/><ItemsControl x:Name="HintItems"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Foreground="#D9E7FB" FontSize="10" Margin="3,4" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel></Border>
   </Grid>
  </Border>
 </Window>
