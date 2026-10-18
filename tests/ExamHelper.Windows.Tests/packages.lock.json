@@ -189,7 +189,8 @@
       "examhelper.interactionlab": {
         "type": "Project",
         "dependencies": {
-          "ExamHelper.App": "[1.0.0, )"
+          "ExamHelper.App": "[1.0.0, )",
+          "ExamHelper.TestSupport": "[1.0.0, )"
         }
       },
       "examhelper.testsupport": {

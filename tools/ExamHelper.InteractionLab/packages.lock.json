@@ -95,6 +95,12 @@
           "Markdig": "[1.4.1, )"
         }
       },
+      "examhelper.testsupport": {
+        "type": "Project",
+        "dependencies": {
+          "ExamHelper.Core": "[1.0.0, )"
+        }
+      },
       "examhelper.windows": {
         "type": "Project",
         "dependencies": {

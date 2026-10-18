@@ -43,7 +43,7 @@ public sealed class MessagePresentation04Tests
         await StaTest.RunAsync(()=>
         {
             var raw="**答案**\n```cpp\nint x;\n```";var message=new MessageSnapshot { Role=MessageRole.Assistant,Text=raw,ReasoningContent="hidden" };
-            string? copied=null;var view=new HomeMessageView(copy:text=>copied=text);view.Update(message);view.Measure(new Size(600,1000));view.Arrange(new Rect(0,0,600,1000));view.UpdateLayout();var markdown=MarkdownViewTests.Nodes(view).OfType<MarkdownView>().Single();var body=markdown.Content;var copy=Assert.IsType<Button>(view.FindName("CopyMessageButton"));
+            string? copied=null;var view=new HomeMessageView(copy:text=>copied=text);view.Update(message);view.Measure(new Size(600,1000));view.Arrange(new Rect(0,0,600,1000));view.UpdateLayout();var markdown=MarkdownViewTests.Nodes(view).OfType<MarkdownView>().Single();var body=markdown.Content;var copy=Assert.IsType<Button>(view.FindName("CopyMessageButton"));Assert.True(copy.IsEnabled);
             var timer=new ResponseTiming(Guid.NewGuid(),1,DateTimeOffset.UtcNow,TimeSpan.FromSeconds(12.4),true);
             Assert.Equal("已用 12 秒",ResponseTimingFormatter.Format(timer));Assert.Equal("用时 12.4 秒",ResponseTimingFormatter.Format(timer with { IsRunning=false }));Assert.Equal("",ResponseTimingFormatter.Format(null));
             for(var i=0;i<30;i++)view.UpdateTiming(timer with { Elapsed=TimeSpan.FromSeconds(i) });

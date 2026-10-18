@@ -20,7 +20,7 @@ public partial class HomeMessageView:UserControl
     public void Update(MessageSnapshot message)
     {
         var changed=_message is null || _message.Role!=message.Role || _message.Text!=message.Text;
-        _message=message;Tag=message.Id;Header.Text=new ConversationMessageViewModel(message).Header;UpdateTiming(message.Timing);
+        _message=message;((AsyncDelegateCommand)CopyMessageButton.Command).Raise();Tag=message.Id;Header.Text=new ConversationMessageViewModel(message).Header;UpdateTiming(message.Timing);
         if(changed)
         {
             if(message.Role==MessageRole.Assistant)
