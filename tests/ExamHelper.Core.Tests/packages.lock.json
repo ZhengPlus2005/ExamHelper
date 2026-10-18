@@ -94,13 +94,22 @@
         }
       },
       "examhelper.core": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "Markdig": "[1.4.1, )"
+        }
       },
       "examhelper.testsupport": {
         "type": "Project",
         "dependencies": {
           "ExamHelper.Core": "[1.0.0, )"
         }
+      },
+      "Markdig": {
+        "type": "CentralTransitive",
+        "requested": "[1.4.1, )",
+        "resolved": "1.4.1",
+        "contentHash": "laiWlBRnwVqQlY9eWR56+uteUVtR+LpGw0doMSpirFuxdplSi3V59UOGRTepJaE8hJvfKGcCoguIZ8jmUHcEnA=="
       }
     },
     "net10.0/win-x64": {}

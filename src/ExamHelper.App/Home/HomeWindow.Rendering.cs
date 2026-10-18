@@ -34,7 +34,7 @@ public partial class HomeWindow
             {
                 var pictures=new WrapPanel(); foreach(var image in message.Images) pictures.Children.Add(Thumbnail(image,false)); panel.Children.Add(pictures);
             }
-            panel.Children.Add(new TextBlock { Text=message.Text,TextWrapping=TextWrapping.Wrap,FontSize=14,Foreground=new SolidColorBrush(Color.FromRgb(25,35,49)) });
+            panel.Children.Add(message.Message.Role == ExamHelper.Core.Sessions.MessageRole.Assistant ? new ExamHelper.App.Controls.MarkdownView { Text=message.Text } : new TextBlock { Text=message.Text,TextWrapping=TextWrapping.Wrap,FontSize=14,Foreground=new SolidColorBrush(Color.FromRgb(25,35,49)) });
             HistoryMessages.Children.Add(panel);
         }
         var ids=_viewModel.DraftImages.Select(i => i.Id).ToArray();

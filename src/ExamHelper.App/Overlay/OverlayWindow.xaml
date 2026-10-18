@@ -17,7 +17,7 @@
    <Grid x:Name="Body" Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <ScrollViewer x:Name="AnswerScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#30101827" Padding="10" Margin="0,0,0,8" Focusable="False">
      <StackPanel>
-      <ItemsControl ItemsSource="{Binding Messages}"><ItemsControl.ItemTemplate><DataTemplate><beh:AnswerView Title="{Binding Title}" Text="{Binding Text}" IsFinal="{Binding IsFinal}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+      <ItemsControl ItemsSource="{Binding Messages}"><ItemsControl.ItemTemplate><DataTemplate><beh:AnswerView Title="{Binding Title}" Text="{Binding Text}" IsFinal="{Binding IsFinal}" IsMarkdown="{Binding IsAssistant}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
       <beh:ThumbnailStrip x:Name="DraftImages" ItemsSource="{Binding Thumbnails}"/>
       <StackPanel><TextBlock Text="语音草稿（只读）" Foreground="#B8CDE8" FontSize="11"/><ScrollViewer x:Name="DraftScroll" MaxHeight="82" MinHeight="35" VerticalScrollBarVisibility="Auto" Background="#30101827" Padding="8" Margin="0,5" Focusable="False"><TextBlock x:Name="DraftPreview" Text="{Binding DraftText}" Foreground="White" TextWrapping="Wrap" Focusable="False"/></ScrollViewer></StackPanel>
      </StackPanel>

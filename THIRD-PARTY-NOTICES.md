@@ -8,6 +8,8 @@ ExamHelper includes the following runtime components. Exact package versions and
 | Microsoft.Data.Sqlite | 10.0.13 | MIT |
 | SQLitePCLRaw and e_sqlite3 bindings | 2.1.13 | Apache-2.0 |
 | SQLite native engine | bundled by SQLitePCLRaw | Public domain |
+| Markdig | 1.4.1 | BSD-2-Clause |
+| AvalonEdit (nonvisual syntax highlighting) | 6.3.1.120 | MIT |
 | NAudio and component packages | 2.2.1 | MIT |
 | Microsoft BCL dependency packages | pinned in package lock | MIT |
 

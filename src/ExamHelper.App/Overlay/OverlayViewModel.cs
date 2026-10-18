@@ -11,7 +11,8 @@ public sealed class AnswerMessageViewModel(Guid id) : ObservableObject
 {
     public Guid Id { get; } = id;
     private string _text = "",_title = "";
-    private bool _final;
+    private bool _final,_assistant;
+    public bool IsAssistant { get => _assistant; set => Set(ref _assistant,value); }
     public string Text { get => _text; set => Set(ref _text,value); }
     public string Title { get => _title; set => Set(ref _title,value); }
     public bool IsFinal { get => _final; set => Set(ref _final,value); }
@@ -79,7 +80,7 @@ public sealed class OverlayViewModel : ObservableObject,IDisposable
             {
                 var view = Messages.FirstOrDefault(m => m.Id == message.Id);
                 if(view is null) { view = new(message.Id); Messages.Add(view); }
-                view.Text = message.Text; view.IsFinal = message.Status != MessageStatus.Pending;
+                view.IsAssistant = message.Role == MessageRole.Assistant; view.Text = message.Text; view.IsFinal = message.Status != MessageStatus.Pending;
                 view.Title = (message.Role == MessageRole.User ? "我" : "AI") + (message.Status switch { MessageStatus.Pending => " · 处理中",MessageStatus.Failed => " · 失败",MessageStatus.Stopped => " · 已停止",_ => "" });
             }
             var imageIds = state.Draft.Images.Select(i => i.Id).ToHashSet();

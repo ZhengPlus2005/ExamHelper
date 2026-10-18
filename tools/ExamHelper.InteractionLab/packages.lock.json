@@ -85,11 +85,15 @@
       "examhelper.app": {
         "type": "Project",
         "dependencies": {
+          "AvalonEdit": "[6.3.1.120, )",
           "ExamHelper.Windows": "[1.0.0, )"
         }
       },
       "examhelper.core": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "Markdig": "[1.4.1, )"
+        }
       },
       "examhelper.windows": {
         "type": "Project",
@@ -98,6 +102,18 @@
           "Microsoft.Data.Sqlite": "[10.0.13, )",
           "NAudio": "[2.2.1, )"
         }
+      },
+      "AvalonEdit": {
+        "type": "CentralTransitive",
+        "requested": "[6.3.1.120, )",
+        "resolved": "6.3.1.120",
+        "contentHash": "6ASBKPzAg64BLDlFOJo4Ypr1sA/6hB5+TfHLJaZYUSTE0jgxvKlVqKeo/ISTG9qEMxu604qUu6BGugmJkfdrNw=="
+      },
+      "Markdig": {
+        "type": "CentralTransitive",
+        "requested": "[1.4.1, )",
+        "resolved": "1.4.1",
+        "contentHash": "laiWlBRnwVqQlY9eWR56+uteUVtR+LpGw0doMSpirFuxdplSi3V59UOGRTepJaE8hJvfKGcCoguIZ8jmUHcEnA=="
       },
       "Microsoft.Data.Sqlite": {
         "type": "CentralTransitive",
