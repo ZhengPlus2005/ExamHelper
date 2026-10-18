@@ -21,7 +21,11 @@ public partial class HomeWindow
         _renderedRevision=_viewModel.ViewRevision; _renderedSession=snapshot?.Id;
         if(newSession) _thumbnails.Clear();
         _syncSelection=true;
-        try { HistoryList.SelectedItem=_viewModel.History.FirstOrDefault(s => s.Id==snapshot?.Id); }
+        try
+        {
+            var selected=_viewModel.History.FirstOrDefault(s => s.Id==snapshot?.Id);
+            if(!ReferenceEquals(HistoryList.SelectedItem,selected)) HistoryList.SelectedItem=selected;
+        }
         finally { _syncSelection=false; }
         HomeModels.Configure(_viewModel.SettingsSnapshot,snapshot?.Selection,false,_viewModel.Verification);
         var offset=HistoryScroll.VerticalOffset; var atBottom=newSession || HistoryScroll.ScrollableHeight-offset<20;

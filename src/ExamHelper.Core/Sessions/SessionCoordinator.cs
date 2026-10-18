@@ -65,7 +65,8 @@ public sealed partial class SessionCoordinator : IAsyncDisposable
         var previous = _state; var draft = _draft.Snapshot();
         _undo.Invalidate(); _receivedSpeech.Clear(); _draft.Clear();
         var generation = checked(previous.Generation + 1);
-        _state = new() { Generation = generation,SpeechGeneration = generation,Selection = InitialSelection(_settings()),UpdatedAt = _clock.GetUtcNow() };
+        var created = _clock.GetUtcNow();
+        _state = new() { Generation = generation,SpeechGeneration = generation,Selection = InitialSelection(_settings()),CreatedAt = created,UpdatedAt = created };
         Error = null; Publish();
         try { await SaveLockedAsync(ct).ConfigureAwait(false); }
         catch { _draft.Restore(draft); _state = previous; Publish(); throw; }

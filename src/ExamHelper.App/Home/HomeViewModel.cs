@@ -33,7 +33,7 @@ public sealed class HomeViewModel : ObservableObject
     public bool HasFailedRequest => Snapshot?.PendingRequest is not null;
     public long ViewRevision { get; private set; }
     public bool HistoryNeedsRefresh { get; private set; }
-    public ObservableCollection<SessionSummary> History { get; } = [];
+    public HistoryCollection History { get; } = [];
     public bool IsBusy { get => _busy; private set => Set(ref _busy,value); }
     public bool HomeVisible { get => _visible; private set { if(Set(ref _visible,value)) VisibilityChanged?.Invoke(value); } }
     public string Status { get => _status; set => Set(ref _status,value); }
@@ -59,7 +59,7 @@ public sealed class HomeViewModel : ObservableObject
         try
         {
             SettingsSnapshot = await _getSettings(); AreServicesVerified = _verification.CanStart(SettingsSnapshot);
-            var list = await _sessions.ListAsync(ct); History.Clear(); foreach(var item in list) History.Add(item);
+            var list = await _sessions.ListAsync(ct); History.Apply(list);
             HistoryNeedsRefresh = false; ViewRevision++; Notify();
         }
         catch(Exception error) { Status = Explain(error); }

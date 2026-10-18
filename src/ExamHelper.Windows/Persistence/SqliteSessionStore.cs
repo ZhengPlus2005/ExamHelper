@@ -35,9 +35,9 @@ public sealed class SqliteSessionStore(string path,ImageReferenceRegistry? pendi
                 transaction.Commit(); return;
             }
             await ExecuteAsync(connection,transaction,"""
-                INSERT INTO Sessions(Id,Title,UpdatedAt,HasSavedDraft,SnapshotJson) VALUES($id,$title,$updated,$draft,$json)
-                ON CONFLICT(Id) DO UPDATE SET Title=$title,UpdatedAt=$updated,HasSavedDraft=$draft,SnapshotJson=$json;
-                """,ct,("$id",snapshot.Id.ToString()),("$title",ConversationTitle.Get(snapshot)),("$updated",snapshot.UpdatedAt.ToString("O")),("$draft",snapshot.Draft.HasContent ? 1 : 0),("$json",JsonSerializer.Serialize(snapshot))).ConfigureAwait(false);
+                INSERT INTO Sessions(Id,Title,UpdatedAt,CreatedTicksUtc,SortTicksUtc,HasSavedDraft,SnapshotJson) VALUES($id,$title,$updated,$created,$sort,$draft,$json)
+                ON CONFLICT(Id) DO UPDATE SET Title=$title,UpdatedAt=$updated,CreatedTicksUtc=$created,SortTicksUtc=$sort,HasSavedDraft=$draft,SnapshotJson=$json;
+                """,ct,("$id",snapshot.Id.ToString()),("$title",ConversationTitle.Get(snapshot)),("$updated",snapshot.UpdatedAt.ToString("O")),("$created",snapshot.CreatedAt.UtcTicks),("$sort",ConversationChronology.SortAt(snapshot).UtcTicks),("$draft",snapshot.Draft.HasContent ? 1 : 0),("$json",JsonSerializer.Serialize(snapshot))).ConfigureAwait(false);
             foreach(var table in new[] { "Messages","Requests","Drafts","ImageLinks" })
                 await ExecuteAsync(connection,transaction,$"DELETE FROM {table} WHERE SessionId=$id",ct,("$id",snapshot.Id.ToString())).ConfigureAwait(false);
             for(int index = 0;index < snapshot.Messages.Length;index++)
@@ -79,11 +79,11 @@ public sealed class SqliteSessionStore(string path,ImageReferenceRegistry? pendi
         try
         {
             await using var connection = await OpenAsync(ct).ConfigureAwait(false);
-            using var command = connection.CreateCommand(); command.CommandText = "SELECT Id,Title,UpdatedAt,HasSavedDraft FROM Sessions ORDER BY UpdatedAt DESC";
+            using var command = connection.CreateCommand(); command.CommandText = "SELECT Id,Title,UpdatedAt,HasSavedDraft,CreatedTicksUtc,SortTicksUtc FROM Sessions ORDER BY SortTicksUtc DESC,CreatedTicksUtc DESC,Id ASC";
             await using var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
             var result = new List<SessionSummary>();
             while(await reader.ReadAsync(ct).ConfigureAwait(false))
-                result.Add(new(Guid.Parse(reader.GetString(0)),reader.GetString(1),DateTimeOffset.Parse(reader.GetString(2)),reader.GetInt32(3) != 0));
+                result.Add(new(Guid.Parse(reader.GetString(0)),reader.GetString(1),DateTimeOffset.Parse(reader.GetString(2)),reader.GetInt32(3) != 0) { CreatedAt=new DateTimeOffset(reader.GetInt64(4),TimeSpan.Zero),SortAt=new DateTimeOffset(reader.GetInt64(5),TimeSpan.Zero) });
             return result;
         }
         catch(Exception error) when(IsStorageFailure(error)) { throw Storage("无法列出历史，原文件已保留。",error); }

@@ -9,7 +9,7 @@ public class ConversationTitleTests
     {
         var time = new DateTimeOffset(2026,10,18,10,11,12,TimeSpan.FromHours(8));
         var session = new SessionSnapshot { Messages = [new() { Role = MessageRole.User,Text = "not a title",CreatedAt = time }] };
-        Assert.Equal("对话 "+time.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss"),ConversationTitle.Get(session));
+        Assert.Equal("对话 2026-10-18 10:11:12",ConversationTitle.Get(session));
         Assert.Equal("对话（未发送）",ConversationTitle.Get(new()));
         Assert.Equal("My title",ConversationTitle.Get(session with { CustomTitle = "My title" }));
     }

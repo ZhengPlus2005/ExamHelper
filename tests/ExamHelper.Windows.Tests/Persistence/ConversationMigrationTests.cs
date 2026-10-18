@@ -10,7 +10,7 @@ using Xunit;
 namespace ExamHelper.Windows.Tests.Persistence;
 public class ConversationMigrationTests
 {
-    [Fact] public async Task MigratesOldSnapshotAfterConsistentBackupAndPreservesReferences()
+    [Fact] public async Task RejectsForeignSnapshotWithoutMigrationOrChangingReferences()
     {
         var root = Root(); var path = Path.Combine(root,"history.db");
         try
@@ -21,13 +21,10 @@ public class ConversationMigrationTests
             await store.SaveAsync(snapshot,default);
             var old = JsonNode.Parse(JsonSerializer.Serialize(snapshot))!.AsObject(); old.Remove("FirstSentAt"); old.Remove("CustomTitle"); old.Remove("Selection");
             await Sql(path,"UPDATE SchemaVersion SET Version=1; UPDATE Sessions SET Title='old title',SnapshotJson=$json",old.ToJsonString());
-            var loaded = (await store.LoadAsync(snapshot.Id,default))!;
-            Assert.Equal(snapshot.Messages[0].CreatedAt,loaded.FirstSentAt); Assert.Equal("draft",loaded.Draft.Text); Assert.Single(loaded.Draft.Images); Assert.Equal(request.RequestId,loaded.PendingRequest!.RequestId);
-            Assert.Equal("对话 "+snapshot.Messages[0].CreatedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss"),Assert.Single(await store.ListAsync(default)).Title);
-            var backup = Assert.Single(Directory.GetFiles(root,"*.v1.*.bak"));
-            Assert.Equal("1",await Scalar(backup,"SELECT Version FROM SchemaVersion"));
-            Assert.Equal(old.ToJsonString(),await Scalar(backup,"SELECT SnapshotJson FROM Sessions"));
-            Assert.Equal("2",await Scalar(path,"SELECT Version FROM SchemaVersion"));
+            await Assert.ThrowsAsync<ServiceFailure>(() => store.LoadAsync(snapshot.Id,default));
+            Assert.Equal("1",await Scalar(path,"SELECT Version FROM SchemaVersion"));
+            Assert.Equal(old.ToJsonString(),await Scalar(path,"SELECT SnapshotJson FROM Sessions"));
+            Assert.Empty(Directory.GetFiles(root,"*.bak"));
         }
         finally { Directory.Delete(root,true); }
     }
@@ -42,7 +39,7 @@ public class ConversationMigrationTests
             await store.SaveAsync(empty,default); Assert.Empty(await store.ListAsync(default));
         } finally { Directory.Delete(root,true); }
     }
-    [Fact] public async Task FailedMigrationAndUnknownVersionKeepOriginalData()
+    [Fact] public async Task ForeignAndUnknownVersionKeepOriginalData()
     {
         var root = Root(); var path = Path.Combine(root,"history.db"); try
         {
@@ -69,13 +66,13 @@ public class ConversationMigrationTests
             await Assert.ThrowsAsync<FileNotFoundException>(() => images.ReadAsync(pending,default));
         } finally { Directory.Delete(root,true); }
     }
-    [Fact] public async Task BackupFailureDoesNotChangeOldSchemaOrSnapshot()
+    [Fact] public async Task ForeignSchemaIsNotMigratedWhenGivenAnotherBackupPath()
     {
         var root = Root(); var path = Path.Combine(root,"history.db"); try
         {
             var store = new SqliteSessionStore(path); await store.SaveAsync(new() { Draft = new("keep",[],1) },default); await Sql(path,"UPDATE SchemaVersion SET Version=1",null);
             await using var c = new SqliteConnection($"Data Source={path};Pooling=False"); await c.OpenAsync();
-            await Assert.ThrowsAnyAsync<Exception>(() => SessionMigration.EnsureAsync(c,Path.Combine(root,"missing-parent","db"),default));
+            await Assert.ThrowsAsync<ServiceFailure>(() => SessionMigration.EnsureAsync(c,Path.Combine(root,"missing-parent","db"),default));
             Assert.Equal("1",await Scalar(path,"SELECT Version FROM SchemaVersion")); Assert.Single(await ReadSnapshots(path));
         } finally { Directory.Delete(root,true); }
     }

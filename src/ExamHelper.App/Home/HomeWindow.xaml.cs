@@ -63,13 +63,13 @@ public partial class HomeWindow : Window
     { if(!_syncInput && DraftController is not null && _viewModel.Workspace.Selected is not null) await RunAsync(() => DraftController.UpdateTextAsync(HomeDraftInput.Text,CancellationToken.None)); }
     private async void SelectionChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(_syncSelection || HistoryList.SelectedItem is not SessionSummary session || session.Id==_viewModel.SelectedConversationId) return;
+        if(_syncSelection || HistoryList.SelectedItem is not HistoryItemViewModel session || session.Id==_viewModel.SelectedConversationId) return;
         _selection?.Cancel(); _selection?.Dispose(); _selection=new(); var token=_selection.Token;
         await RunAsync(async () => { await DraftController.FlushAsync(token); await _viewModel.SelectAsync(session.Id,token); if(!token.IsCancellationRequested) Render(true); });
     }
     private async void DeleteClick(object sender,RoutedEventArgs e)
     {
-        if(HistoryList.SelectedItem is not SessionSummary session) return;
+        if(HistoryList.SelectedItem is not HistoryItemViewModel session) return;
         await _viewModel.DeleteAsync(session.Id,() => Task.FromResult(MessageBox.Show(this,"删除此对话及其不再被引用的图片？","删除历史",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes),CancellationToken.None); Render(true);
     }
     private async void RenameClick(object sender,RoutedEventArgs e)

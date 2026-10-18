@@ -47,6 +47,11 @@ public sealed record SessionSnapshot
     public bool CaptureInProgress { get; init; }
     public bool DirectCaptureInProgress { get; init; }
     public bool SpeechUndoAvailable { get; init; }
+    public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
 }
-public sealed record SessionSummary(Guid Id, string Title, DateTimeOffset UpdatedAt, bool HasSavedDraft);
+public sealed record SessionSummary(Guid Id, string Title, DateTimeOffset UpdatedAt, bool HasSavedDraft)
+{
+    public DateTimeOffset CreatedAt { get; init; } = UpdatedAt;
+    public DateTimeOffset SortAt { get; init; } = UpdatedAt;
+}
