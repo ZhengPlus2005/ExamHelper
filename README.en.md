@@ -10,13 +10,13 @@
   <a href="README.md">简体中文</a> | English
 </p>
 
+https://github.com/user-attachments/assets/0c1fb199-a133-4bd8-b4d8-205c985e5200
+
 ExamHelper is a Windows desktop application for assistance with online written assessments. It displays a small overlay that screen-sharing tools cannot capture, letting you chat with AI to get answers. Ask questions by voice or take a screenshot, and AI responds in real time. After a practice assessment, review the conversation history to reflect on your work. It is free and open source; you need to provide your own API access. It is intended for learning, practice, code discussions, and assistance that is explicitly permitted in the relevant setting.
 
 The current version is **0.4.0**, built with **C# / .NET 10 / WPF**, primarily for **Windows 11 x64**. According to user testing feedback, Windows built-in screenshot and recording tools, browser-initiated screen sharing, and common capture or screen-sharing applications such as OBS, Zoom, and Tencent Meeting could not capture the overlay in the tested environments. Its safety cannot be guaranteed with dedicated examination software such as Nowcoder (牛客) or Shixizhi (时习之).
 
 The current application UI is in Simplified Chinese; this document provides English instructions.
-
-https://github.com/user-attachments/assets/0c1fb199-a133-4bd8-b4d8-205c985e5200
 
 ## Features
 
