@@ -1,8 +1,14 @@
-# ExamHelper
+<p align="center">
+  <img src="docs/assets/examhelper-wordmark.png" alt="ExamHelper" width="600">
+</p>
 
-**面向 Windows 11 的截图、语音与 AI 对话辅助工具。**
+<p align="center">
+  <strong>面向 Windows 11 的截图、语音与 AI 对话辅助工具。</strong>
+</p>
 
-简体中文 | [English](README.en.md)
+<p align="center">
+  简体中文 | <a href="README.en.md">English</a>
+</p>
 
 ExamHelper 将普通聊天主页与置顶辅助小窗结合起来，支持截图提问、麦克风语音转文字、多模型切换和本地对话管理。它适用于学习、题目练习、代码讨论，以及规则明确允许使用外部工具的辅助场景。
 

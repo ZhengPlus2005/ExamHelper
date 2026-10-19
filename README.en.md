@@ -1,8 +1,14 @@
-# ExamHelper
+<p align="center">
+  <img src="docs/assets/examhelper-wordmark.png" alt="ExamHelper" width="600">
+</p>
 
-**A Windows 11 assistant for screenshots, voice input, and AI conversations.**
+<p align="center">
+  <strong>A Windows 11 assistant for screenshots, voice input, and AI conversations.</strong>
+</p>
 
-[简体中文](README.md) | English
+<p align="center">
+  <a href="README.md">简体中文</a> | English
+</p>
 
 ExamHelper combines a conventional chat home window with an always-on-top assistant overlay. It supports screenshot questions, microphone transcription, multiple AI configurations, and local conversation management. It is intended for learning, practice, code discussions, and assistance that is explicitly permitted in the relevant setting.
 
