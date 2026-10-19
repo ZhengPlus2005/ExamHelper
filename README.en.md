@@ -10,11 +10,13 @@
   <a href="README.md">简体中文</a> | English
 </p>
 
-ExamHelper combines a conventional chat home window with an always-on-top assistant overlay. It supports screenshot questions, microphone transcription, multiple AI configurations, and local conversation management. It is intended for learning, practice, code discussions, and assistance that is explicitly permitted in the relevant setting.
+ExamHelper is a Windows desktop application for assistance with online written assessments. It displays a small overlay that screen-sharing tools cannot capture, letting you chat with AI to get answers. Ask questions by voice or take a screenshot, and AI responds in real time. After a practice assessment, review the conversation history to reflect on your work. It is free and open source; you need to provide your own API access. It is intended for learning, practice, code discussions, and assistance that is explicitly permitted in the relevant setting.
+
+The current version is **0.4.0**, built with **C# / .NET 10 / WPF**, primarily for **Windows 11 x64**. According to user testing feedback, Windows built-in screenshot and recording tools, browser-initiated screen sharing, and common capture or screen-sharing applications such as OBS, Zoom, and Tencent Meeting could not capture the overlay in the tested environments. Its safety cannot be guaranteed with dedicated examination software such as Nowcoder (牛客) or Shixizhi (时习之).
 
 The current application UI is in Simplified Chinese; this document provides English instructions.
 
-The current version is **0.4.0**, built with **C# / .NET 10 / WPF**, for **Windows 11 x64 only**. The overlay requests exclusion from supported Windows capture paths. This has specific limits and is not a guarantee of invisibility or protection from detection.
+https://github.com/user-attachments/assets/0c1fb199-a133-4bd8-b4d8-205c985e5200
 
 ## Features
 
@@ -122,7 +124,8 @@ Capture exclusion is not process hiding, detection avoidance, or system-wide con
 | Windows built-in screenshots/recording and Chrome screen sharing | Previously accepted by the user in their then-current environment; not a guarantee for every version, setting, or device |
 | GDI capture of an owned reference scene | Controlled checks passed, including affinity readback of `0x11` and reference-image comparison |
 | Multiple displays and DPI | Controlled checks include negative-coordinate dual displays and 125%/200% scaling, not every GPU, driver, or display arrangement |
-| OBS, Tencent Meeting, and other capture backends | Insufficient validation to promise compatibility or exclusion |
+| OBS, Zoom, and Tencent Meeting | User reports indicate exclusion in their tested environments; specific versions, capture modes, and reproducible cases still need documentation |
+| Dedicated examination software such as 牛客 and 时习之 | No targeted validation; overlay invisibility or safety is not guaranteed |
 | Cameras, external capture, a compromised process, or system-level collection | Outside the reliable guarantees of the current mechanism |
 | Bypass detection | Not implemented; a successful attribute readback cannot prove exclusion from every capture path |
 
@@ -142,7 +145,7 @@ AI requests send the relevant questions, screenshots, and conversation context t
 
 These are directions for evaluation and development, not current features or delivery commitments.
 
-- [ ] **Expand capture-protection testing.** Cover more Windows versions, GPUs/drivers, display arrangements, DPI settings, and window/display capture modes. Prioritize OBS and Tencent Meeting, with reproducible cases, known failure conditions, and recorded results.
+- [ ] **Expand capture-protection testing.** Cover more Windows versions, GPUs/drivers, display arrangements, DPI settings, and window/display capture modes. Document versions and capture modes for OBS, Zoom, and Tencent Meeting, with reproducible cases, known failure conditions, and recorded results.
 - [ ] **Evaluate capture-bypass detection.** Explore detection and notification of observable changes to the overlay's exclusion state and protection failures, including failure handling. Document blind spots: attribute polling is not detection of every recorder or bypass, and does not establish invisibility.
 - [ ] **Add interview assistance.** Design interview prompts, question/follow-up context, code discussions, and post-session review for mock interviews and explicitly permitted assistance. Audio sources, participant awareness and permission, latency, and data handling need separate design before implementation.
 
