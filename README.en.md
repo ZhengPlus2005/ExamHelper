@@ -168,6 +168,13 @@ ExamHelper is intended for learning, practice, and authorized assistance. Its na
 
 AI output can be incorrect, incomplete, or unsuitable for a task. Independently verify answers and code. The application does not guarantee accuracy, assessment outcomes, or invisibility in any recording environment. Validate it only in permitted settings, and do not treat capture exclusion as evidence of security or permission.
 
+## Contributors
+
+| Contributor | Contributions |
+| --- | --- |
+| [ZhengPlus2005](https://github.com/ZhengPlus2005) | Project creation, requirements, hands-on acceptance testing, and releases |
+| Codex (OpenAI) | AI-assisted development, testing, troubleshooting, and documentation |
+
 ## References and acknowledgments
 
 The organization of this README's introduction, onboarding, technical explanation, and roadmap was informed by [OpenCluely](https://github.com/TechyCSR/OpenCluely). ExamHelper's implementation determines its stack, supported platforms, speech service, and limitations; it does not inherit the reference project's invisibility, cross-platform, or local-processing claims.
