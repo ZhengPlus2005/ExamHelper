@@ -59,7 +59,7 @@ AI 服务、截图理解和语音识别需要对应供应商的接口与密钥�
 
 ### 4. 使用辅助模式
 
-点击“开始考试”会创建新对话，加载设置中的默认配置、模型与思考深度。只有辅助窗口捕获保护初始化成功后才进入；失败时停留在主页并提示原因。
+点击“开始考试”会创建新对话，加载设置中的默认配置、模型与思考深度。设置的“控制”页可切换反屏幕捕获，默认开启，保存后下次进入辅助模式生效；关闭时仍可进入辅助模式。窗口按此开关设置并回读捕获属性，初始化失败时停留在主页并提示原因。
 
 辅助小窗不接受键盘文字，文字通过麦克风识别加入。录音最长 60 秒，到时自动停止并提交识别；结果加入草稿，不自动发送。识别后有三秒撤销入口，仅撤销本次语音；鼠标进入撤销按钮时暂停倒计时。
 
@@ -103,7 +103,7 @@ F5 和独立的 F12 隐藏绑定未使用。主页输入框使用 Enter 发送�
 
 整屏截图使用 GDI `BitBlt`，显示器选择和窗口几何使用 Win32 API；录音通过 NAudio 采集麦克风，文字交给云端语音服务识别。历史记录使用 SQLite，完整截图保存为独立 PNG。Markdown 使用 Markdig 解析并由 WPF 控件呈现，代码区域使用 AvalonEdit；HTML 导出禁用脚本和远程图片。
 
-辅助窗口通过 P/Invoke 对**本进程的顶层窗口**调用 `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)`（`0x11`），并用 `GetWindowDisplayAffinity` 回读确认。此方式依赖 Windows 的桌面合成与捕获机制，**不向答题软件或录屏程序注入代码**。模型菜单和快捷键提示保持在同一受保护 HWND 中；置顶和不抢焦点是另外的窗口交互机制。
+反屏幕捕获开启时，辅助窗口通过 P/Invoke 对**本进程的顶层窗口**调用 `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)`（`0x11`），并用 `GetWindowDisplayAffinity` 回读确认。此方式依赖 Windows 的桌面合成与捕获机制，**不向答题软件或录屏程序注入代码**。关闭反屏幕捕获时，调用相同 API 将本窗口属性设置并回读为 `WDA_NONE`（`0`），使其可正常被捕获。模型菜单和快捷键提示保持在同一 HWND 中；置顶和不抢焦点是另外的窗口交互机制。
 
 微软明确说明，显示亲和性只覆盖特定系统捕获功能，不是 DRM 或严格的安全保证。详见 [SetWindowDisplayAffinity 文档](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity)。
 
@@ -160,7 +160,7 @@ API 密钥按当前 Windows 用户使用 DPAPI 加密保存。**这不代表历�
 
 主要目录为 `src/ExamHelper.App`（界面）、`src/ExamHelper.Core`（业务）、`src/ExamHelper.Windows`（平台适配）、`tests`（回归测试）及 `tools/ExamHelper.InteractionLab`（受控验证工具，不随安装器分发）。第三方依赖声明见完整源码中的 `THIRD-PARTY-NOTICES.md` 和 `packaging/licenses/`。
 
-最近一次产品回归记录为 2026-10-19 的同版本更新：357 项测试通过，构建零警告、零错误；发布程序离线自检及普通用户隔离安装／重装／卸载通过。该记录不代表所有捕获后端或物理交互都已验收。详细材料见完整源码中的 `docs/verification/revision-0.4.0-self-tests.md` 及交付目录的 `验证记录-0.4.0.md`。
+最近一次产品回归记录为 2026-10-19 的同版本更新：362 项测试通过，构建零警告、零错误；发布程序离线自检及普通用户隔离安装／重装／卸载通过。该记录不代表所有捕获后端或物理交互都已验收。详细材料见完整源码中的 `docs/verification/revision-0.4.0-capture-control.md` 及交付目录的 `验证记录-0.4.0.md`。
 
 ## 免责声明
 

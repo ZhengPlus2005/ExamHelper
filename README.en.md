@@ -59,7 +59,7 @@ Click a draft thumbnail's body to preview it; only its top-right × removes it. 
 
 ### 4. Use the overlay
 
-**Start exam** creates a new conversation using the saved default configuration, model, and reasoning depth. Entry requires successful capture-protection initialization. If initialization fails, the application stays on home and reports the reason.
+**Start exam** creates a new conversation using the saved default configuration, model, and reasoning depth. The Control tab in Settings provides a capture-exclusion switch, enabled by default; saved changes apply to the next overlay session. Disabling it still permits entry. The window applies and verifies the requested affinity; initialization failures keep the application on home and report the reason.
 
 The overlay does not accept typed text. Text is added through microphone transcription. Recording stops and submits for transcription after 60 seconds at most; the result enters the draft without sending. A three-second undo action removes only the latest transcription. Moving onto the undo control pauses its countdown.
 
@@ -103,7 +103,7 @@ WPF provides the UI, `ExamHelper.Core` contains business and request state, and 
 
 Screen capture uses GDI `BitBlt`, with Win32 APIs for monitor selection and window geometry. NAudio records the microphone; a cloud service performs transcription. SQLite stores conversation history, while full screenshots are separate PNG files. Markdown is parsed with Markdig and rendered as WPF controls; code uses AvalonEdit. HTML export disables scripts and remote images.
 
-Through P/Invoke, the overlay calls `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` (`0x11`) on **its own top-level window**, then verifies the value with `GetWindowDisplayAffinity`. This relies on Windows desktop composition and capture behavior. **It does not inject code into the application being viewed or into capture software.** Model menus and shortcut hints stay within the same protected HWND. Always-on-top and non-activating behavior are separate interaction mechanisms.
+With capture exclusion enabled, the overlay uses P/Invoke to call `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` (`0x11`) on **its own top-level window**, then verifies the value with `GetWindowDisplayAffinity`. This relies on Windows desktop composition and capture behavior. **It does not inject code into the application being viewed or into capture software.** When disabled, the same API sets and verifies `WDA_NONE` (`0`), allowing the overlay to be captured normally. Model menus and shortcut hints stay within the same HWND. Always-on-top and non-activating behavior are separate interaction mechanisms.
 
 Microsoft documents that display affinity covers specific capture features and is not DRM or a strict security guarantee. See the [SetWindowDisplayAffinity documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity).
 
@@ -160,7 +160,7 @@ Run these commands from the full source checkout containing `ExamHelper.slnx`. D
 
 The main directories are `src/ExamHelper.App` (UI), `src/ExamHelper.Core` (business logic), `src/ExamHelper.Windows` (platform adapters), `tests` (regressions), and `tools/ExamHelper.InteractionLab` (controlled verification, excluded from the installer). Third-party notices are in `THIRD-PARTY-NOTICES.md` and `packaging/licenses/` in the full source tree.
 
-The most recent product regression record is the October 19, 2026 same-version update: 357 tests passed with zero build warnings or errors. Published-app offline checks and isolated standard-user installation/reinstallation/uninstallation also passed. This does not establish validation of every capture backend or physical interaction. Details are in `docs/verification/revision-0.4.0-self-tests.md` in the source and `验证记录-0.4.0.md` in the delivery folder.
+The most recent product regression record is the October 19, 2026 same-version update: 362 tests passed with zero build warnings or errors. Published-app offline checks and isolated standard-user installation/reinstallation/uninstallation also passed. This does not establish validation of every capture backend or physical interaction. Details are in `docs/verification/revision-0.4.0-capture-control.md` in the source and `验证记录-0.4.0.md` in the delivery folder.
 
 ## Disclaimer
 

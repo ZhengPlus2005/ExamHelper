@@ -27,7 +27,9 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
     private Guid? _speechOperation;
     private Task _speechProcessing = Task.CompletedTask;
     private bool _busy,_speechWorking,_disposed;
-    private string _status = "",_result = "";
+    private string _status = "",_result = "",_speechResultText = "";
+    private string _asrBaseAddress = "",_asrModel = "",_asrApiKey = "",_deviceId = "";
+    private bool _captureProtectionEnabled;
     private AiProfileEditor? _selectedAiProfile;
     private Guid? _activeAiProfileId;
     public ObservableCollection<AiProfileEditor> AiProfiles { get; } = [];
@@ -43,10 +45,11 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
     public string AiModel { get => SelectedAiProfile?.Model ?? ""; set { if(SelectedAiProfile is { } p) p.Model = value; } }
     public ProviderKind AiProviderKind { get => SelectedAiProfile?.ProviderKind ?? ProviderKind.Kimi; set { if(SelectedAiProfile is { } p) p.ProviderKind = value; } }
     public string AiApiKey { get => SelectedAiProfile?.ApiKey ?? ""; set { if(SelectedAiProfile is { } p) p.ApiKey = value; } }
-    public string AsrBaseAddress { get; set; }
-    public string AsrModel { get; set; }
-    public string AsrApiKey { get; set; }
-    public string DeviceId { get; set; }
+    public string AsrBaseAddress { get => _asrBaseAddress; set { if(Set(ref _asrBaseAddress,value)) NotifySpeechConfiguration(); } }
+    public string AsrModel { get => _asrModel; set { if(Set(ref _asrModel,value)) NotifySpeechConfiguration(); } }
+    public string AsrApiKey { get => _asrApiKey; set { if(Set(ref _asrApiKey,value)) NotifySpeechConfiguration(); } }
+    public string DeviceId { get => _deviceId; set { if(Set(ref _deviceId,value)) NotifySpeechConfiguration(); } }
+    public bool CaptureProtectionEnabled { get => _captureProtectionEnabled; set { if(Set(ref _captureProtectionEnabled,value)) Notify(nameof(HasUnsavedChanges)); } }
     public string DefaultCodeLanguage { get; set; }
     public string DirectCapturePrompt { get; set; }
     private double _opacity;
@@ -65,10 +68,16 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
     public bool CanConfirmSpeech => _speechResult?.RequiresConfirmation == true;
     public string Status { get => _status; set => Set(ref _status,value); }
     public string ResultText { get => _result; private set => Set(ref _result,value); }
-    public string VerificationSummary
+    public string SpeechResultText { get => _speechResultText; private set => Set(ref _speechResultText,value); }
+    public string SpeechVerificationStatus
     {
-        get { try { var c = BuildCandidate(); return $"AI：{SelectedAiProfile?.Status ?? "未配置"}　语音：{(_verification.IsAsrVerified(c) ? "已验证" : "未验证")}"; } catch { return "配置尚未完整"; } }
+        get
+        {
+            try { return _verification.IsAsrVerified(_initial with { Asr = BuildAsr(),Evidence = _evidence }) ? "语音：已验证" : "语音：未验证"; }
+            catch(Exception error) when(error is ArgumentException or UriFormatException) { return "语音：未验证"; }
+        }
     }
+    private void NotifySpeechConfiguration() { Notify(nameof(SpeechVerificationStatus)); Notify(nameof(HasUnsavedChanges)); }
     public SettingsViewModel(AppSettings initial,string aiKey,string asrKey,ISettingsStore store,ISecretStore secrets,ServiceVerification verification,
         ServiceTestRunner runner,RecordingController recording,Action<AppSettings> saved,Action<Action>? dispatch = null,IReadOnlyDictionary<string,string>? aiKeys = null,ExamHelper.Windows.Providers.IModelDiscovery? discovery = null)
     {
@@ -80,7 +89,7 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
             AddEditor(profile,aiKeys?.GetValueOrDefault(profile.Settings.SecretId) ?? (profile.Id == initial.ActiveAiProfileId ? aiKey : ""));
         SelectedAiProfile = AiProfiles.FirstOrDefault(p => p.Id == _activeAiProfileId) ?? AiProfiles.FirstOrDefault();
         AsrBaseAddress = initial.Asr.BaseUri.ToString(); AsrModel = initial.Asr.Model; AsrApiKey = asrKey; DeviceId = initial.Asr.DeviceId;
-        DefaultCodeLanguage = initial.DefaultCodeLanguage; DirectCapturePrompt = initial.DirectCapturePrompt; Opacity = initial.Ui.Opacity;
+        DefaultCodeLanguage = initial.DefaultCodeLanguage; DirectCapturePrompt = initial.DirectCapturePrompt; Opacity = initial.Ui.Opacity; CaptureProtectionEnabled = initial.Ui.CaptureProtectionEnabled;
         foreach(var command in Enum.GetValues<ExamHelper.Core.Interaction.AppCommand>().Where(c => c != ExamHelper.Core.Interaction.AppCommand.HideOverlay))
             Hotkeys.Add(new(command,HotkeyEditor.Format(initial.Hotkeys.Bindings.FirstOrDefault(b => b.Command == command))));
         _initial = BuildCandidate();
@@ -109,20 +118,20 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
         editor.PropertyChanged += (_,e) =>
         {
             if(ReferenceEquals(editor,SelectedAiProfile) && e.PropertyName is nameof(AiProfileEditor.BaseAddress) or nameof(AiProfileEditor.Model) or nameof(AiProfileEditor.ProviderKind) or nameof(AiProfileEditor.ApiKey)) NotifyAiFields();
-            Notify(nameof(VerificationSummary)); Notify(nameof(HasUnsavedChanges));
+            Notify(nameof(HasUnsavedChanges));
         };
         AiProfiles.Add(editor); return editor;
     }
     private void UpdateActiveMarkers() { foreach(var p in AiProfiles) p.IsActive = p.Id == _activeAiProfileId; }
     private void NotifyAiFields()
     {
-        Notify(nameof(AiBaseAddress)); Notify(nameof(AiModel)); Notify(nameof(AiProviderKind)); Notify(nameof(AiApiKey)); Notify(nameof(VerificationSummary));
+        Notify(nameof(AiBaseAddress)); Notify(nameof(AiModel)); Notify(nameof(AiProviderKind)); Notify(nameof(AiApiKey));
     }
     public AppSettings BuildCandidate() => AiProfileCatalog.Normalize(_initial with
     {
         AiProfiles = AiProfiles.Select(p => p.BuildProfile()).ToImmutableArray(),ActiveAiProfileId = _activeAiProfileId,
         Asr = _initial.Asr with { BaseUri = new(AsrBaseAddress.Trim()),Model = AsrModel.Trim(),DeviceId = DeviceId,SecretFingerprint = _verification.SecretDigest(AsrApiKey) },
-        Ui = _initial.Ui with { Opacity = Opacity },DefaultCodeLanguage = DefaultCodeLanguage.Trim(),DirectCapturePrompt = DirectCapturePrompt,
+        Ui = _initial.Ui with { Opacity = Opacity,CaptureProtectionEnabled = CaptureProtectionEnabled },DefaultCodeLanguage = DefaultCodeLanguage.Trim(),DirectCapturePrompt = DirectCapturePrompt,
         Hotkeys = new() { Bindings = Hotkeys.Select(row => row.Parse()).OfType<HotkeyBinding>().ToImmutableArray() },Evidence = _evidence
     });
     public bool HasUnsavedChanges
@@ -166,7 +175,7 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
         if(_speechWorking || IsBusy) return;
         try
         {
-            _speechSettings = _initial with { Asr = BuildAsr() }; _speechKey = AsrApiKey; _speechResult = null; _speechOperation = null;
+            _speechSettings = _initial with { Asr = BuildAsr() }; _speechKey = AsrApiKey; _speechResult = null; _speechOperation = null; SpeechResultText = "";
             _speechWorking = true; Status = "正在录音，请说一句中英混合的话；再次点击停止，最多 60 秒。"; Notify();
             await _recording.StartAsync(DeviceId,_lifetime.Token);
         }
@@ -183,7 +192,7 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
             Status = "正在识别测试录音……"; Notify();
             var result = await _runner.TestSpeechAsync(clip,_speechSettings!,_speechKey,_lifetime.Token);
             if(_disposed) return;
-            _speechResult = result; ResultText = result.Text;
+            _speechResult = result; SpeechResultText = result.Text;
             Status = result.RequiresConfirmation ? "请核对识别文字，正确后点击“识别正确”。" : result.Error ?? "识别测试未通过。";
         }
         catch(OperationCanceledException) { }

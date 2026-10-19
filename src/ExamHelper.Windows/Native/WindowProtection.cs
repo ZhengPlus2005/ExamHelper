@@ -9,11 +9,12 @@ public interface IWindowProtectionApi
 public sealed class WindowProtection(IWindowProtectionApi? api = null)
 {
     private readonly IWindowProtectionApi _api = api ?? new Win32WindowProtectionApi();
-    public ProtectionResult ApplyAndVerify(nint hwnd)
+    public ProtectionResult ApplyAndVerify(nint hwnd,bool enabled = true)
     {
-        if (!_api.Set(hwnd, 0x11, out var error)) return new(false, error, 0);
+        var expected = enabled ? 0x11u : 0u;
+        if (!_api.Set(hwnd, expected, out var error)) return new(false, error, 0);
         if (!_api.Get(hwnd, out var value, out error)) return new(false, error, 0);
-        return new(value == 0x11, value == 0x11 ? 0 : error, value);
+        return new(value == expected, value == expected ? 0 : error, value);
     }
 }
 internal sealed class Win32WindowProtectionApi : IWindowProtectionApi

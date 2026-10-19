@@ -4,10 +4,9 @@
   <Style TargetType="PasswordBox"><Setter Property="Padding" Value="8"/><Setter Property="Margin" Value="0,4,0,12"/></Style>
   <Style TargetType="Button"><Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="3"/></Style>
  </Window.Resources>
- <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-  <TextBlock Text="{Binding VerificationSummary}" FontWeight="SemiBold" Margin="0,0,0,12"/>
-  <TabControl x:Name="SettingsTabs" Grid.Row="1">
-   <TabItem Header="AI 服务"><Grid Margin="14"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+ <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <TabControl x:Name="SettingsTabs">
+   <TabItem Header="AI 服务"><Grid Margin="14"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <WrapPanel Margin="0,0,0,12"><Button Content="＋ 添加配置" Click="AddProfileClick"/><Button Content="设为考试默认配置" Click="ActivateProfileClick" IsEnabled="{Binding HasSelectedAiProfile}"/><Button Content="删除" Click="DeleteProfileClick" IsEnabled="{Binding HasSelectedAiProfile}"/></WrapPanel>
     <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
      <ListBox x:Name="ProfilesList" ItemsSource="{Binding AiProfiles}" SelectedItem="{Binding SelectedAiProfile,Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -33,6 +32,7 @@
       <TextBlock Text="文字测试和图片测试仅用于检查选中模型的服务状态，不限制聊天。考试默认配置、模型和思考深度在保存后生效。" TextWrapping="Wrap" Foreground="#526174" Margin="0,12"/>
      </StackPanel></ScrollViewer>
     </Grid>
+    <TextBox x:Name="AiTestOutput" Grid.Row="2" Text="{Binding ResultText,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="54" MaxHeight="130" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0"/>
    </Grid></TabItem>
    <TabItem Header="语音识别"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
     <TextBlock Text="阿里云北京 API 地址"/><TextBox Text="{Binding AsrBaseAddress,UpdateSourceTrigger=PropertyChanged}"/>
@@ -41,6 +41,8 @@
     <TextBlock Text="麦克风"/><ComboBox ItemsSource="{Binding Devices}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding DeviceId}" Margin="0,4,0,12"/>
     <TextBlock Text="只采集麦克风。请说一句中文夹杂英文的话，停录后核对识别结果。" TextWrapping="Wrap" Margin="0,4,0,12"/>
     <TextBlock Text="{Binding MicrophoneLevel,StringFormat=麦克风音量：{0:P0}}" Foreground="#526174" Margin="0,0,0,6"/><ProgressBar x:Name="MicrophoneMeter" Value="{Binding MicrophoneLevel,Mode=OneWay}" Minimum="0" Maximum="1" Foreground="#33A774" Background="#DFE5EC" Height="12"/><TextBlock Text="{Binding RecordingSeconds,StringFormat='录音时长：{0:F1} 秒'}" Margin="0,8"/>
+    <TextBox x:Name="SpeechTestOutput" Text="{Binding SpeechResultText,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="48" MaxHeight="130" VerticalScrollBarVisibility="Auto"/>
+    <TextBlock x:Name="SpeechVerificationStatus" Text="{Binding SpeechVerificationStatus}" FontWeight="SemiBold" Margin="0,8,0,8"/>
     <WrapPanel><Button Content="开始／停止测试录音" Click="SpeechTestClick"/><Button Content="识别正确" Click="ConfirmSpeechClick" IsEnabled="{Binding CanConfirmSpeech}"/></WrapPanel>
    </StackPanel></ScrollViewer></TabItem>
    <TabItem Header="回答与外观"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
@@ -51,12 +53,15 @@
     <TextBlock Text="下方为效果演示：本软件覆盖在答题窗口上，背景跟随滑块变化。" TextWrapping="Wrap" Foreground="#526174" Margin="0,0,0,10"/>
     <controls:OpacityPreview x:Name="OpacityDemo" BackgroundOpacity="{Binding Opacity}"/>
    </StackPanel></ScrollViewer></TabItem>
+   <TabItem Header="控制"><StackPanel Margin="18">
+    <CheckBox x:Name="CaptureProtectionSwitch" Content="反屏幕捕获" IsChecked="{Binding CaptureProtectionEnabled}"/>
+   </StackPanel></TabItem>
    <TabItem Header="快捷键"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
     <TextBlock Text="例如 Ctrl+Alt+F1，留空不绑定。保存时检查修改后的组合冲突；Esc 保留给移动／缩放／滚动。" TextWrapping="Wrap" Margin="0,0,0,12"/>
     <ItemsControl ItemsSource="{Binding Hotkeys}"><ItemsControl.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Name}" VerticalAlignment="Center"/><TextBox Grid.Column="1" Text="{Binding Text,UpdateSourceTrigger=PropertyChanged}"/></Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
    </StackPanel></ScrollViewer></TabItem>
   </TabControl>
-  <StackPanel Grid.Row="2" Margin="0,12"><TextBlock Text="{Binding Status}" Foreground="#8A3A12" TextWrapping="Wrap"/><TextBox Text="{Binding ResultText,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="130" VerticalScrollBarVisibility="Auto"/></StackPanel>
-  <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="关闭" Click="CloseClick"/><Button Content="保存并返回" Click="SaveClick" Background="#D9EBFF"/></StackPanel>
+  <TextBlock Grid.Row="1" Text="{Binding Status}" Foreground="#8A3A12" TextWrapping="Wrap" Margin="0,12"/>
+  <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="关闭" Click="CloseClick"/><Button Content="保存并返回" Click="SaveClick" Background="#D9EBFF"/></StackPanel>
  </Grid>
 </Window>

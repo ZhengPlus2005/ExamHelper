@@ -22,6 +22,7 @@ public sealed record AsrSettings
 public sealed record PhysicalWindowPlacement(int X,int Y,int Width,int Height);
 public sealed record UiSettings
 {
+    public bool CaptureProtectionEnabled { get; init; } = true;
     public PhysicalWindowPlacement? Placement { get; init; }
     public double Opacity { get; init; } = 0.5;
     public double Width { get; init; } = 640;

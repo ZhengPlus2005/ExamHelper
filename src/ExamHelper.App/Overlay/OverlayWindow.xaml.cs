@@ -86,7 +86,7 @@ public partial class OverlayWindow : Window
     private void OnSourceInitialized(object? sender,EventArgs args)
     {
         var hwnd = new WindowInteropHelper(this).Handle; NativeHandle = hwnd;
-        Protection = _protection.ApplyAndVerify(hwnd);
+        Protection = _protection.ApplyAndVerify(hwnd,_settings.Ui.CaptureProtectionEnabled);
         if(!Protection.Success) { InitializationError = $"捕获保护初始化失败（{Protection.ErrorCode}）。"; return; }
         if(_source is { IsDisposed: false }) _source.RemoveHook(Hook);
         _hotkeys?.Dispose(); _nonActivating?.Dispose();
@@ -100,7 +100,7 @@ public partial class OverlayWindow : Window
     }
     public ProtectionResult EnsureProtection()
     {
-        Protection = _protection.ApplyAndVerify(new WindowInteropHelper(this).EnsureHandle()); return Protection;
+        Protection = _protection.ApplyAndVerify(new WindowInteropHelper(this).EnsureHandle(),_settings.Ui.CaptureProtectionEnabled); return Protection;
     }
     public UiSettings CaptureGeometry()
     {

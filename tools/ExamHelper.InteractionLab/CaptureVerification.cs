@@ -12,7 +12,7 @@ namespace ExamHelper.InteractionLab;
 // Integration fixture captures only its own reference surface; never uploads pixels.
 internal static class CaptureVerification
 {
-    public static async Task RunAsync(string directory,bool productWindow = false)
+    public static async Task RunAsync(string directory,bool productWindow = false,bool captureProtectionEnabled = true)
     {
         Directory.CreateDirectory(directory);
         File.WriteAllText(Path.Combine(directory, "capture-result.json"), "{\"Passed\":false,\"Status\":\"Running\"}");
@@ -34,11 +34,11 @@ internal static class CaptureVerification
             if (baselinePixels[i] != 68 || baselinePixels[i + 1] != 102 || baselinePixels[i + 2] != 34)
                 throw new InvalidOperationException($"Reference surface not fully visible (first non-green BGR={baselinePixels[i]},{baselinePixels[i + 1]},{baselinePixels[i + 2]}); capture test inconclusive. No desktop pixels saved.");
         Save(before, Path.Combine(directory, "reference.png"));
-        await using var product = productWindow ? await ProductCaptureFixture.CreateAsync() : null;
+        await using var product = productWindow ? await ProductCaptureFixture.CreateAsync(captureProtectionEnabled:captureProtectionEnabled) : null;
         var lab = productWindow ? null : new MainWindow(registerHotkeys: false) { Left = 120, Top = 100, Width = 640, Height = 600 };
         Window overlay = product?.Window ?? (Window)lab!;
         var protection = product?.Window.Protection ?? lab!.Protection;
-        if (!protection.Success) throw new InvalidOperationException($"Protection failed: {protection}");
+        if (!protection.Success || protection.EffectiveAffinity != (captureProtectionEnabled ? 17u : 0u)) throw new InvalidOperationException($"Protection failed: {protection}");
         overlay.Show();
         await Task.Delay(500);
         product?.PrepareProtectedSelectors();
@@ -50,15 +50,16 @@ internal static class CaptureVerification
         var b = new byte[a.Length];
         before.CopyPixels(a, before.PixelWidth * 4, 0); after.CopyPixels(b, after.PixelWidth * 4, 0);
         int differences = 0; for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) differences++;
-        if(differences==0) Save(after,Path.Combine(directory,"protected-capture.png"));
+        var capturePassed = captureProtectionEnabled ? differences == 0 : differences > 0;
+        if(capturePassed) Save(after,Path.Combine(directory,captureProtectionEnabled ? "protected-capture.png" : "visible-capture.png"));
         var nativeChecks = NativeVerification.Run(reference, overlay);
         File.WriteAllText(Path.Combine(directory, "capture-result.json"), JsonSerializer.Serialize(new {
-            OS = Environment.OSVersion.VersionString, Protection = protection,
+            OS = Environment.OSVersion.VersionString, Protection = protection, CaptureProtectionEnabled = captureProtectionEnabled,
             CaptureBackend = "GDI BitBlt SRCCOPY; own reference surface only", before.PixelWidth, before.PixelHeight,
-            Differences = differences, CapturePassed = differences == 0, Passed = differences == 0 && nativeChecks.All(c => c.Value), NativeChecks = nativeChecks, Dpi = scale.PixelsPerInchX
+            Differences = differences, CapturePassed = capturePassed, Passed = capturePassed && nativeChecks.All(c => c.Value), NativeChecks = nativeChecks, Dpi = scale.PixelsPerInchX
         }, new JsonSerializerOptions { WriteIndented = true }));
         if(product is not null) product.Window.CloseFromHost(); else overlay.Close(); reference.Close();
-        if (differences != 0) throw new InvalidOperationException($"Capture contains {differences} changed bytes; inspect artifacts.");
+        if (!capturePassed) throw new InvalidOperationException($"Unexpected capture differences ({differences} bytes) for capture protection={captureProtectionEnabled}.");
         if (nativeChecks.Any(c => !c.Value)) throw new InvalidOperationException("Native integration check failed; inspect capture-result.json.");
     }
     private static BitmapSource Capture(int x, int y, int width, int height)

@@ -16,14 +16,14 @@ namespace ExamHelper.InteractionLab;
 internal sealed class ProductCaptureFixture(SessionCoordinator coordinator,OverlayWindow window) : IAsyncDisposable
 {
     public OverlayWindow Window { get; } = window;
-    public static async Task<ProductCaptureFixture> CreateAsync(PhysicalWindowPlacement? placement = null)
+    public static async Task<ProductCaptureFixture> CreateAsync(PhysicalWindowPlacement? placement = null,bool captureProtectionEnabled = true)
     {
         var services = new ReferenceServices();
         var verification=new ServiceVerification(new byte[32]);
         var endpoint=new AiSettings { BaseUri=new("https://example.invalid/v1"),SecretFingerprint="synthetic-digest" };
         var models=Enumerable.Range(0,18).Select(i => { var name=i==0 ? "kimi-k2.6" : $"reference-model-{i}"; return new AiModelProfile { Name=name,TextVerifiedFingerprint=verification.AiFingerprint(new() { Ai=endpoint with { Model=name } }),VerifiedFingerprint=verification.AiFingerprint(new() { Ai=endpoint with { Model=name } }) }; }).ToImmutableArray();
         var profile=new AiServiceProfile { Name="受控测试配置",Settings=endpoint,Models=models,DefaultModelId=models[0].Id };
-        var settings=AiProfileCatalog.Normalize(new() { Ui=new() { Placement=placement },Hotkeys=new() { Bindings=[] },AiProfiles=[profile],ActiveAiProfileId=profile.Id });
+        var settings=AiProfileCatalog.Normalize(new() { Ui=new() { Placement=placement,CaptureProtectionEnabled=captureProtectionEnabled },Hotkeys=new() { Bindings=[] },AiProfiles=[profile],ActiveAiProfileId=profile.Id });
         var coordinator = new SessionCoordinator(services,services,services,services,services,() => settings,services,TimeProvider.System,verification:verification);
         await coordinator.StartNewAsync(CancellationToken.None);
         await coordinator.AppendSpeechResultAsync(new(coordinator.State.Id,coordinator.State.SpeechGeneration,Guid.NewGuid(),"受控测试：请给出一个 C++ 示例。"),CancellationToken.None);
