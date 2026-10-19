@@ -18,7 +18,7 @@ The current version is **0.4.0**, built with **C# / .NET 10 / WPF**, for **Windo
 | Screenshot questions | Capture the display containing the overlay; send immediately or collect images in a draft |
 | Voice input | Microphone only, manual start/stop, up to 60 seconds; transcription enters the draft without sending |
 | AI configuration | Multiple compatible providers, model discovery or manual addition, and default profile/model/reasoning choices |
-| Overlay | Always on top, translucent background, capture exclusion, dwell controls, hands-free move/resize, configurable shortcuts |
+| Overlay | Always on top, translucent background, optional capture exclusion, dwell controls, hands-free move/resize, configurable shortcuts |
 | Response reading | Markdown, code blocks, code copy, mouse-wheel scrolling, and full-message raw Markdown copy |
 | Images | Clipboard paste, file drop, thumbnails, full-resolution preview, zoom/pan, and original PNG saving |
 | History | Automatic message and draft persistence, rename, batch deletion, and sorting by the last message's creation time |
@@ -168,13 +168,6 @@ ExamHelper is intended for learning, practice, and authorized assistance. Its na
 
 AI output can be incorrect, incomplete, or unsuitable for a task. Independently verify answers and code. The application does not guarantee accuracy, assessment outcomes, or invisibility in any recording environment. Validate it only in permitted settings, and do not treat capture exclusion as evidence of security or permission.
 
-## Contributors
-
-| Contributor | Contributions |
-| --- | --- |
-| [ZhengPlus2005](https://github.com/ZhengPlus2005) | Project creation, requirements, hands-on acceptance testing, and releases |
-| Codex (OpenAI) | AI-assisted development, testing, troubleshooting, and documentation |
-
 ## References and acknowledgments
 
-The organization of this README's introduction, onboarding, technical explanation, and roadmap was informed by [OpenCluely](https://github.com/TechyCSR/OpenCluely). ExamHelper's implementation determines its stack, supported platforms, speech service, and limitations; it does not inherit the reference project's invisibility, cross-platform, or local-processing claims.
+This project was developed using Codex together with the Superpower skill. The structure of its project introduction, getting-started guide, technical explanation, and roadmap was inspired by [OpenCluely](https://github.com/TechyCSR/OpenCluely). ExamHelper's implementation determines its stack, supported platforms, speech service, and limitations; it does not inherit the reference project's invisibility, cross-platform, or local-processing claims.
