@@ -66,11 +66,10 @@ public partial class SettingsWindow : Window
     private void AddModelClick(object sender,RoutedEventArgs args)
     {
         if(_viewModel.SelectedAiProfile is not { } profile) return;
-        try { profile.AddModel(profile.NewModelId); profile.NewModelId = ""; }
+        try { profile.AddModel(ModelPicker.Text); }
         catch(ArgumentException error) { _viewModel.Status = error.Message; }
     }
     private void DeleteModelClick(object sender,RoutedEventArgs args) => _viewModel.SelectedAiProfile?.DeleteSelectedModel();
-    private void DefaultModelClick(object sender,RoutedEventArgs args) { if(_viewModel.SelectedAiProfile is { SelectedModel: { } model } p) p.DefaultModelId = model.Id; }
     private void AddProfileClick(object sender,RoutedEventArgs args) => _viewModel.AddAiProfile();
     private void ActivateProfileClick(object sender,RoutedEventArgs args) => _viewModel.ActivateSelectedAiProfile();
     private void DeleteProfileClick(object sender,RoutedEventArgs args)

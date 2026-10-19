@@ -31,13 +31,12 @@ public sealed partial class SessionCoordinator
         try
         {
             ObjectDisposedException.ThrowIf(_disposed,this); var settings = AiProfileCatalog.Normalize(_settings());
-            if(_state.IsAuxiliaryMode && _verification is null) throw new InvalidOperationException("服务验证不可用，请返回主页重试。");
             var p=settings.AiProfiles!.Value.FirstOrDefault(p=>p.Id==selection.ProfileId) ?? throw new InvalidOperationException("配置不可用，请重新选择。");
             ModelSelection next;
             if(selection.ModelId==Guid.Empty) next=ModelCatalog.Pending(p);
             else
             {
-                ModelCatalog.Resolve(settings,selection,_state.IsAuxiliaryMode,_verification ?? new(new byte[32]));
+                ModelCatalog.Resolve(settings,selection);
                 var m=p.Models!.Value.Single(m=>m.Id==selection.ModelId);next=ModelCatalog.Select(p,m,selection.Thinking);
             }
             _state = _state with { Selection = next }; Publish(); await SaveLockedAsync(ct).ConfigureAwait(false);
@@ -65,9 +64,8 @@ public sealed partial class SessionCoordinator
     }
     private AiSettings ResolveAi(AppSettings settings)
     {
-        if(_state.IsAuxiliaryMode && _verification is null) throw new InvalidOperationException("服务验证不可用，请返回主页重试。");
         if(_state.Selection is not { } choice) throw new InvalidOperationException("请先选择可用的配置和模型。");
-        return ModelCatalog.Resolve(settings,choice,_state.IsAuxiliaryMode,_verification ?? new(new byte[32]));
+        return ModelCatalog.Resolve(settings,choice);
     }
     private static ModelSelection? InitialSelection(AppSettings settings)
     { try { return ModelCatalog.Default(settings); } catch(InvalidOperationException) { return null; } }

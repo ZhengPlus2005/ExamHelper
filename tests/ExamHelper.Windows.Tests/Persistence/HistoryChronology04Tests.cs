@@ -65,6 +65,6 @@ public sealed class HistoryChronology04Tests
         var state=new SessionSnapshot { CreatedAt=t.AddDays(-1),UpdatedAt=t.AddDays(2),Messages=[
             new() { Role=MessageRole.User,CreatedAt=t.AddHours(1) },new() { Role=MessageRole.Assistant,CreatedAt=t },new() { Role=MessageRole.System,CreatedAt=t.AddDays(3) }] };
         Assert.Equal(t,ConversationChronology.SortAt(state));
-        Assert.Equal("AI · 08:00:00",new ExamHelper.App.Home.ConversationMessageViewModel(state.Messages[1] with { Status=MessageStatus.Complete }).Header);
+        Assert.Equal("AI · 2026-10-18 08:00:00",new ExamHelper.App.Home.ConversationMessageViewModel(state.Messages[1] with { Status=MessageStatus.Complete }).Header);
     }
 }

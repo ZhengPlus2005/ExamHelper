@@ -80,7 +80,7 @@ public sealed partial class SettingsViewModel
             if(_closingAccepted || _closeDecision is not null || !AiProfiles.Contains(editor)) return false;
             var model = editor.Models.FirstOrDefault(m => m.Id == modelId);
             if(model is null || _verification.AiFingerprint(new() { Ai = editor.BuildSettings() with { Model = model.Name.Trim() } }) != fingerprint)
-            { Status = "配置已变化，本次结果不计入验证资格，请重新测试。"; return false; }
+            { Status = "配置已变化，本次自测结果已丢弃，请重新测试。"; return false; }
             var profiles = _initial.AiProfiles!.Value;
             var index = Array.FindIndex(profiles.ToArray(),p => p.Id == snapshot.Id);
             var snapshotModel = snapshot.Models!.Value.Single(m => m.Id == modelId);

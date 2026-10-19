@@ -34,7 +34,7 @@ public class ProductWindowTests
             try
             {
                 homeWindow.Show(); homeWindow.UpdateLayout(); StaTest.Pump();
-                Assert.True(homeWindow.IsVisible); Assert.False(home.AreServicesVerified);
+                Assert.True(homeWindow.IsVisible);
                 SavePreview(homeWindow,"home.png");
                 settingsWindow.Show(); settingsWindow.UpdateLayout(); StaTest.Pump();
                 Assert.Equal("sample-ai-key",vm.AiApiKey); Assert.Equal("sample-asr-key",vm.AsrApiKey);

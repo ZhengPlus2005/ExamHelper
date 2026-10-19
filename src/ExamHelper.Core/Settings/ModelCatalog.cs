@@ -30,7 +30,7 @@ public static class ModelCatalog
     }
     public static ModelSelection Pending(AiServiceProfile p) => new(p.Id,Guid.Empty,new()) { ProfileName=p.Name };
     public static ModelSelection Select(AiServiceProfile p,AiModelProfile m,ThinkingChoice? thinking = null) => new(p.Id,m.Id,thinking ?? m.DefaultThinking) { ProfileName = p.Name,ModelName = m.Name };
-    public static AiSettings Resolve(AppSettings settings,ModelSelection selection,bool requireAuxiliaryVerified,ServiceVerification verification)
+    public static AiSettings Resolve(AppSettings settings,ModelSelection selection)
     {
         settings = AiProfileCatalog.Normalize(settings);
         var p = settings.AiProfiles!.Value.FirstOrDefault(p => p.Id == selection.ProfileId) ?? throw new InvalidOperationException($"配置不可用：{selection.ProfileName}，请重新选择。");
@@ -40,8 +40,6 @@ public static class ModelCatalog
         var capability = ThinkingCapability.For(m);
         if(!capability.Allows(selection.Thinking)) throw new InvalidOperationException("此模型不支持所选思考设置，请重新选择。");
         var ai = p.Settings with { Model = m.Name,Thinking = selection.Thinking,ThinkingCapability = capability };
-        if(requireAuxiliaryVerified && !verification.CanUseInAuxiliary(settings,selection))
-            throw new InvalidOperationException("此模型须通过文字及图片测试后才能在辅助模式中调用。");
         return ai;
     }
 }

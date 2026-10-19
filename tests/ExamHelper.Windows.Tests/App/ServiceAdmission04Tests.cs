@@ -90,7 +90,7 @@ public sealed class ServiceAdmission04Tests
         Assert.All(editor.Models,m => { Assert.Null(m.Build().TextVerifiedFingerprint); Assert.Null(m.Build().VerifiedFingerprint); });
     }
     [Fact]
-    public async Task UnverifiedModelsRemainVisibleAndDisabledInProtectedMenu()
+    public async Task UntestedModelsRemainVisibleAndEnabledInProtectedMenu()
     {
         await StaTest.RunAsync(() =>
         {
@@ -108,7 +108,7 @@ public sealed class ServiceAdmission04Tests
             var buttons = items.Children.OfType<System.Windows.Controls.Button>().ToArray();
             Assert.Equal(2,buttons.Length);
             Assert.True(buttons.Single(b => ((System.Windows.Controls.TextBlock)b.Content).Text=="model-a").IsEnabled);
-            Assert.False(buttons.Single(b => ((System.Windows.Controls.TextBlock)b.Content).Text=="untested").IsEnabled);
+            Assert.True(buttons.Single(b => ((System.Windows.Controls.TextBlock)b.Content).Text=="untested").IsEnabled);
         });
     }
     private sealed class SettingsRig : IAsyncDisposable

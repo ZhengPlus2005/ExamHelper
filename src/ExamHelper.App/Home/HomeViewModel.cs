@@ -14,7 +14,7 @@ public sealed class HomeViewModel : ObservableObject
     private readonly ServiceVerification _verification;
     private readonly IOverlayHost _overlay;
     private readonly Func<Task> _reconcile;
-    private bool _busy,_visible = true,_ready,_refreshing;
+    private bool _busy,_visible = true,_refreshing;
     private string _status = "";
     public Action<Action> Dispatch { get; set; } = action => action();
     public IImageStore ImageStore => _images;
@@ -43,7 +43,6 @@ public sealed class HomeViewModel : ObservableObject
     public bool HasImageCleanupFailure { get => _cleanupFailed; private set => Set(ref _cleanupFailed,value); }
     public bool HomeVisible { get => _visible; private set { if(Set(ref _visible,value)) VisibilityChanged?.Invoke(value); } }
     public string Status { get => _status; set => Set(ref _status,value); }
-    public bool AreServicesVerified { get => _ready; private set => Set(ref _ready,value); }
     public ServiceVerification Verification => _verification;
     public event Action<bool>? VisibilityChanged;
     public HomeViewModel(ConversationWorkspace workspace,ISessionStore sessions,IImageStore images,Func<Task<AppSettings>> getSettings,
@@ -66,7 +65,7 @@ public sealed class HomeViewModel : ObservableObject
         if(_refreshing) return; _refreshing = true;
         try
         {
-            SettingsSnapshot = await _getSettings(); AreServicesVerified = _verification.CanStart(SettingsSnapshot);
+            SettingsSnapshot = await _getSettings();
             var list = await _sessions.ListAsync(ct); History.Apply(list);
             HistoryNeedsRefresh = false; ViewRevision++; Notify();
         }
@@ -86,7 +85,7 @@ public sealed class HomeViewModel : ObservableObject
         var previous = Workspace.Selected?.State.Id; SessionCoordinator? auxiliary = null;
         try
         {
-            var settings = await _entrySettings(); SettingsSnapshot = settings; AreServicesVerified = _verification.CanStart(settings);
+            var settings = await _entrySettings(); SettingsSnapshot = settings;
             auxiliary = await Workspace.NewAsync(true,ct); _overlay.Bind(auxiliary);
             var protection = await _overlay.OpenAsync(ct);
             if(!protection.Success) throw new InvalidOperationException($"捕获保护初始化失败（代码 {protection.ErrorCode}，读回 0x{protection.EffectiveAffinity:X}）。");

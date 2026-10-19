@@ -38,7 +38,7 @@ public partial class ModelSelector
     public void OpenHoverMenu(ModelSelectorPart part,AiServiceProfile? browsingProfile = null)
     {
         if(!AuxiliaryInteraction || _hoverSuspended) return; MenuItems.Children.Clear(); _browsingProfile=browsingProfile;
-        if(browsingProfile is not null) MenuItems.Children.Add(new TextBlock { Text=browsingProfile.Name+"：默认模型不可用，请选择已完成文字及图片测试的模型。",Foreground=System.Windows.Media.Brushes.White,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(6) });
+        if(browsingProfile is not null) MenuItems.Children.Add(new TextBlock { Text=browsingProfile.Name+"：默认模型不可用，请选择模型。",Foreground=System.Windows.Media.Brushes.White,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(6) });
         var choices=part switch { ModelSelectorPart.Profile => ProfileChoices.Cast<object>(),ModelSelectorPart.Model => browsingProfile is null ? ModelChoices.Cast<object>() : browsingProfile.Models!.Value.Select(m => Wrap(browsingProfile,m)).Cast<object>(),_ => ThinkingChoices.Cast<object>() };
         foreach(var item in choices)
         {
@@ -56,7 +56,7 @@ public partial class ModelSelector
     private void Choose(object item)
     {
         if(item is ModelChoice { IsEnabled:false }) return;
-        if(item is AiServiceProfile candidate && RequireAuxiliaryVerified && (candidate.Models?.FirstOrDefault(m => m.Id==candidate.DefaultModelId) is not { } defaultModel || !Qualified(candidate,defaultModel)))
+        if(item is AiServiceProfile candidate && !ProfileCompleteness.Evaluate(candidate).Complete)
         {
             Request(ModelCatalog.Pending(candidate));
             CloseHoverMenu(); OpenHoverMenu(ModelSelectorPart.Model,candidate);

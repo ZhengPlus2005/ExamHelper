@@ -8,7 +8,7 @@
   <TextBlock Text="{Binding VerificationSummary}" FontWeight="SemiBold" Margin="0,0,0,12"/>
   <TabControl x:Name="SettingsTabs" Grid.Row="1">
    <TabItem Header="AI 服务"><Grid Margin="14"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-    <WrapPanel Margin="0,0,0,12"><Button Content="＋ 添加配置" Click="AddProfileClick"/><Button Content="启用选中配置" Click="ActivateProfileClick" IsEnabled="{Binding HasSelectedAiProfile}"/><Button Content="删除" Click="DeleteProfileClick" IsEnabled="{Binding HasSelectedAiProfile}"/></WrapPanel>
+    <WrapPanel Margin="0,0,0,12"><Button Content="＋ 添加配置" Click="AddProfileClick"/><Button Content="设为考试默认配置" Click="ActivateProfileClick" IsEnabled="{Binding HasSelectedAiProfile}"/><Button Content="删除" Click="DeleteProfileClick" IsEnabled="{Binding HasSelectedAiProfile}"/></WrapPanel>
     <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
      <ListBox x:Name="ProfilesList" ItemsSource="{Binding AiProfiles}" SelectedItem="{Binding SelectedAiProfile,Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
       <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="5,9"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="{Binding Status}" Foreground="#4A6B5A" FontSize="11" Margin="0,5,0,0"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
@@ -19,20 +19,18 @@
       <TextBlock Text="API 密钥（仅为当前 Windows 用户加密保存）"/><PasswordBox x:Name="AiKey" PasswordChanged="AiPasswordChanged"/>
       <WrapPanel><Button Content="拉取模型" Click="FetchModelsClick"/><Button Content="加入勾选模型" Click="AddDiscoveredModelsClick"/></WrapPanel>
 <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto"><ItemsControl ItemsSource="{Binding SelectedAiProfile.DiscoveredModels}"><ItemsControl.ItemTemplate><DataTemplate><CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Margin="4"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
-<TextBlock Text="模型（每项独立测试）"/>
-<ComboBox ItemsSource="{Binding SelectedAiProfile.Models}" SelectedItem="{Binding SelectedAiProfile.SelectedModel}" DisplayMemberPath="Name" Margin="0,4,0,8"/>
-<TextBlock Text="添加模型 ID"/><TextBox Text="{Binding SelectedAiProfile.NewModelId,UpdateSourceTrigger=PropertyChanged}"/>
-<WrapPanel><Button Content="添加模型" Click="AddModelClick"/><Button Content="删除模型" Click="DeleteModelClick"/><Button Content="设为默认" Click="DefaultModelClick"/></WrapPanel>
-<TextBlock Text="真实模型 ID"/><TextBox Text="{Binding SelectedAiProfile.SelectedModel.Name,UpdateSourceTrigger=PropertyChanged}"/>
-<TextBlock Text="默认模型"/><ComboBox ItemsSource="{Binding SelectedAiProfile.Models}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding SelectedAiProfile.DefaultModelId}" Margin="0,4,0,12"/>
-<TextBlock Text="默认思考设置"/><ComboBox ItemsSource="{Binding SelectedAiProfile.SelectedModel.ThinkingOptions}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.DefaultThinking}" Margin="0,4,0,12"/>
+<TextBlock Text="模型"/>
+<ComboBox x:Name="ModelPicker" IsEditable="True" IsTextSearchEnabled="False" ItemsSource="{Binding SelectedAiProfile.Models}" SelectedItem="{Binding SelectedAiProfile.SelectedModel}" DisplayMemberPath="Name" Margin="0,4,0,8"/>
+<WrapPanel><Button Content="添加模型" Click="AddModelClick"/><Button Content="删除模型" Click="DeleteModelClick"/></WrapPanel>
+<TextBlock Text="考试默认模型"/><ComboBox ItemsSource="{Binding SelectedAiProfile.Models}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding SelectedAiProfile.DefaultModelId}" Margin="0,4,0,12"/>
+<TextBlock Text="选中模型的默认思考深度"/><ComboBox ItemsSource="{Binding SelectedAiProfile.SelectedModel.ThinkingOptions}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.DefaultThinking}" Margin="0,4,0,12"/>
 <CheckBox Content="手动指定思考能力（仅在了解接口协议时填写）" IsChecked="{Binding SelectedAiProfile.SelectedModel.ManualCapability}"/>
 <TextBlock Text="支持类型"/><ComboBox ItemsSource="{Binding ThinkingControls}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.Control}"/>
 <TextBlock Text="请求方式"/><ComboBox ItemsSource="{Binding ThinkingFormats}" SelectedItem="{Binding SelectedAiProfile.SelectedModel.WireFormat}"/>
 <TextBlock Text="合法强度（逗号分隔，如 low,high,max）"/><TextBox Text="{Binding SelectedAiProfile.SelectedModel.Levels,UpdateSourceTrigger=PropertyChanged}"/>
       <TextBlock Text="{Binding SelectedAiProfile.Status}" Margin="0,8"/>
       <WrapPanel><Button Content="文字测试" Click="TextTestClick"/><Button Content="图片测试" Click="ImageTestClick"/></WrapPanel>
-      <TextBlock Text="测试仅针对选中项，不会自动启用。每项图片资格独立保存；新增、编辑、启用或删除后请保存并返回。" TextWrapping="Wrap" Foreground="#526174" Margin="0,12"/>
+      <TextBlock Text="文字测试和图片测试仅用于检查选中模型的服务状态，不限制聊天。考试默认配置、模型和思考深度在保存后生效。" TextWrapping="Wrap" Foreground="#526174" Margin="0,12"/>
      </StackPanel></ScrollViewer>
     </Grid>
    </Grid></TabItem>

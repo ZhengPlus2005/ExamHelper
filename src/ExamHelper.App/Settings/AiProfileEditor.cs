@@ -28,7 +28,14 @@ public sealed class AiProfileEditor : ObservableObject
     public string? VerifiedFingerprint { get => SelectedModel?.VerifiedFingerprint; set { if(SelectedModel is { } m) m.VerifiedFingerprint = value; Changed(); } }
     public bool IsVerified { get { try { return _verification.IsAiVerified(TestSettings()); } catch { return false; } } }
     public bool IsTextVerified { get { try { var s = TestSettings(); return s.Ai.SecretFingerprint.Length > 0 && SelectedModel?.TextVerifiedFingerprint == _verification.AiFingerprint(s); } catch { return false; } } }
-    public string Status => (IsActive ? "启用 · " : "") + (IsTextVerified ? "文字已验证" : "文字未验证") + " · " + (IsVerified ? "图片已验证" : "图片未验证");
+    public string Status
+    {
+        get
+        {
+            var readiness=ProfileCompleteness.Evaluate(BuildProfile());
+            return (IsActive ? "考试默认 · " : "")+(readiness.Complete ? "配置完整" : "配置不完整："+readiness.Reason);
+        }
+    }
     public AiProfileEditor(AiServiceProfile profile,string key,ServiceVerification verification)
     {
         Id = profile.Id; _secretId = profile.Settings.SecretId; _name = profile.Name; _template = profile.Settings; _verification = verification;

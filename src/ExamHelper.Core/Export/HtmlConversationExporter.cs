@@ -14,11 +14,12 @@ public sealed class HtmlConversationExporter(IImageStore images,IMarkdownHtmlRen
         var title=WebUtility.HtmlEncode(ConversationTitle.Get(snapshot));
         var output=new StringBuilder("<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\"><title>");
         output.Append(title).Append("</title><style>").Append(Styles).Append("</style></head><body><main><h1>").Append(title).Append("</h1>");
+        output.Append("<p class=\"conversation-time\">最后消息：").Append(DisplayTime.Format(ConversationChronology.SortAt(snapshot))).Append("</p>");
         foreach(var message in messages)
         {
             ct.ThrowIfCancellationRequested();
             var status=message.Status switch { MessageStatus.Pending => "部分回答",MessageStatus.Failed => "失败",MessageStatus.Stopped => "已停止",_ => "" };
-            output.Append("<article class=\"").Append(message.Role==MessageRole.User ? "user" : "assistant").Append("\"><header><b>").Append(message.Role==MessageRole.User ? "我" : "AI").Append("</b> <time datetime=\"").Append(message.CreatedAt.ToString("O")).Append("\">").Append(DisplayTime.Format(message.CreatedAt,"yyyy-MM-dd HH:mm:ss zzz")).Append("</time> ").Append(status);
+            output.Append("<article class=\"").Append(message.Role==MessageRole.User ? "user" : "assistant").Append("\"><header><b>").Append(message.Role==MessageRole.User ? "我" : "AI").Append("</b> <time datetime=\"").Append(DisplayTime.ToUtc8(message.CreatedAt).ToString("O")).Append("\">").Append(DisplayTime.Format(message.CreatedAt)).Append("</time> ").Append(status);
             if(message.Timing is { } timing) output.Append(" <span class=\"timing\">").Append(timing.IsRunning ? "已用 " + Math.Floor(timing.Elapsed.TotalSeconds).ToString(CultureInfo.InvariantCulture) + " 秒" : "用时 " + timing.Elapsed.TotalSeconds.ToString("F1",CultureInfo.InvariantCulture) + " 秒").Append("</span>");
             output.Append("</header>");
             foreach(var image in message.Images) output.Append("<img class=\"attachment\" alt=\"对话图片\" src=\"data:image/png;base64,").Append(Convert.ToBase64String(bytes[image.Id])).Append("\">");

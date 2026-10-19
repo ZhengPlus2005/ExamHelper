@@ -42,7 +42,7 @@ public class HtmlConversationExporterTests
         var id=Guid.NewGuid(); var t=DateTimeOffset.Parse("2026-10-18T00:00:00Z");
         var state=new SessionSnapshot { Messages=[new() { RequestId=id,Role=MessageRole.Assistant,Text="answer",CreatedAt=t,Timing=new(id,1,t,TimeSpan.FromSeconds(12.4),running) }] };
         var html=await new HtmlConversationExporter(new Images(),new MarkdownHtmlRenderer()).BuildAsync(state,default);
-        Assert.Contains(expected,html); Assert.Contains("2026-10-18 08:00:00 +08:00",html); Assert.DoesNotContain("<script",html,StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(expected,html); Assert.Contains("2026-10-18 08:00:00</time>",html);Assert.Contains("2026-10-18T08:00:00.0000000+08:00",html); Assert.DoesNotContain("<script",html,StringComparison.OrdinalIgnoreCase);
         Assert.Equal("answer",state.Messages[0].Text);
     }
     private sealed class Images : IImageStore

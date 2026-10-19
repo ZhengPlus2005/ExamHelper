@@ -17,7 +17,7 @@ namespace ExamHelper.Windows.Tests.App;
 public sealed class FinalReview04Tests
 {
     [Theory] [InlineData(false)] [InlineData(true)]
-    public async Task ChoosingUnqualifiedDefaultInvalidatesOldRuntimeUntilExplicitModelChoice(bool generating)
+    public async Task ChoosingUntestedDefaultChangesRuntimeWithoutChangingInFlightRequest(bool generating)
     {
         await StaTest.RunAsync(() =>
         {
@@ -41,18 +41,19 @@ public sealed class FinalReview04Tests
                 var profile=MarkdownViewTests.Nodes(selector).OfType<Button>().Single(b=>b.Tag is AiServiceProfile p && p.Id==pb.Id);
                 DwellBehavior.GetCommand(profile)!.Execute(null);
                 Assert.Equal(pb.Id,runtime.State.Selection!.ProfileId);
-                Assert.False(runtime.CanExecute(AppCommand.Send));
+                Assert.Equal(!generating,runtime.CanExecute(AppCommand.Send));Assert.Equal(blocked.Id,runtime.State.Selection.ModelId);
                 Assert.False(runtime.CanExecute(AppCommand.CaptureAndSend));
                 Assert.Equal(before,runtime.State.Draft);
                 selector.Configure(rig.Settings,runtime.State.Selection,true,rig.Verification);
-                Assert.True(selector.IsMenuOpen);
+                Assert.False(selector.IsMenuOpen);
                 if(active is not null)
                 {
                     Assert.Equal(pa.Models.Value[0].Name,active.SettingsUsed!.Model);
                     active.Text("received before failure");active.Fail(new IOException("owned failure"));runtime.WaitForIdleAsync(default).GetAwaiter().GetResult();
                     Assert.Equal("received before failure",runtime.State.Messages[^1].Text);
-                    Assert.False(runtime.CanExecute(AppCommand.RetryRequest));
+                    Assert.True(runtime.CanExecute(AppCommand.RetryRequest));
                 }
+                selector.OpenHoverMenu(ModelSelectorPart.Model);window.UpdateLayout();StaTest.Pump();
                 var model=MarkdownViewTests.Nodes(selector).OfType<Button>().Single(b=>b.Tag is ModelChoice m && m.Model.Id==allowed.Id);
                 DwellBehavior.GetCommand(model)!.Execute(null);
                 Assert.Equal(allowed.Id,runtime.State.Selection.ModelId);

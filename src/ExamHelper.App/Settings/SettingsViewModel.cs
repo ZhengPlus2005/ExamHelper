@@ -101,7 +101,7 @@ public sealed partial class SettingsViewModel : ObservableObject,IAsyncDisposabl
     {
         if(SelectedAiProfile is not { } profile) return;
         _activeAiProfileId = profile.Id; UpdateActiveMarkers();
-        Status = "已选择启用此配置，保存并返回后生效。"; Notify();
+        Status = "已设为考试默认配置，保存并返回后生效。"; Notify();
     }
     private AiProfileEditor AddEditor(AiServiceProfile profile,string key)
     {

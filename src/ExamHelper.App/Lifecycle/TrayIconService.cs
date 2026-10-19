@@ -15,7 +15,7 @@ public sealed class TrayIconService : ITrayIconService
     public event Action? ExitRequested;
     public TrayIconService()
     {
-        _iconStream=System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/ExamHelper.App;component/Assets/app-icon.ico")).Stream;
+        _iconStream=System.Windows.Application.GetResourceStream(new Uri("/ExamHelper.App;component/Assets/app-icon.ico",UriKind.Relative)).Stream;
         _icon=new Drawing.Icon(_iconStream,Forms.SystemInformation.SmallIconSize);
         _menu=new Forms.ContextMenuStrip(); var exit=new Forms.ToolStripMenuItem("结束进程"); exit.Click+=(_,_) => ExitRequested?.Invoke(); _menu.Items.Add(exit);
         _notify=new Forms.NotifyIcon { Icon=_icon,Text="ExamHelper · 单击显示主页",ContextMenuStrip=_menu,Visible=true };

@@ -7,12 +7,12 @@ namespace ExamHelper.Core.Tests.Settings;
 public sealed class AuxiliaryQualification04Tests
 {
     [Fact]
-    public void ImageProofAloneDoesNotQualifyAuxiliaryModel()
+    public void ImageProofAloneDoesNotRestrictModelResolution()
     {
         var proof = new ServiceVerification(new byte[32]); var settings = TestSettings.Configured();
         settings = proof.RecordAiSuccess(settings,proof.AiFingerprint(settings));
-        Assert.Throws<InvalidOperationException>(() => ModelCatalog.Resolve(settings,ModelCatalog.Default(settings),true,proof));
-        Assert.Equal("model-a",ModelCatalog.Resolve(settings,ModelCatalog.Default(settings),false,proof).Model);
+        Assert.Equal("model-a",ModelCatalog.Resolve(settings,ModelCatalog.Default(settings)).Model);
+        Assert.Equal("model-a",ModelCatalog.Resolve(settings,ModelCatalog.Default(settings)).Model);
     }
     [Theory]
     [InlineData(false,false,false)]
@@ -63,7 +63,7 @@ public sealed class AuxiliaryQualification04Tests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task AuxiliaryCommandsAreFailClosedWithoutProof(bool hasVerifier)
+    public async Task AuxiliaryChatIgnoresProofWhileRecordingStillRequiresItsOwnTest(bool hasVerifier)
     {
         var seed = new ServiceVerification(new byte[32]);
         var settings = hasVerifier ? TestSettings.Configured() : TestSettings.Qualified(seed); var proof = hasVerifier ? seed : null;
@@ -71,11 +71,11 @@ public sealed class AuxiliaryQualification04Tests
         await using var coordinator = new SessionCoordinator(stub,stub,stub,stub,stub,() => settings,store,new ManualTimeProvider(),verification: proof);
         await coordinator.StartNewAsync(default);
         await coordinator.AppendSpeechResultAsync(new(coordinator.State.Id,coordinator.State.SpeechGeneration,Guid.NewGuid(),"question"),default);
-        Assert.False(coordinator.CanExecute(AppCommand.Send));
+        Assert.True(coordinator.CanExecute(AppCommand.Send));
         Assert.False(coordinator.CanExecute(AppCommand.ToggleRecording));
         Assert.True(coordinator.CanExecute(AppCommand.CaptureToDraft));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.ExecuteAsync(AppCommand.Send,default));
-        Assert.Equal("question",coordinator.State.Draft.Text);
-        Assert.Empty(coordinator.State.Messages);
+        await coordinator.ExecuteAsync(AppCommand.Send,default);await coordinator.WaitForIdleAsync(default);
+        Assert.Equal("question",coordinator.State.Messages[0].Text);
+        Assert.Equal(MessageStatus.Failed,coordinator.State.Messages[1].Status);
     }
 }
