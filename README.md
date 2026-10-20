@@ -10,7 +10,7 @@
   简体中文 | <a href="README.en.md">English</a>
 </p>
 
-https://github.com/user-attachments/assets/0c1fb199-a133-4bd8-b4d8-205c985e5200
+https://github.com/user-attachments/assets/f0b8d635-8a5b-47c4-84c1-88b00ce28890
 
 ExamHelper 是一款用于辅助线上笔试的 Windows 桌面应用程序。它会在屏幕上显示一个屏幕共享工具捕获不到的小窗，用于与 AI 对话获得答案。您可以语音提问或截屏，AI 会实时回答。笔试结束后可以查看历史聊天记录用于复盘。它是免费开源的，您需要自行准备 API。它适用于学习、题目练习、代码讨论，以及规则明确允许使用外部工具的辅助场景。
 

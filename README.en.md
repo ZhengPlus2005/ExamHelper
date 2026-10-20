@@ -10,7 +10,7 @@
   <a href="README.md">简体中文</a> | English
 </p>
 
-https://github.com/user-attachments/assets/0c1fb199-a133-4bd8-b4d8-205c985e5200
+https://github.com/user-attachments/assets/f0b8d635-8a5b-47c4-84c1-88b00ce28890
 
 ExamHelper is a Windows desktop application for assistance with online written assessments. It displays a small overlay that screen-sharing tools cannot capture, letting you chat with AI to get answers. Ask questions by voice or take a screenshot, and AI responds in real time. After a practice assessment, review the conversation history to reflect on your work. It is free and open source; you need to provide your own API access. It is intended for learning, practice, code discussions, and assistance that is explicitly permitted in the relevant setting.
 
